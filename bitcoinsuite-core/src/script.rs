@@ -73,6 +73,16 @@ impl Script {
         }
     }
 
+    pub fn p2sh(hash: &ShaRmd160) -> Self {
+        let mut bytes = BytesMut::new();
+        bytes.put_slice(&[0xa9, 0x14]);
+        bytes.put_slice(hash.as_slice());
+        bytes.put_slice(&[0x87]);
+        Script {
+            bytecode: bytes.freeze(),
+        }
+    }
+
     pub fn bytecode(&self) -> &Bytes {
         &self.bytecode
     }

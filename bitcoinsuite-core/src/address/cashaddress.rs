@@ -6,6 +6,7 @@ use thiserror::Error;
 use crate::{AddressType, Hashed, Script, ShaRmd160};
 
 pub const BITCOINCASH: &str = "bitcoincash";
+pub const BCHREG: &str = "bchreg";
 pub const SIMPLELEDGER: &str = "simpleledger";
 pub const ECASH: &str = "ecash";
 pub const ETOKEN: &str = "etoken";
@@ -106,6 +107,13 @@ impl<'a> CashAddress<'a> {
             hash: self.hash,
             cash_addr: self.cash_addr.into_owned().into(),
             prefix: self.prefix.into_owned().into(),
+        }
+    }
+
+    pub fn to_script(&self) -> Script {
+        match self.addr_type {
+            AddressType::P2PKH => Script::p2pkh(self.hash()),
+            AddressType::P2SH => Script::p2sh(self.hash()),
         }
     }
 }
@@ -530,6 +538,29 @@ mod tests {
         );
         assert_eq!(new_addr.hash(), &ShaRmd160::new([0; 20]));
         assert_eq!(new_addr.prefix(), "prelude");
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_script_p2sh() -> Result<(), CashAddressError> {
+        let addr: CashAddress = "bitcoincash:qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqfnhks603".parse()?;
+        assert_eq!(
+            addr.to_script().bytecode().as_ref(),
+            &[
+                0x76, 0xa9, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x88,
+                0xac
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_script_p2pkh() -> Result<(), CashAddressError> {
+        let addr: CashAddress = "bitcoincash:pqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq7k2ehe5v".parse()?;
+        assert_eq!(
+            addr.to_script().bytecode().as_ref(),
+            &[0xa9, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x87]
+        );
         Ok(())
     }
 }
