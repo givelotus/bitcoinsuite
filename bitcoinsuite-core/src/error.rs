@@ -13,6 +13,8 @@ pub enum BitcoinSuiteError {
     InconsistentOpPush(u8),
     #[error("Parsing number failed")]
     NumberParseError,
+    #[error("Unknown network: {0}")]
+    UnknownNetwork(String),
     #[error("From hex error: {0}")]
     Hex(#[from] FromHexError),
 }

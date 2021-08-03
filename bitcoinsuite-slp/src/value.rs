@@ -1,8 +1,9 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use bitcoinsuite_core::{Network, Script};
+use serde::{Deserialize, Serialize};
 
-use crate::TokenId;
+use crate::{BitcoinSuiteSlpError, TokenId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ValueCoin {
@@ -14,6 +15,13 @@ pub struct ValueCoin {
 pub enum CoinProtocol {
     Satoshis,
     Slp(TokenId),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum CoinProtocolType {
+    Satoshis,
+    Slp,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -53,5 +61,48 @@ impl ValueCoin {
 impl Display for ValueOutput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} to {}", self.value, self.script.hex())
+    }
+}
+
+impl Display for CoinProtocolType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format!("{:?}", self).to_ascii_lowercase())
+    }
+}
+
+impl FromStr for CoinProtocolType {
+    type Err = BitcoinSuiteSlpError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "satoshis" => Ok(CoinProtocolType::Satoshis),
+            "slp" => Ok(CoinProtocolType::Slp),
+            _ => Err(BitcoinSuiteSlpError::UnknownCoinProtocol(s.to_string())),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{BitcoinSuiteSlpError, CoinProtocolType};
+
+    #[test]
+    fn test_display() {
+        assert_eq!(CoinProtocolType::Satoshis.to_string(), "satoshis");
+        assert_eq!(CoinProtocolType::Slp.to_string(), "slp");
+    }
+
+    #[test]
+    fn test_parse() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            "satoshis".parse::<CoinProtocolType>()?,
+            CoinProtocolType::Satoshis
+        );
+        assert_eq!("slp".parse::<CoinProtocolType>()?, CoinProtocolType::Slp);
+        match "Satoshis".parse::<CoinProtocolType>() {
+            Err(BitcoinSuiteSlpError::UnknownCoinProtocol(s)) => assert_eq!(s, "Satoshis"),
+            _ => panic!("Unexpected parse result"),
+        }
+        Ok(())
     }
 }

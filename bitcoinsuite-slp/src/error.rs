@@ -50,3 +50,9 @@ pub enum SlpError {
     #[error("Bytes error: {0}")]
     BytesError(#[from] BytesError),
 }
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum BitcoinSuiteSlpError {
+    #[error("Unknown coin protocol: {0}")]
+    UnknownCoinProtocol(String),
+}

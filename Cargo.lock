@@ -132,6 +132,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bitcoinsuite-core",
+ "serde",
  "thiserror",
 ]
 
