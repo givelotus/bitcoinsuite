@@ -98,3 +98,9 @@ impl<const N: usize> From<[u8; N]> for Bytes {
         Bytes::from_slice(&arr)
     }
 }
+
+impl<'a> From<&'a [u8]> for Bytes {
+    fn from(slice: &'a [u8]) -> Self {
+        Bytes::from_bytes(slice.to_vec())
+    }
+}
