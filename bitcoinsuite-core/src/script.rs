@@ -1,6 +1,7 @@
 use crate::{
-    bytes::Bytes, BitcoinCode, BitcoinSuiteError, BytesError, BytesMut, Hashed, Op, Result,
-    ShaRmd160,
+    bytes::Bytes,
+    ecc::{PubKey, PUBKEY_LENGTH},
+    BitcoinCode, BitcoinSuiteError, BytesError, BytesMut, Hashed, Op, Result, ShaRmd160,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
@@ -69,8 +70,19 @@ impl Script {
     pub fn p2pkh(hash: &ShaRmd160) -> Self {
         let mut bytes = BytesMut::new();
         bytes.put_slice(&[0x76, 0xa9, 0x14]);
-        bytes.put_slice(hash.as_slice());
+        bytes.put_byte_array(hash.byte_array().clone());
         bytes.put_slice(&[0x88, 0xac]);
+        Script {
+            bytecode: bytes.freeze(),
+        }
+    }
+
+    pub fn p2pkh_spend(pubkey: &PubKey, sig: Bytes) -> Self {
+        let mut bytes = BytesMut::new();
+        bytes.put_slice(&[sig.len() as u8]);
+        bytes.put_bytes(sig);
+        bytes.put_slice(&[PUBKEY_LENGTH as u8]);
+        bytes.put_slice(pubkey.as_slice());
         Script {
             bytecode: bytes.freeze(),
         }
@@ -79,7 +91,7 @@ impl Script {
     pub fn p2sh(hash: &ShaRmd160) -> Self {
         let mut bytes = BytesMut::new();
         bytes.put_slice(&[0xa9, 0x14]);
-        bytes.put_slice(hash.as_slice());
+        bytes.put_byte_array(hash.byte_array().clone());
         bytes.put_slice(&[0x87]);
         Script {
             bytecode: bytes.freeze(),
@@ -118,6 +130,10 @@ impl Script {
         Script {
             bytecode: bytes.freeze(),
         }
+    }
+
+    pub fn is_p2sh(&self) -> bool {
+        matches!(self.bytecode.as_ref(), [0xa9, 0x14, hash @ .., 0x87] if hash.len() == 20)
     }
 
     pub fn is_opreturn(&self) -> bool {
@@ -159,7 +175,7 @@ impl Iterator for ScriptOpIter {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BitcoinSuiteError, Script};
+    use crate::{ecc::PubKey, BitcoinSuiteError, Script, ShaRmd160};
 
     #[test]
     fn test_cut_out_codesep_without() -> Result<(), Box<dyn std::error::Error>> {
@@ -200,6 +216,87 @@ mod tests {
             Err(BitcoinSuiteError::CodesepNotFound(5)) => {}
             other => panic!("Unexpected result: {:?}", other),
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_p2pkh() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::p2pkh(&ShaRmd160::new([0; 20])),
+            Script::from_slice(&[
+                0x76, 0xa9, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x88,
+                0xac
+            ]),
+        );
+        assert_eq!(
+            Script::p2pkh(&ShaRmd160::new([0xff; 20])),
+            Script::from_slice(&[
+                0x76, 0xa9, 0x14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x88, 0xac
+            ]),
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_p2pkh_spend() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::p2pkh_spend(&PubKey::new_unchecked([2; 33]), [7; 64].into()),
+            Script::from_slice(&[
+                0x40, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+                0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+                0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+                0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+                0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x21, 0x02, 0x02, 0x02, 0x02,
+                0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+                0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+                0x02
+            ]),
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_p2sh() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::p2sh(&ShaRmd160::new([0; 20])),
+            Script::from_slice(&[
+                0xa9, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x87,
+            ]),
+        );
+        assert_eq!(
+            Script::p2sh(&ShaRmd160::new([0xff; 20])),
+            Script::from_slice(&[
+                0xa9, 0x14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x87,
+            ]),
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_is_p2sh() -> Result<(), Box<dyn std::error::Error>> {
+        assert!(Script::from_slice(&[
+            0xa9, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x87,
+        ])
+        .is_p2sh());
+        assert!(Script::from_slice(&[
+            0xa9, 0x14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x87,
+        ])
+        .is_p2sh());
+        assert!(!Script::from_slice(&[
+            0xa9, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x87,
+        ])
+        .is_p2sh());
+        assert!(!Script::from_slice(&[
+            0xa9, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x88,
+        ])
+        .is_p2sh());
+        assert!(!Script::from_slice(&[
+            0xa9, 0x15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x87,
+        ])
+        .is_p2sh());
         Ok(())
     }
 }

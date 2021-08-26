@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use crate::Bytes;
+use crate::{ByteArray, Bytes};
 
 #[derive(Debug, Clone, Default)]
 pub struct BytesMut {
@@ -34,6 +34,14 @@ impl BytesMut {
 
     pub fn put_bytes_mut(&mut self, data: impl Into<BytesMut>) {
         self.data.unsplit(data.into().data);
+    }
+
+    pub fn put_bytes(&mut self, data: Bytes) {
+        self.data.extend_from_slice(&data);
+    }
+
+    pub fn put_byte_array<const N: usize>(&mut self, byte_array: ByteArray<N>) {
+        self.data.extend_from_slice(&byte_array);
     }
 
     pub fn put_slice(&mut self, slice: &[u8]) {
