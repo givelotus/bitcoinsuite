@@ -1,4 +1,7 @@
-use crate::{BitcoinCode, Bytes, BytesMut, Hashed, Result, Script, SequenceNo, Sha256d, SignData};
+use crate::{
+    get_merkle_root_and_height, BitcoinCode, Bytes, BytesMut, Hashed, MerkleMode, Result, Script,
+    SequenceNo, Sha256d, SignData,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UnhashedTx {
@@ -54,6 +57,40 @@ impl UnhashedTx {
             raw,
         }
     }
+}
+
+pub fn lotus_txid(tx: &UnhashedTx) -> Sha256d {
+    let mut data = BytesMut::new();
+    tx.version.ser_to(&mut data);
+    let (inputs_hash, inputs_height) = lotus_tx_inputs_merkle_root(&tx.inputs);
+    inputs_hash.ser_to(&mut data);
+    (inputs_height as u8).ser_to(&mut data);
+    let (outputs_hash, outputs_height) = lotus_tx_outputs_merkle_root(&tx.outputs);
+    outputs_hash.ser_to(&mut data);
+    (outputs_height as u8).ser_to(&mut data);
+    tx.lock_time.ser_to(&mut data);
+    Sha256d::digest(data.freeze())
+}
+
+fn lotus_tx_inputs_merkle_root(inputs: &[TxInput]) -> (Sha256d, usize) {
+    let leaves = inputs
+        .iter()
+        .map(|input| {
+            let mut data = BytesMut::new();
+            input.prev_out.ser_to(&mut data);
+            input.sequence.ser_to(&mut data);
+            Sha256d::digest(data.freeze())
+        })
+        .collect::<Vec<_>>();
+    get_merkle_root_and_height(leaves, MerkleMode::Lotus)
+}
+
+fn lotus_tx_outputs_merkle_root(outputs: &[TxOutput]) -> (Sha256d, usize) {
+    let leaves = outputs
+        .iter()
+        .map(|output| Sha256d::digest(output.ser()))
+        .collect::<Vec<_>>();
+    get_merkle_root_and_height(leaves, MerkleMode::Lotus)
 }
 
 impl Tx {

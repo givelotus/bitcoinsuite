@@ -6,11 +6,20 @@ pub enum MerkleMode {
     Lotus,
 }
 
-pub fn get_merkle_root<H: Hashed + Clone>(mut leaves: Vec<H>, mode: MerkleMode) -> H {
+pub fn get_merkle_root<H: Hashed + Clone>(leaves: Vec<H>, mode: MerkleMode) -> H {
+    get_merkle_root_and_height(leaves, mode).0
+}
+
+pub fn get_merkle_root_and_height<H: Hashed + Clone>(
+    mut leaves: Vec<H>,
+    mode: MerkleMode,
+) -> (H, usize) {
     if leaves.is_empty() {
-        return H::from_array(H::Array::default());
+        return (H::from_array(H::Array::default()), 0);
     }
+    let mut height = 1;
     while leaves.len() > 1 {
+        height += 1;
         if leaves.len() % 2 == 1 {
             match mode {
                 // repeat last hash to make num leaves even on Bitcoin
@@ -28,5 +37,5 @@ pub fn get_merkle_root<H: Hashed + Clone>(mut leaves: Vec<H>, mode: MerkleMode) 
         }
         leaves = next_layer;
     }
-    leaves.remove(0)
+    (leaves.remove(0), height)
 }
