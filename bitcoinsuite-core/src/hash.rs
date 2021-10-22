@@ -44,6 +44,10 @@ pub trait Hashed: Display + Debug + Eq + PartialEq + AsRef<[u8]> + Hash + Sized 
         Self::from_slice_optional(&hash).unwrap_or_else(|| Self::from_array(Default::default()))
     }
 
+    fn from_hex(hex: &str) -> Result<Self> {
+        Self::from_slice(&hex::decode(hex)?)
+    }
+
     fn from_hex_be(hex: &str) -> Result<Self> {
         Self::from_slice_be(&hex::decode(hex)?)
     }

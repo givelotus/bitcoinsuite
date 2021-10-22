@@ -9,6 +9,16 @@ pub struct Script {
     bytecode: Bytes,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ScriptVariant {
+    P2PK(PubKey),
+    P2PKLegacy([u8; 65]),
+    P2PKH(ShaRmd160),
+    P2SH(ShaRmd160),
+    P2TR(PubKey, Option<[u8; 32]>),
+    Other(Script),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
 pub struct ScriptOpIter {
     remaining_bytecode: Bytes,
@@ -159,6 +169,48 @@ impl Script {
         }
         Ok(self.clone())
     }
+
+    pub fn parse_variant(&self) -> ScriptVariant {
+        match self.bytecode.as_ref() {
+            [0x21, pubkey @ .., 0xac] if pubkey.len() == PUBKEY_LENGTH => {
+                ScriptVariant::P2PK(PubKey::new_unchecked(pubkey.try_into().unwrap()))
+            }
+            [0x41, pubkey @ .., 0xac] if pubkey.len() == 65 => {
+                ScriptVariant::P2PKLegacy(pubkey.try_into().unwrap())
+            }
+            [0x76, 0xa9, 0x14, hash @ .., 0x88, 0xac] if hash.len() == 20 => {
+                ScriptVariant::P2PKH(ShaRmd160::from_slice(hash).unwrap())
+            }
+            [0xa9, 0x14, hash @ .., 0x87] if hash.len() == 20 => {
+                ScriptVariant::P2SH(ShaRmd160::from_slice(hash).unwrap())
+            }
+            [0x62, 0x51, 0x21, rest @ ..] if rest.len() >= PUBKEY_LENGTH => {
+                let commitment = &rest[..PUBKEY_LENGTH];
+                let state = match &rest[PUBKEY_LENGTH..] {
+                    [] => None,
+                    [0x20, state @ ..] if state.len() == 32 => Some(state.try_into().unwrap()),
+                    _ => return ScriptVariant::Other(self.clone()),
+                };
+                ScriptVariant::P2TR(PubKey::new_unchecked(commitment.try_into().unwrap()), state)
+            }
+            _ => ScriptVariant::Other(self.clone()),
+        }
+    }
+
+    pub fn parse_p2pkh_spend(&self) -> Option<(Bytes, Bytes)> {
+        let mut ops = self.ops();
+        let sig_op = ops.next()?.ok()?;
+        let sig = match sig_op {
+            Op::Push(_, data) => data,
+            _ => return None,
+        };
+        let pubkey_op = ops.next()?.ok()?;
+        let pubkey = match pubkey_op {
+            Op::Push(_, data) if data.len() == PUBKEY_LENGTH => data,
+            _ => return None,
+        };
+        Some((pubkey, sig))
+    }
 }
 
 impl Iterator for ScriptOpIter {
@@ -175,7 +227,9 @@ impl Iterator for ScriptOpIter {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ecc::PubKey, BitcoinSuiteError, Script, ShaRmd160};
+    use hex_literal::hex;
+
+    use crate::{ecc::PubKey, BitcoinSuiteError, Hashed, Script, ScriptVariant, ShaRmd160};
 
     #[test]
     fn test_cut_out_codesep_without() -> Result<(), Box<dyn std::error::Error>> {
@@ -297,6 +351,255 @@ mod tests {
             0xa9, 0x15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x87,
         ])
         .is_p2sh());
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_script_variant_p2pk() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::from_hex(
+                "21010203040506070809101112131415161718192021222324252627282930313233ac"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2PK(PubKey::new_unchecked(hex!(
+                "010203040506070809101112131415161718192021222324252627282930313233"
+            ))),
+        );
+        assert_eq!(
+            Script::from_hex(
+                "21000000000000000000000000000000000000000000000000000000000000000000ac"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2PK(PubKey::new_unchecked([0; 33])),
+        );
+        for script_hex in [
+            // missing opcodes
+            "000000000000000000000000000000000000000000000000000000000000000000ac",
+            "21000000000000000000000000000000000000000000000000000000000000000000",
+            // wrong opcodes
+            "20000000000000000000000000000000000000000000000000000000000000000000ac",
+            "21000000000000000000000000000000000000000000000000000000000000000000ab",
+            // wrong push size
+            "200000000000000000000000000000000000000000000000000000000000000000ac",
+        ] {
+            assert_eq!(
+                Script::from_hex(script_hex)?.parse_variant(),
+                ScriptVariant::Other(Script::from_hex(script_hex)?),
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_script_variant_p2pk_legacy() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::from_hex(
+                "410102030405060708091011121314151617181920212223242526272829303132\
+                 333435363738394041424344454647484950515253545556575859606162636465ac"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2PKLegacy(
+                hex::decode(
+                    "0102030405060708091011121314151617181920212223242526272829303132\
+                     333435363738394041424344454647484950515253545556575859606162636465"
+                )?
+                .try_into()
+                .unwrap()
+            ),
+        );
+        assert_eq!(
+            Script::from_hex(
+                "410000000000000000000000000000000000000000000000000000000000000000\
+                 000000000000000000000000000000000000000000000000000000000000000000ac"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2PKLegacy([0; 65]),
+        );
+        for script_hex in [
+            // missing opcodes
+            "0000000000000000000000000000000000000000000000000000000000000000\
+             000000000000000000000000000000000000000000000000000000000000000000ac",
+            "410000000000000000000000000000000000000000000000000000000000000000\
+             000000000000000000000000000000000000000000000000000000000000000000",
+            // wrong opcodes
+            "400000000000000000000000000000000000000000000000000000000000000000\
+             000000000000000000000000000000000000000000000000000000000000000000ac",
+            "410000000000000000000000000000000000000000000000000000000000000000\
+             000000000000000000000000000000000000000000000000000000000000000000ab",
+            // wrong push size
+            "400000000000000000000000000000000000000000000000000000000000000000\
+             0000000000000000000000000000000000000000000000000000000000000000ac",
+        ] {
+            assert_eq!(
+                Script::from_hex(script_hex)?.parse_variant(),
+                ScriptVariant::Other(Script::from_hex(script_hex)?),
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_script_variant_p2pkh() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::from_hex("76a91489abcdefabbaabbaabbaabbaabbaabbaabbaabba88ac")?.parse_variant(),
+            ScriptVariant::P2PKH(ShaRmd160::from_hex(
+                "89abcdefabbaabbaabbaabbaabbaabbaabbaabba"
+            )?),
+        );
+        assert_eq!(
+            Script::from_hex("76a914000000000000000000000000000000000000000088ac")?.parse_variant(),
+            ScriptVariant::P2PKH(ShaRmd160::new([0; 20])),
+        );
+        for script_hex in [
+            // missing opcodes
+            "a914000000000000000000000000000000000000000088ac",
+            "7614000000000000000000000000000000000000000088ac",
+            "76a9000000000000000000000000000000000000000088ac",
+            "76a9140000000000000000000000000000000000000088ac",
+            "76a9140000000000000000000000000000000000000000ac",
+            "76a914000000000000000000000000000000000000000088",
+            // wrong opcodes
+            "75a914000000000000000000000000000000000000000088ac",
+            "76a814000000000000000000000000000000000000000088ac",
+            "76a915000000000000000000000000000000000000000088ac",
+            "76a914000000000000000000000000000000000000000087ac",
+            "76a914000000000000000000000000000000000000000088ab",
+            // wrong push size
+            "76a9130000000000000000000000000000000000000088ac",
+        ] {
+            assert_eq!(
+                Script::from_hex(script_hex)?.parse_variant(),
+                ScriptVariant::Other(Script::from_hex(script_hex)?),
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_script_variant_p2sh() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::from_hex("a91489abcdefabbaabbaabbaabbaabbaabbaabbaabba87")?.parse_variant(),
+            ScriptVariant::P2SH(ShaRmd160::from_hex(
+                "89abcdefabbaabbaabbaabbaabbaabbaabbaabba"
+            )?),
+        );
+        assert_eq!(
+            Script::from_hex("a914000000000000000000000000000000000000000087")?.parse_variant(),
+            ScriptVariant::P2SH(ShaRmd160::new([0; 20])),
+        );
+        for script_hex in [
+            // missing opcodes
+            "14000000000000000000000000000000000000000087",
+            "a9000000000000000000000000000000000000000087",
+            "a9140000000000000000000000000000000000000087",
+            "a9140000000000000000000000000000000000000000",
+            // wrong opcodes
+            "a814000000000000000000000000000000000000000087",
+            "a915000000000000000000000000000000000000000087",
+            "a914000000000000000000000000000000000000000088",
+            "a9130000000000000000000000000000000000000087",
+        ] {
+            assert_eq!(
+                Script::from_hex(script_hex)?.parse_variant(),
+                ScriptVariant::Other(Script::from_hex(script_hex)?),
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_script_variant_p2tr() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::from_hex(
+                "625121010203040506070809101112131415161718192021222324252627282930313233"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2TR(
+                PubKey::new_unchecked(hex!(
+                    "010203040506070809101112131415161718192021222324252627282930313233"
+                )),
+                None
+            ),
+        );
+        assert_eq!(
+            Script::from_hex(
+                "625121000000000000000000000000000000000000000000000000000000000000000000"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2TR(PubKey::new_unchecked([0; 33]), None),
+        );
+        assert_eq!(
+            Script::from_hex(
+                "625121010203040506070809101112131415161718192021222324252627282930313233\
+                 203231302928272625242322212019181716151413121110090807060504030201"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2TR(
+                PubKey::new_unchecked(hex!(
+                    "010203040506070809101112131415161718192021222324252627282930313233"
+                )),
+                Some(hex!(
+                    "3231302928272625242322212019181716151413121110090807060504030201"
+                ))
+            ),
+        );
+        assert_eq!(
+            Script::from_hex(
+                "625121000000000000000000000000000000000000000000000000000000000000000000"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2TR(PubKey::new_unchecked([0; 33]), None),
+        );
+        assert_eq!(
+            Script::from_hex(
+                "625121000000000000000000000000000000000000000000000000000000000000000000\
+                 200000000000000000000000000000000000000000000000000000000000000000"
+            )?
+            .parse_variant(),
+            ScriptVariant::P2TR(PubKey::new_unchecked([0; 33]), Some([0; 32])),
+        );
+        for script_hex in [
+            // missing opcodes
+            "5121000000000000000000000000000000000000000000000000000000000000000000",
+            "6221000000000000000000000000000000000000000000000000000000000000000000",
+            "6251000000000000000000000000000000000000000000000000000000000000000000",
+            "6251210000000000000000000000000000000000000000000000000000000000000000",
+            "5121000000000000000000000000000000000000000000000000000000000000000000\
+             200000000000000000000000000000000000000000000000000000000000000000",
+            "6221000000000000000000000000000000000000000000000000000000000000000000\
+             200000000000000000000000000000000000000000000000000000000000000000",
+            "6251000000000000000000000000000000000000000000000000000000000000000000\
+             200000000000000000000000000000000000000000000000000000000000000000",
+            "6251210000000000000000000000000000000000000000000000000000000000000000\
+             200000000000000000000000000000000000000000000000000000000000000000",
+            "625121000000000000000000000000000000000000000000000000000000000000000000\
+             0000000000000000000000000000000000000000000000000000000000000000",
+            "625121000000000000000000000000000000000000000000000000000000000000000000\
+             2000000000000000000000000000000000000000000000000000000000000000",
+            // wrong opcodes
+            "615121000000000000000000000000000000000000000000000000000000000000000000",
+            "625221000000000000000000000000000000000000000000000000000000000000000000",
+            "625120000000000000000000000000000000000000000000000000000000000000000000",
+            "645121000000000000000000000000000000000000000000000000000000000000000000\
+             200000000000000000000000000000000000000000000000000000000000000000",
+            "625221000000000000000000000000000000000000000000000000000000000000000000\
+             200000000000000000000000000000000000000000000000000000000000000000",
+            "625120000000000000000000000000000000000000000000000000000000000000000000\
+             200000000000000000000000000000000000000000000000000000000000000000",
+            "625121000000000000000000000000000000000000000000000000000000000000000000\
+             1f0000000000000000000000000000000000000000000000000000000000000000",
+            // wrong push sizes
+            "6251200000000000000000000000000000000000000000000000000000000000000000",
+            "6251200000000000000000000000000000000000000000000000000000000000000000\
+             200000000000000000000000000000000000000000000000000000000000000000",
+            "625121000000000000000000000000000000000000000000000000000000000000000000\
+             1f00000000000000000000000000000000000000000000000000000000000000",
+        ] {
+            assert_eq!(
+                Script::from_hex(script_hex)?.parse_variant(),
+                ScriptVariant::Other(Script::from_hex(script_hex)?),
+            );
+        }
         Ok(())
     }
 }
