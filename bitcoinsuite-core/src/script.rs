@@ -77,6 +77,16 @@ impl Script {
         }
     }
 
+    pub fn p2pk(pubkey: &PubKey) -> Self {
+        let mut bytes = BytesMut::new();
+        bytes.put_slice(&[0x21]);
+        bytes.put_slice(pubkey.as_slice());
+        bytes.put_slice(&[0xac]);
+        Script {
+            bytecode: bytes.freeze(),
+        }
+    }
+
     pub fn p2pkh(hash: &ShaRmd160) -> Self {
         let mut bytes = BytesMut::new();
         bytes.put_slice(&[0x76, 0xa9, 0x14]);
@@ -103,6 +113,38 @@ impl Script {
         bytes.put_slice(&[0xa9, 0x14]);
         bytes.put_byte_array(hash.byte_array().clone());
         bytes.put_slice(&[0x87]);
+        Script {
+            bytecode: bytes.freeze(),
+        }
+    }
+
+    pub fn multisig<'a>(num_signers: u8, public_keys: impl IntoIterator<Item = &'a [u8]>) -> Self {
+        assert!(num_signers != 0);
+        assert!(num_signers <= 16);
+        let mut bytes = BytesMut::new();
+        bytes.put_slice(&[0x50 + num_signers]);
+        let mut num_keys = 0;
+        for public_key in public_keys {
+            bytes.put_slice(&[public_key.len() as u8]);
+            bytes.put_slice(public_key);
+            num_keys += 1;
+        }
+        assert!(num_keys != 0);
+        assert!(num_keys <= 16);
+        bytes.put_slice(&[0x50 + num_keys as u8, 0xae]);
+        Script {
+            bytecode: bytes.freeze(),
+        }
+    }
+
+    pub fn p2tr(commitment: &PubKey, state: Option<[u8; 32]>) -> Self {
+        let mut bytes = BytesMut::new();
+        bytes.put_slice(&[0x62, 0x51, 0x21]);
+        bytes.put_slice(commitment.as_slice());
+        if let Some(state) = state {
+            bytes.put_slice(&[0x20]);
+            bytes.put_slice(&state);
+        }
         Script {
             bytecode: bytes.freeze(),
         }
@@ -274,6 +316,18 @@ mod tests {
     }
 
     #[test]
+    fn test_p2pk() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::p2pk(&PubKey::new_unchecked([0; 33])),
+            Script::from_slice(&[
+                0x21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0xac
+            ]),
+        );
+        Ok(())
+    }
+
+    #[test]
     fn test_p2pkh() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(
             Script::p2pkh(&ShaRmd160::new([0; 20])),
@@ -351,6 +405,26 @@ mod tests {
             0xa9, 0x15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x87,
         ])
         .is_p2sh());
+        Ok(())
+    }
+
+    #[test]
+    fn test_p2tr() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            Script::p2tr(&PubKey::new_unchecked([0; 33]), None),
+            Script::from_slice(&[
+                0x62, 0x51, 0x21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ]),
+        );
+        assert_eq!(
+            Script::p2tr(&PubKey::new_unchecked([1; 33]), Some([2; 32])),
+            Script::from_slice(&[
+                0x62, 0x51, 0x21, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0x20, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+            ]),
+        );
         Ok(())
     }
 
