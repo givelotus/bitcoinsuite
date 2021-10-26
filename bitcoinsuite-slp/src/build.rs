@@ -1,18 +1,30 @@
 use bitcoinsuite_core::Script;
 
 use crate::{
-    consts::{SLP_LOKAD_ID, SLP_TOKEN_TYPE_V1},
-    SlpAmount, SlpGenesisInfo, TokenId,
+    consts::{
+        SLP_LOKAD_ID, SLP_TOKEN_TYPE_V1, SLP_TOKEN_TYPE_V1_NFT1_CHILD, SLP_TOKEN_TYPE_V1_NFT1_GROUP,
+    },
+    SlpAmount, SlpGenesisInfo, SlpTokenType, TokenId,
 };
+
+fn token_type_bytes(token_type: SlpTokenType) -> &'static [u8] {
+    match token_type {
+        SlpTokenType::Fungible => SLP_TOKEN_TYPE_V1,
+        SlpTokenType::Nft1Group => SLP_TOKEN_TYPE_V1_NFT1_GROUP,
+        SlpTokenType::Nft1Child => SLP_TOKEN_TYPE_V1_NFT1_CHILD,
+        SlpTokenType::Unknown => panic!("Cannot use 'Unknown' token type here"),
+    }
+}
 
 pub fn genesis_opreturn(
     genesis_info: &SlpGenesisInfo,
+    token_type: SlpTokenType,
     mint_baton_out_idx: Option<usize>,
     initial_quantity: u64,
 ) -> Script {
     Script::opreturn(&[
         SLP_LOKAD_ID,
-        SLP_TOKEN_TYPE_V1,
+        token_type_bytes(token_type),
         b"GENESIS",
         &genesis_info.token_ticker,
         &genesis_info.token_name,
@@ -32,12 +44,13 @@ pub fn genesis_opreturn(
 
 pub fn mint_opreturn(
     token_id: &TokenId,
+    token_type: SlpTokenType,
     mint_baton_out_idx: Option<usize>,
     additional_quantity: u64,
 ) -> Script {
     Script::opreturn(&[
         SLP_LOKAD_ID,
-        SLP_TOKEN_TYPE_V1,
+        token_type_bytes(token_type),
         b"MINT",
         token_id.as_slice_be(),
         &match mint_baton_out_idx {
@@ -48,10 +61,14 @@ pub fn mint_opreturn(
     ])
 }
 
-pub fn send_opreturn(token_id: &TokenId, send_amounts: &[SlpAmount]) -> Script {
+pub fn send_opreturn(
+    token_id: &TokenId,
+    token_type: SlpTokenType,
+    send_amounts: &[SlpAmount],
+) -> Script {
     let mut pushes: Vec<&[u8]> = vec![
         SLP_LOKAD_ID,
-        SLP_TOKEN_TYPE_V1,
+        token_type_bytes(token_type),
         b"SEND",
         token_id.as_slice_be(),
     ];

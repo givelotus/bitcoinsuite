@@ -13,9 +13,19 @@ pub struct SlpTx {
 pub struct SlpTxData {
     pub input_tokens: Vec<SlpToken>,
     pub output_tokens: Vec<SlpToken>,
+    pub slp_token_type: SlpTokenType,
     pub slp_tx_type: SlpTxType,
-    /// 0000...000000 for unknown token types
+    /// 0000...000000 if token_id is incomplete
     pub token_id: TokenId,
+    pub group_token_id: Option<Box<TokenId>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SlpTokenType {
+    Fungible,
+    Nft1Group,
+    Nft1Child,
+    Unknown,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

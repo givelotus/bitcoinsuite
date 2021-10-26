@@ -2,7 +2,8 @@ use bitcoinsuite_core::{
     ByteArray, Bytes, Hashed, OutPoint, Script, SequenceNo, Sha256d, TxInput, TxOutput, UnhashedTx,
 };
 use bitcoinsuite_slp::{
-    SlpAmount, SlpBurn, SlpGenesisInfo, SlpToken, SlpTx, SlpTxData, SlpTxType, TokenId,
+    SlpAmount, SlpBurn, SlpGenesisInfo, SlpToken, SlpTokenType, SlpTx, SlpTxData, SlpTxType,
+    TokenId,
 };
 
 use crate::bchd_grpc::{
@@ -99,6 +100,17 @@ pub fn to_slp_tx(tx: bchd_grpc::Transaction) -> SlpTx {
                     SlpToken::default()
                 })
                 .collect(),
+            slp_token_type: match slp.slp_action() {
+                SlpAction::SlpV1Genesis => SlpTokenType::Fungible,
+                SlpAction::SlpV1Mint => SlpTokenType::Fungible,
+                SlpAction::SlpV1Send => SlpTokenType::Fungible,
+                SlpAction::SlpV1Nft1GroupGenesis => SlpTokenType::Nft1Group,
+                SlpAction::SlpV1Nft1GroupMint => SlpTokenType::Nft1Group,
+                SlpAction::SlpV1Nft1GroupSend => SlpTokenType::Nft1Group,
+                SlpAction::SlpV1Nft1UniqueChildGenesis => SlpTokenType::Nft1Child,
+                SlpAction::SlpV1Nft1UniqueChildSend => SlpTokenType::Nft1Child,
+                _ => SlpTokenType::Unknown,
+            },
             slp_tx_type: match &slp.tx_metadata {
                 Some(TxMetadata::V1Genesis(genesis)) => {
                     SlpTxType::Genesis(Box::new(SlpGenesisInfo {
@@ -116,9 +128,33 @@ pub fn to_slp_tx(tx: bchd_grpc::Transaction) -> SlpTx {
                 }
                 Some(TxMetadata::V1Mint(_)) => SlpTxType::Mint,
                 Some(TxMetadata::V1Send(_)) => SlpTxType::Send,
-                _ => SlpTxType::Unknown,
+                Some(TxMetadata::V1Nft1ChildGenesis(genesis)) => {
+                    SlpTxType::Genesis(Box::new(SlpGenesisInfo {
+                        token_ticker: Bytes::from_slice(&genesis.ticker),
+                        token_name: Bytes::from_slice(&genesis.name),
+                        token_document_url: Bytes::from_slice(&genesis.document_url),
+                        token_document_hash: genesis
+                            .document_hash
+                            .as_slice()
+                            .try_into()
+                            .ok()
+                            .map(ByteArray::new),
+                        decimals: genesis.decimals,
+                    }))
+                }
+                Some(TxMetadata::V1Nft1ChildSend(_)) => SlpTxType::Send,
+                None => SlpTxType::Unknown,
             },
             token_id: TokenId::from_slice_be_or_null(&slp.token_id),
+            group_token_id: match &slp.tx_metadata {
+                Some(TxMetadata::V1Nft1ChildGenesis(genesis)) => Some(Box::new(
+                    TokenId::from_slice_be_or_null(&genesis.group_token_id),
+                )),
+                Some(TxMetadata::V1Nft1ChildSend(send)) => Some(Box::new(
+                    TokenId::from_slice_be_or_null(&send.group_token_id),
+                )),
+                _ => None,
+            },
         });
     SlpTx::new(unhashed_tx, slp_tx_data, burns)
 }
