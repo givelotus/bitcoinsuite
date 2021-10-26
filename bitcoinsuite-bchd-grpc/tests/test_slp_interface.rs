@@ -637,7 +637,7 @@ async fn test_slp_interface() -> Result<()> {
             genesis_tx,
             Some(SlpTxData {
                 input_tokens: vec![SlpToken {
-                    amount: SlpAmount::default(),
+                    amount: SlpAmount::new(1),
                     is_mint_baton: false,
                 }],
                 output_tokens: vec![
@@ -652,13 +652,7 @@ async fn test_slp_interface() -> Result<()> {
                 token_id: child_token_id.clone(),
                 group_token_id: Some(Box::new(token_id.clone())),
             }),
-            vec![Some(Box::new(SlpBurn {
-                token: SlpToken {
-                    amount: SlpAmount::new(1),
-                    is_mint_baton: false,
-                },
-                token_id: token_id.clone(),
-            }))],
+            vec![None],
         );
         assert_eq!(expected_tx, actual_tx);
 

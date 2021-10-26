@@ -42,9 +42,8 @@ pub fn to_slp_tx(tx: bchd_grpc::Transaction) -> SlpTx {
         lock_time: tx.lock_time,
     };
     let mut token_id = None;
-    let is_valid_slp = tx
-        .slp_transaction_info
-        .as_ref()
+    let slp_transaction_info = tx.slp_transaction_info.as_ref();
+    let is_valid_slp = slp_transaction_info
         .map(|slp| {
             token_id = Some(TokenId::from_slice_be_or_null(&slp.token_id));
             slp.validity_judgement() == ValidityJudgement::Valid
@@ -53,9 +52,21 @@ pub fn to_slp_tx(tx: bchd_grpc::Transaction) -> SlpTx {
     let mut input_tokens = Vec::with_capacity(tx.inputs.len());
     let mut burns = Vec::with_capacity(tx.inputs.len());
     for input in &tx.inputs {
+        let is_nft1_child_genesis = input
+            .slp_token
+            .as_ref()
+            .and_then(|token| {
+                Some(
+                    token.token_type() == bchd_grpc::SlpTokenType::V1Nft1Group
+                        && slp_transaction_info?.slp_action()
+                            == SlpAction::SlpV1Nft1UniqueChildGenesis,
+                )
+            })
+            .unwrap_or_default();
         match (&input.slp_token, &token_id) {
             (Some(slp_token), Some(token_id))
-                if is_valid_slp && slp_token.token_id == token_id.as_slice_be() =>
+                if (is_valid_slp && slp_token.token_id == token_id.as_slice_be())
+                    || is_nft1_child_genesis =>
             {
                 input_tokens.push(SlpToken {
                     amount: SlpAmount::new(slp_token.amount.into()),
