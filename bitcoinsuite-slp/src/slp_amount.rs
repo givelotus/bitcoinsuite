@@ -14,6 +14,8 @@ pub struct SlpAmount {
 }
 
 impl SlpAmount {
+    pub const ZERO: SlpAmount = SlpAmount::new(0);
+
     pub fn from_str_decimals(s: &str, decimals: u32) -> Result<Self> {
         let factor = (10i128).pow(decimals);
         let base_amount = match s.find('.') {
@@ -48,7 +50,7 @@ impl SlpAmount {
         Ok(SlpAmount { base_amount })
     }
 
-    pub fn new(base_amount: i128) -> Self {
+    pub const fn new(base_amount: i128) -> Self {
         SlpAmount { base_amount }
     }
 

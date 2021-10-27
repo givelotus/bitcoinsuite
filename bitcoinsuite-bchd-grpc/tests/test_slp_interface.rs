@@ -78,7 +78,7 @@ async fn test_slp_interface() -> Result<()> {
             script: address.to_script(),
             value: utxo_value,
         },
-        token: SlpToken::default(),
+        token: SlpToken::EMPTY,
         token_id: None,
     };
     let sats_utxo2 = SlpUtxo {
@@ -87,7 +87,7 @@ async fn test_slp_interface() -> Result<()> {
             script: address.to_script(),
             value: utxo_value,
         },
-        token: SlpToken::default(),
+        token: SlpToken::EMPTY,
         token_id: None,
     };
     assert_eq!(address_utxos, vec![sats_utxo1.clone(), sats_utxo2.clone()]);
@@ -131,18 +131,8 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             genesis_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken::default()],
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        amount: SlpAmount::new(20),
-                        is_mint_baton: false,
-                    },
-                    SlpToken {
-                        amount: SlpAmount::default(),
-                        is_mint_baton: true,
-                    },
-                ],
+                input_tokens: vec![SlpToken::EMPTY],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(20), SlpToken::MINT_BATON],
                 slp_token_type: SlpTokenType::Fungible,
                 slp_tx_type: SlpTxType::Genesis(Box::new(genesis_info)),
                 token_id: token_id.clone(),
@@ -170,10 +160,7 @@ async fn test_slp_interface() -> Result<()> {
                         script: address.to_script(),
                         value: genesis_output_value
                     },
-                    token: SlpToken {
-                        amount: SlpAmount::new(20),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(20),
                     token_id: Some(token_id.clone()),
                 },
             ]
@@ -194,10 +181,7 @@ async fn test_slp_interface() -> Result<()> {
                     script: mint_address.to_script(),
                     value: genesis_output_value
                 },
-                token: SlpToken {
-                    amount: SlpAmount::default(),
-                    is_mint_baton: true,
-                },
+                token: SlpToken::MINT_BATON,
                 token_id: Some(token_id.clone()),
             }]
         );
@@ -234,21 +218,8 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             mint_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken {
-                    amount: SlpAmount::default(),
-                    is_mint_baton: true,
-                }],
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        amount: SlpAmount::new(10),
-                        is_mint_baton: false,
-                    },
-                    SlpToken {
-                        amount: SlpAmount::default(),
-                        is_mint_baton: true,
-                    },
-                ],
+                input_tokens: vec![SlpToken::MINT_BATON],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(10), SlpToken::MINT_BATON],
                 slp_token_type: SlpTokenType::Fungible,
                 slp_tx_type: SlpTxType::Mint,
                 token_id: token_id.clone(),
@@ -311,21 +282,8 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             send_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken {
-                    amount: SlpAmount::new(10),
-                    is_mint_baton: false,
-                }],
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        amount: SlpAmount::new(7),
-                        is_mint_baton: false,
-                    },
-                    SlpToken {
-                        amount: SlpAmount::new(3),
-                        is_mint_baton: false,
-                    },
-                ],
+                input_tokens: vec![SlpToken::amount(10)],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(7), SlpToken::amount(3)],
                 slp_token_type: SlpTokenType::Fungible,
                 slp_tx_type: SlpTxType::Send,
                 token_id: token_id.clone(),
@@ -368,18 +326,15 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             burn_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken::default()],
-                output_tokens: vec![SlpToken::default(), SlpToken::default()],
+                input_tokens: vec![SlpToken::EMPTY],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::EMPTY],
                 slp_token_type: SlpTokenType::Fungible,
                 slp_tx_type: SlpTxType::Send,
                 token_id: token_id_reverse.clone(),
                 group_token_id: None,
             }),
             vec![Some(Box::new(SlpBurn {
-                token: SlpToken {
-                    amount: SlpAmount::new(7),
-                    is_mint_baton: false,
-                },
+                token: SlpToken::amount(7),
                 token_id: token_id.clone(),
             }))],
         );
@@ -425,18 +380,8 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             genesis_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken::default()],
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        amount: SlpAmount::new(20),
-                        is_mint_baton: false,
-                    },
-                    SlpToken {
-                        amount: SlpAmount::default(),
-                        is_mint_baton: true,
-                    },
-                ],
+                input_tokens: vec![SlpToken::EMPTY],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(20), SlpToken::MINT_BATON],
                 slp_token_type: SlpTokenType::Nft1Group,
                 slp_tx_type: SlpTxType::Genesis(Box::new(genesis_info)),
                 token_id: token_id.clone(),
@@ -459,10 +404,7 @@ async fn test_slp_interface() -> Result<()> {
                     script: mint_address.to_script(),
                     value: genesis_output_value
                 },
-                token: SlpToken {
-                    amount: SlpAmount::default(),
-                    is_mint_baton: true,
-                },
+                token: SlpToken::MINT_BATON,
                 token_id: Some(token_id.clone()),
             }]
         );
@@ -499,21 +441,8 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             mint_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken {
-                    amount: SlpAmount::default(),
-                    is_mint_baton: true,
-                }],
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        amount: SlpAmount::new(10),
-                        is_mint_baton: false,
-                    },
-                    SlpToken {
-                        amount: SlpAmount::default(),
-                        is_mint_baton: true,
-                    },
-                ],
+                input_tokens: vec![SlpToken::MINT_BATON],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(10), SlpToken::MINT_BATON],
                 slp_token_type: SlpTokenType::Nft1Group,
                 slp_tx_type: SlpTxType::Mint,
                 token_id: token_id.clone(),
@@ -576,21 +505,8 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             send_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken {
-                    amount: SlpAmount::new(10),
-                    is_mint_baton: false,
-                }],
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        amount: SlpAmount::new(1),
-                        is_mint_baton: false,
-                    },
-                    SlpToken {
-                        amount: SlpAmount::new(9),
-                        is_mint_baton: false,
-                    },
-                ],
+                input_tokens: vec![SlpToken::amount(10)],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(1), SlpToken::amount(9)],
                 slp_token_type: SlpTokenType::Nft1Group,
                 slp_tx_type: SlpTxType::Send,
                 token_id: token_id.clone(),
@@ -636,17 +552,8 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             genesis_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken {
-                    amount: SlpAmount::new(1),
-                    is_mint_baton: false,
-                }],
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        amount: SlpAmount::new(1),
-                        is_mint_baton: false,
-                    },
-                ],
+                input_tokens: vec![SlpToken::amount(1)],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(1)],
                 slp_token_type: SlpTokenType::Nft1Child,
                 slp_tx_type: SlpTxType::Genesis(Box::new(child_genesis_info)),
                 token_id: child_token_id.clone(),
@@ -704,17 +611,8 @@ async fn test_slp_interface() -> Result<()> {
         let expected_tx = SlpTx::new(
             child_send_tx,
             Some(SlpTxData {
-                input_tokens: vec![SlpToken {
-                    amount: SlpAmount::new(1),
-                    is_mint_baton: false,
-                }],
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        amount: SlpAmount::new(1),
-                        is_mint_baton: false,
-                    },
-                ],
+                input_tokens: vec![SlpToken::amount(1)],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(1)],
                 slp_token_type: SlpTokenType::Nft1Child,
                 slp_tx_type: SlpTxType::Send,
                 token_id: child_token_id.clone(),

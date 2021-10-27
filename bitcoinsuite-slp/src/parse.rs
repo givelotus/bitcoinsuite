@@ -37,7 +37,7 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
     let slp_token_type = match parse_token_type(&opreturn_data[1]) {
         Some(token_type) => token_type,
         None => {
-            let token = SlpToken::default();
+            let token = SlpToken::EMPTY;
             return Ok(SlpParseData {
                 output_tokens: tx.outputs.iter().map(|_| token).collect(),
                 slp_token_type: SlpTokenType::Unknown,
@@ -61,7 +61,7 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
     let mut output_tokens = tx
         .outputs
         .iter()
-        .map(|_| SlpToken::default())
+        .map(|_| SlpToken::EMPTY)
         .collect::<Vec<_>>();
     match parsed_opreturn.outputs {
         ParsedOutputs::MintTokens {
@@ -484,7 +484,7 @@ mod tests {
                 }
             ),
             Ok(SlpParseData {
-                output_tokens: vec![SlpToken::default()],
+                output_tokens: vec![SlpToken::EMPTY],
                 slp_token_type: SlpTokenType::Unknown,
                 slp_tx_type: SlpTxType::Unknown,
                 token_id: TokenId::new(Sha256d::new([0; 32])),
@@ -731,17 +731,7 @@ mod tests {
                 }
             ),
             Ok(SlpParseData {
-                output_tokens: vec![
-                    SlpToken::default(),
-                    SlpToken {
-                        is_mint_baton: false,
-                        amount: SlpAmount::new(123),
-                    },
-                    SlpToken {
-                        is_mint_baton: true,
-                        amount: SlpAmount::default(),
-                    },
-                ],
+                output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(123), SlpToken::MINT_BATON],
                 slp_token_type: SlpTokenType::Fungible,
                 slp_tx_type: SlpTxType::Genesis(Box::new(SlpGenesisInfo {
                     token_ticker: [0x44].into(),
@@ -798,14 +788,11 @@ mod tests {
                 ),
                 Ok(SlpParseData {
                     output_tokens: vec![
-                        SlpToken::default(),
-                        SlpToken {
-                            is_mint_baton: false,
-                            amount: SlpAmount::new(qty as i128),
-                        },
-                        SlpToken {
-                            is_mint_baton: token_type != SlpTokenType::Nft1Child,
-                            amount: SlpAmount::default(),
+                        SlpToken::EMPTY,
+                        SlpToken::amount(qty as i128),
+                        match token_type {
+                            SlpTokenType::Nft1Child => SlpToken::EMPTY,
+                            _ => SlpToken::MINT_BATON,
                         },
                     ],
                     slp_token_type: token_type,
@@ -958,15 +945,9 @@ mod tests {
                 ),
                 Ok(SlpParseData {
                     output_tokens: vec![
-                        SlpToken::default(),
-                        SlpToken {
-                            is_mint_baton: false,
-                            amount: SlpAmount::new(231),
-                        },
-                        SlpToken {
-                            is_mint_baton: true,
-                            amount: SlpAmount::default(),
-                        },
+                        SlpToken::EMPTY,
+                        SlpToken::amount(231),
+                        SlpToken::MINT_BATON,
                     ],
                     slp_token_type: token_type,
                     slp_tx_type: SlpTxType::Mint,
@@ -1092,13 +1073,7 @@ mod tests {
                     }
                 ),
                 Ok(SlpParseData {
-                    output_tokens: vec![
-                        SlpToken::default(),
-                        SlpToken {
-                            is_mint_baton: false,
-                            amount: SlpAmount::new(231),
-                        },
-                    ],
+                    output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(231)],
                     slp_token_type: token_type,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([0x22; 32])),

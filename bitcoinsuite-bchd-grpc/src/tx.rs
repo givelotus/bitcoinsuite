@@ -75,7 +75,7 @@ pub fn to_slp_tx(tx: bchd_grpc::Transaction) -> SlpTx {
                 burns.push(None);
             }
             (Some(slp_token), _) => {
-                input_tokens.push(SlpToken::default());
+                input_tokens.push(SlpToken::EMPTY);
                 burns.push(Some(Box::new(SlpBurn {
                     token: SlpToken {
                         amount: SlpAmount::new(slp_token.amount.into()),
@@ -85,7 +85,7 @@ pub fn to_slp_tx(tx: bchd_grpc::Transaction) -> SlpTx {
                 })));
             }
             _ => {
-                input_tokens.push(SlpToken::default());
+                input_tokens.push(SlpToken::EMPTY);
                 burns.push(None);
             }
         }
@@ -108,7 +108,7 @@ pub fn to_slp_tx(tx: bchd_grpc::Transaction) -> SlpTx {
                             };
                         }
                     }
-                    SlpToken::default()
+                    SlpToken::EMPTY
                 })
                 .collect(),
             slp_token_type: match slp.slp_action() {

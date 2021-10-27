@@ -27,7 +27,7 @@ pub fn validate_slp_tx(
     match &parse_data.slp_tx_type {
         SlpTxType::Genesis(_) => {
             for spent_output in spent_outputs {
-                input_tokens.push(SlpToken::default());
+                input_tokens.push(SlpToken::EMPTY);
                 match spent_output {
                     Some(spent_output) => {
                         slp_burns.push(Some(Box::new(SlpBurn {
@@ -72,12 +72,12 @@ pub fn validate_slp_tx(
                                 token: spent_output.token,
                                 token_id: spent_output.token_id.clone(),
                             })));
-                            input_tokens.push(SlpToken::default());
+                            input_tokens.push(SlpToken::EMPTY);
                         }
                     }
                     None => {
                         slp_burns.push(None);
-                        input_tokens.push(SlpToken::default());
+                        input_tokens.push(SlpToken::EMPTY);
                     }
                 }
             }
@@ -128,12 +128,12 @@ pub fn validate_slp_tx(
                                 token: spent_output.token,
                                 token_id: spent_output.token_id.clone(),
                             })));
-                            input_tokens.push(SlpToken::default());
+                            input_tokens.push(SlpToken::EMPTY);
                         }
                     }
                     None => {
                         slp_burns.push(None);
-                        input_tokens.push(SlpToken::default());
+                        input_tokens.push(SlpToken::EMPTY);
                     }
                 }
             }
@@ -146,7 +146,7 @@ pub fn validate_slp_tx(
         }
         SlpTxType::Unknown => {
             for spent_output in spent_outputs {
-                input_tokens.push(SlpToken::default());
+                input_tokens.push(SlpToken::EMPTY);
                 match spent_output {
                     Some(spent_output) => {
                         slp_burns.push(Some(Box::new(SlpBurn {
@@ -210,7 +210,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([3; 32])),
                     token_type: SlpTokenType::Fungible,
-                    token: SlpToken::default(),
+                    token: SlpToken::EMPTY,
                     group_token_id: None,
                 })],
             ),
@@ -228,7 +228,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([3; 32])),
                     token_type: SlpTokenType::Nft1Group,
-                    token: SlpToken::default(),
+                    token: SlpToken::EMPTY,
                     group_token_id: None,
                 })],
             ),
@@ -246,10 +246,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([3; 32])),
                     token_type: SlpTokenType::Fungible,
-                    token: SlpToken {
-                        amount: SlpAmount::new(1),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(1),
                     group_token_id: None,
                 })],
             ),
@@ -269,10 +266,7 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([3; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(1),
                         group_token_id: None,
                     })
                 ],
@@ -297,7 +291,7 @@ mod tests {
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![SlpToken::default()],
+                    input_tokens: vec![SlpToken::EMPTY],
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Genesis(Default::default()),
@@ -319,16 +313,13 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([1; 32])),
                     token_type: SlpTokenType::Fungible,
-                    token: SlpToken {
-                        amount: SlpAmount::new(1),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(1),
                     group_token_id: None,
                 })],
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![SlpToken::default()],
+                    input_tokens: vec![SlpToken::EMPTY],
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Genesis(Default::default()),
@@ -336,10 +327,7 @@ mod tests {
                     group_token_id: None,
                 },
                 slp_burns: vec![Some(Box::new(SlpBurn {
-                    token: SlpToken {
-                        amount: SlpAmount::new(1),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(1),
                     token_id: TokenId::new(Sha256d::new([1; 32])),
                 }))],
             }),
@@ -356,19 +344,13 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([3; 32])),
                     token_type: SlpTokenType::Nft1Group,
-                    token: SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(4),
                     group_token_id: None,
                 })],
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    }],
+                    input_tokens: vec![SlpToken::amount(4)],
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Nft1Child,
                     slp_tx_type: SlpTxType::Genesis(Default::default()),
@@ -391,32 +373,20 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([3; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(4),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(4),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([2; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(1),
                         group_token_id: None,
                     }),
                 ],
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(4),
-                            is_mint_baton: false,
-                        },
-                        SlpToken::default(),
-                    ],
+                    input_tokens: vec![SlpToken::amount(4), SlpToken::EMPTY],
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Nft1Child,
                     slp_tx_type: SlpTxType::Genesis(Default::default()),
@@ -426,10 +396,7 @@ mod tests {
                 slp_burns: vec![
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(1),
                         token_id: TokenId::new(Sha256d::new([2; 32])),
                     })),
                 ],
@@ -465,10 +432,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([1; 32])),
                     token_type: SlpTokenType::Fungible,
-                    token: SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(4),
                     group_token_id: None,
                 })],
             ),
@@ -486,10 +450,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([2; 32])),
                     token_type: SlpTokenType::Fungible,
-                    token: SlpToken {
-                        amount: SlpAmount::default(),
-                        is_mint_baton: true,
-                    },
+                    token: SlpToken::MINT_BATON,
                     group_token_id: None,
                 })],
             ),
@@ -510,10 +471,7 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(4),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(4),
                         group_token_id: None,
                     }),
                     None,
@@ -521,30 +479,21 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([2; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Wrong token type (NFT1 Group)
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Wrong token type (NFT1 Child)
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                     None,
@@ -567,10 +516,7 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(4),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(4),
                         group_token_id: None,
                     }),
                     None,
@@ -578,30 +524,21 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([2; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Wrong token type (Fungible)
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Wrong token type (NFT1 Child)
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                     None,
@@ -626,19 +563,13 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([1; 32])),
                     token_type: SlpTokenType::Fungible,
-                    token: SlpToken {
-                        amount: SlpAmount::default(),
-                        is_mint_baton: true,
-                    },
+                    token: SlpToken::MINT_BATON,
                     group_token_id: None,
                 })],
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![SlpToken {
-                        amount: SlpAmount::default(),
-                        is_mint_baton: true,
-                    }],
+                    input_tokens: vec![SlpToken::MINT_BATON],
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Mint,
@@ -663,10 +594,7 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(4),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(4),
                         group_token_id: None,
                     }),
                     None,
@@ -674,40 +602,28 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([2; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Wrong token type (NFT1 Group)
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Correct MINT baton
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Wrong token type (NFT1 Child)
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                     None,
@@ -716,17 +632,14 @@ mod tests {
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
                     input_tokens: vec![
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
-                        SlpToken::default(),
-                        SlpToken::default(),
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::MINT_BATON,
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
                     ],
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Fungible,
@@ -737,33 +650,21 @@ mod tests {
                 slp_burns: vec![
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(4),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(4),
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                     })),
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         token_id: TokenId::new(Sha256d::new([2; 32])),
                     })),
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                     })),
                     None, // Correct MINT baton not burned
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                     })),
                     None,
@@ -785,10 +686,7 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(4),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(4),
                         group_token_id: None,
                     }),
                     None,
@@ -796,40 +694,28 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([2; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Correct MINT baton
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Wrong token type (Fungible)
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     // Wrong token type (NFT1 Child)
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                     None,
@@ -838,17 +724,14 @@ mod tests {
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
                     input_tokens: vec![
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken::default(),
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::MINT_BATON,
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
                     ],
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Nft1Group,
@@ -859,33 +742,21 @@ mod tests {
                 slp_burns: vec![
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(4),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(4),
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                     })),
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         token_id: TokenId::new(Sha256d::new([2; 32])),
                     })),
                     None, // Correct MINT baton not burned
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                     })),
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         token_id: TokenId::new(Sha256d::new([1; 32])),
                     })),
                     None,
@@ -901,10 +772,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    }],
+                    output_tokens: vec![SlpToken::amount(4)],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -920,10 +788,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    }],
+                    output_tokens: vec![SlpToken::amount(4)],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -931,10 +796,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                     token_type: SlpTokenType::Fungible,
-                    token: SlpToken {
-                        amount: SlpAmount::new(3),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(3),
                     group_token_id: None,
                 })],
             ),
@@ -947,10 +809,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    }],
+                    output_tokens: vec![SlpToken::amount(4)],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -958,10 +817,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                     token_type: SlpTokenType::Nft1Child,
-                    token: SlpToken {
-                        amount: SlpAmount::new(1),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(1),
                     group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                 })],
             ),
@@ -974,10 +830,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    }],
+                    output_tokens: vec![SlpToken::amount(4)],
                     slp_token_type: SlpTokenType::Nft1Group,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -985,10 +838,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                     token_type: SlpTokenType::Nft1Group,
-                    token: SlpToken {
-                        amount: SlpAmount::new(3),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(3),
                     group_token_id: None,
                 })],
             ),
@@ -1001,10 +851,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    }],
+                    output_tokens: vec![SlpToken::amount(4)],
                     slp_token_type: SlpTokenType::Nft1Group,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1012,10 +859,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                     token_type: SlpTokenType::Nft1Child,
-                    token: SlpToken {
-                        amount: SlpAmount::new(1),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(1),
                     group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                 })],
             ),
@@ -1028,10 +872,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(4),
-                        is_mint_baton: false,
-                    }],
+                    output_tokens: vec![SlpToken::amount(4)],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1039,10 +880,7 @@ mod tests {
                 &[Some(SlpSpentOutput {
                     token_id: TokenId::new(Sha256d::new([3; 32])),
                     token_type: SlpTokenType::Fungible,
-                    token: SlpToken {
-                        amount: SlpAmount::new(5),
-                        is_mint_baton: false,
-                    },
+                    token: SlpToken::amount(5),
                     group_token_id: None,
                 })],
             ),
@@ -1056,22 +894,10 @@ mod tests {
             validate_slp_tx(
                 SlpParseData {
                     output_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0001),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(2),
-                            is_mint_baton: false,
-                        }
+                        SlpToken::amount(1),
+                        SlpToken::amount(0xffff_ffff_ffff_0000),
+                        SlpToken::amount(0xffff_ffff_ffff_0001),
+                        SlpToken::amount(2),
                     ],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
@@ -1081,48 +907,33 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xffff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     }),
                     None,
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(1),
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                     None,
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0003),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xffff_ffff_ffff_0003),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([3; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(100),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(100),
                         group_token_id: None,
                     })
                 ],
@@ -1137,22 +948,10 @@ mod tests {
             validate_slp_tx(
                 SlpParseData {
                     output_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0001),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(2),
-                            is_mint_baton: false,
-                        }
+                        SlpToken::amount(1),
+                        SlpToken::amount(0xffff_ffff_ffff_0000),
+                        SlpToken::amount(0xffff_ffff_ffff_0001),
+                        SlpToken::amount(2),
                     ],
                     slp_token_type: SlpTokenType::Nft1Group,
                     slp_tx_type: SlpTxType::Send,
@@ -1162,39 +961,27 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xffff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     None,
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(1),
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                     None,
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0003),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xffff_ffff_ffff_0003),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([3; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(100),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(100),
                         group_token_id: None,
                     })
                 ],
@@ -1213,7 +1000,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken::default()],
+                    output_tokens: vec![SlpToken::EMPTY],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1222,8 +1009,8 @@ mod tests {
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![SlpToken::default()],
-                    output_tokens: vec![SlpToken::default()],
+                    input_tokens: vec![SlpToken::EMPTY],
+                    output_tokens: vec![SlpToken::EMPTY],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1236,7 +1023,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken::default()],
+                    output_tokens: vec![SlpToken::EMPTY],
                     slp_token_type: SlpTokenType::Nft1Group,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1245,8 +1032,8 @@ mod tests {
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![SlpToken::default()],
-                    output_tokens: vec![SlpToken::default()],
+                    input_tokens: vec![SlpToken::EMPTY],
+                    output_tokens: vec![SlpToken::EMPTY],
                     slp_token_type: SlpTokenType::Nft1Group,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1260,7 +1047,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken::default()],
+                    output_tokens: vec![SlpToken::EMPTY],
                     slp_token_type: SlpTokenType::Nft1Child,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1269,8 +1056,8 @@ mod tests {
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![SlpToken::default()],
-                    output_tokens: vec![SlpToken::default()],
+                    input_tokens: vec![SlpToken::EMPTY],
+                    output_tokens: vec![SlpToken::EMPTY],
                     slp_token_type: SlpTokenType::Nft1Child,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1283,10 +1070,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(10),
-                        is_mint_baton: false,
-                    }],
+                    output_tokens: vec![SlpToken::amount(10)],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1295,36 +1079,21 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         group_token_id: None,
                     })
                 ],
             ),
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
-                    input_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
-                        SlpToken::default()
-                    ],
-                    output_tokens: vec![SlpToken {
-                        amount: SlpAmount::new(10),
-                        is_mint_baton: false,
-                    }],
+                    input_tokens: vec![SlpToken::amount(10), SlpToken::EMPTY],
+                    output_tokens: vec![SlpToken::amount(10)],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1333,10 +1102,7 @@ mod tests {
                 slp_burns: vec![
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::default(),
-                            is_mint_baton: true,
-                        },
+                        token: SlpToken::MINT_BATON,
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                     }))
                 ],
@@ -1347,18 +1113,9 @@ mod tests {
             validate_slp_tx(
                 SlpParseData {
                     output_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0002),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        SlpToken::amount(0xffff_ffff_ffff_0000),
+                        SlpToken::amount(0xffff_ffff_ffff_0002),
+                        SlpToken::amount(1),
                     ],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
@@ -1368,46 +1125,31 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xffff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xefff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xefff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0x2fff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0x2fff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Fungible,
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                 ],
@@ -1415,37 +1157,16 @@ mod tests {
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
                     input_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xefff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0x2fff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
-                        SlpToken::default(),
+                        SlpToken::amount(0xffff_ffff_ffff_0000),
+                        SlpToken::amount(0xefff_ffff_ffff_0000),
+                        SlpToken::amount(0x2fff_ffff_ffff_0000),
+                        SlpToken::amount(10),
+                        SlpToken::EMPTY,
                     ],
                     output_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0002),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        SlpToken::amount(0xffff_ffff_ffff_0000),
+                        SlpToken::amount(0xffff_ffff_ffff_0002),
+                        SlpToken::amount(1),
                     ],
                     slp_token_type: SlpTokenType::Fungible,
                     slp_tx_type: SlpTxType::Send,
@@ -1456,24 +1177,15 @@ mod tests {
                     None,
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(0x1fff_ffff_fffe_fffd),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0x1fff_ffff_fffe_fffd),
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                     })),
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                     })),
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                     })),
                 ],
@@ -1484,18 +1196,9 @@ mod tests {
             validate_slp_tx(
                 SlpParseData {
                     output_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0002),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        SlpToken::amount(0xffff_ffff_ffff_0000),
+                        SlpToken::amount(0xffff_ffff_ffff_0002),
+                        SlpToken::amount(1),
                     ],
                     slp_token_type: SlpTokenType::Nft1Group,
                     slp_tx_type: SlpTxType::Send,
@@ -1505,46 +1208,31 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xffff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xefff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xefff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0x2fff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0x2fff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                 ],
@@ -1552,37 +1240,16 @@ mod tests {
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
                     input_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xefff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0x2fff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
-                        SlpToken::default(),
+                        SlpToken::amount(0xffff_ffff_ffff_0000),
+                        SlpToken::amount(0xefff_ffff_ffff_0000),
+                        SlpToken::amount(0x2fff_ffff_ffff_0000),
+                        SlpToken::amount(10),
+                        SlpToken::EMPTY,
                     ],
                     output_tokens: vec![
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(0xffff_ffff_ffff_0002),
-                            is_mint_baton: false,
-                        },
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        SlpToken::amount(0xffff_ffff_ffff_0000),
+                        SlpToken::amount(0xffff_ffff_ffff_0002),
+                        SlpToken::amount(1),
                     ],
                     slp_token_type: SlpTokenType::Nft1Group,
                     slp_tx_type: SlpTxType::Send,
@@ -1593,24 +1260,15 @@ mod tests {
                     None,
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(0x1fff_ffff_fffe_fffd),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0x1fff_ffff_fffe_fffd),
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                     })),
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                     })),
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(10),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(10),
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                     })),
                 ],
@@ -1620,14 +1278,7 @@ mod tests {
         assert_eq!(
             validate_slp_tx(
                 SlpParseData {
-                    output_tokens: vec![
-                        SlpToken::default(),
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
-                        SlpToken::default(),
-                    ],
+                    output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(1), SlpToken::EMPTY],
                     slp_token_type: SlpTokenType::Nft1Child,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1636,31 +1287,25 @@ mod tests {
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken::default(),
+                        token: SlpToken::EMPTY,
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Group,
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xefff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xefff_ffff_ffff_0000),
                         group_token_id: None,
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(1),
                         group_token_id: Some(Box::new(TokenId::new(Sha256d::new([10; 32])))),
                     }),
                     Some(SlpSpentOutput {
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                         token_type: SlpTokenType::Nft1Child,
-                        token: SlpToken::default(),
+                        token: SlpToken::EMPTY,
                         group_token_id: None,
                     }),
                 ],
@@ -1668,22 +1313,12 @@ mod tests {
             Ok(SlpValidTxData {
                 slp_tx_data: SlpTxData {
                     input_tokens: vec![
-                        SlpToken::default(),
-                        SlpToken::default(),
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
-                        SlpToken::default(),
+                        SlpToken::EMPTY,
+                        SlpToken::EMPTY,
+                        SlpToken::amount(1),
+                        SlpToken::EMPTY,
                     ],
-                    output_tokens: vec![
-                        SlpToken::default(),
-                        SlpToken {
-                            amount: SlpAmount::new(1),
-                            is_mint_baton: false,
-                        },
-                        SlpToken::default(),
-                    ],
+                    output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(1), SlpToken::EMPTY],
                     slp_token_type: SlpTokenType::Nft1Child,
                     slp_tx_type: SlpTxType::Send,
                     token_id: TokenId::new(Sha256d::new([4; 32])),
@@ -1692,10 +1327,7 @@ mod tests {
                 slp_burns: vec![
                     None,
                     Some(Box::new(SlpBurn {
-                        token: SlpToken {
-                            amount: SlpAmount::new(0xefff_ffff_ffff_0000),
-                            is_mint_baton: false,
-                        },
+                        token: SlpToken::amount(0xefff_ffff_ffff_0000),
                         token_id: TokenId::new(Sha256d::new([4; 32])),
                     })),
                     None,

@@ -151,3 +151,22 @@ impl SlpTx {
         &self.slp_burns
     }
 }
+
+impl SlpToken {
+    pub const MINT_BATON: SlpToken = SlpToken {
+        amount: SlpAmount::ZERO,
+        is_mint_baton: true,
+    };
+
+    pub const EMPTY: SlpToken = SlpToken {
+        amount: SlpAmount::ZERO,
+        is_mint_baton: false,
+    };
+
+    pub const fn amount(amount: i128) -> Self {
+        SlpToken {
+            amount: SlpAmount::new(amount),
+            is_mint_baton: false,
+        }
+    }
+}
