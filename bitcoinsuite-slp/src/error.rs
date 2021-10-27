@@ -26,6 +26,16 @@ pub enum SlpError {
     InvalidDecimals { actual: usize },
     #[error("Mint baton at invalid output index, must be between 2 and 255, but got {actual}")]
     InvalidMintBatonIdx { actual: usize },
+    #[error("NFT1 Child Genesis cannot have mint baton")]
+    Nft1ChildCannotHaveMintBaton,
+    #[error("Invalid NFT1 Child Genesis initial quantity, expected 1 but got {actual}")]
+    Nft1ChildInvalidInitialQuantity {
+        actual: SlpAmount,
+    },
+    #[error("Invalid NFT1 Child Genesis decimals, expected 0 but got {actual}")]
+    Nft1ChildInvalidDecimals {
+        actual: u32,
+    },
     #[error("Too few pushes, expected at least {expected} but only got {actual}")]
     TooFewPushes { expected: usize, actual: usize },
     #[error("Too few pushes, expected exactly {expected} but only got {actual}")]

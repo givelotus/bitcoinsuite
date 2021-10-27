@@ -48,7 +48,7 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
     };
 
     let parsed_opreturn = match opreturn_data[2].as_ref() {
-        b"GENESIS" => parse_genesis_data(opreturn_data)?,
+        b"GENESIS" => parse_genesis_data(opreturn_data, slp_token_type)?,
         b"MINT" => parse_mint_data(opreturn_data)?,
         b"SEND" => parse_send_data(opreturn_data)?,
         _ => return Err(SlpError::InvalidTxType(opreturn_data[2].clone())),
@@ -153,7 +153,10 @@ enum ParsedOutputs {
     Send(Vec<SlpAmount>),
 }
 
-fn parse_genesis_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpError> {
+fn parse_genesis_data(
+    opreturn_data: Vec<Bytes>,
+    slp_token_type: SlpTokenType,
+) -> Result<ParsedOpReturn, SlpError> {
     if opreturn_data.len() < 10 {
         return Err(SlpError::TooFewPushesExact {
             expected: 10,
@@ -211,6 +214,19 @@ fn parse_genesis_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpEr
         });
     }
     let decimals = decimals[0] as u32;
+    if slp_token_type == SlpTokenType::Nft1Child {
+        if !mint_baton_out_idx.is_empty() {
+            return Err(SlpError::Nft1ChildCannotHaveMintBaton);
+        }
+        if initial_quantity != SlpAmount::new(1) {
+            return Err(SlpError::Nft1ChildInvalidInitialQuantity {
+                actual: initial_quantity,
+            });
+        }
+        if decimals != 0 {
+            return Err(SlpError::Nft1ChildInvalidDecimals { actual: decimals });
+        }
+    }
     Ok(ParsedOpReturn {
         slp_tx_type: SlpTxType::Genesis(Box::new(SlpGenesisInfo {
             token_ticker,
@@ -638,6 +654,53 @@ mod tests {
             .concat(),
             SlpError::InvalidMintBatonIdx { actual: 0x01 },
         );
+        check_script(
+            &[
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
+                &[0x01, 0x41],
+                &[0x07],
+                b"GENESIS",
+                &[0x01, 0x44, 0x01, 0x55, 0x01, 0x66, 0x4c, 0x00],
+                &[0x01, 0x09],
+                &[0x01, 0x02],
+                &[0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+            ]
+            .concat(),
+            SlpError::Nft1ChildCannotHaveMintBaton,
+        );
+        check_script(
+            &[
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
+                &[0x01, 0x41],
+                &[0x07],
+                b"GENESIS",
+                &[0x01, 0x44, 0x01, 0x55, 0x01, 0x66, 0x4c, 0x00],
+                &[0x01, 0x09],
+                &[0x4c, 0x00],
+                &[0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 123],
+            ]
+            .concat(),
+            SlpError::Nft1ChildInvalidInitialQuantity {
+                actual: SlpAmount::new(123),
+            },
+        );
+        check_script(
+            &[
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
+                &[0x01, 0x41],
+                &[0x07],
+                b"GENESIS",
+                &[0x01, 0x44, 0x01, 0x55, 0x01, 0x66, 0x4c, 0x00],
+                &[0x01, 0x09],
+                &[0x4c, 0x00],
+                &[0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01],
+            ]
+            .concat(),
+            SlpError::Nft1ChildInvalidDecimals { actual: 9 },
+        );
         // Valid GENESIS
         assert_eq!(
             parse_slp_tx(
@@ -695,6 +758,10 @@ mod tests {
             (0x41, SlpTokenType::Nft1Child),
             (0x81, SlpTokenType::Nft1Group),
         ] {
+            let qty = match token_type {
+                SlpTokenType::Nft1Child => 1,
+                _ => 123,
+            };
             assert_eq!(
                 parse_slp_tx(
                     &Sha256d::new([3; 32]),
@@ -710,9 +777,15 @@ mod tests {
                                         &[0x07],
                                         b"GENESIS",
                                         &[0x01, 0x44, 0x01, 0x55, 0x01, 0x66, 0x4c, 0x00],
-                                        &[0x01, 0x09],
-                                        &[0x01, 0x02],
-                                        &[0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 123],
+                                        match token_type {
+                                            SlpTokenType::Nft1Child => &[0x01, 0x00],
+                                            _ => &[0x01, 0x09],
+                                        },
+                                        match token_type {
+                                            SlpTokenType::Nft1Child => &[0x4c, 0x00],
+                                            _ => &[0x01, 0x02],
+                                        },
+                                        &[0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, qty],
                                     ]
                                     .concat()
                                 ),
@@ -728,10 +801,10 @@ mod tests {
                         SlpToken::default(),
                         SlpToken {
                             is_mint_baton: false,
-                            amount: SlpAmount::new(123),
+                            amount: SlpAmount::new(qty as i128),
                         },
                         SlpToken {
-                            is_mint_baton: true,
+                            is_mint_baton: token_type != SlpTokenType::Nft1Child,
                             amount: SlpAmount::default(),
                         },
                     ],
@@ -741,7 +814,10 @@ mod tests {
                         token_name: [0x55].into(),
                         token_document_url: [0x66].into(),
                         token_document_hash: None,
-                        decimals: 9,
+                        decimals: match token_type {
+                            SlpTokenType::Nft1Child => 0,
+                            _ => 9,
+                        },
                     })),
                     token_id: TokenId::new(Sha256d::new([3; 32])),
                 }),
