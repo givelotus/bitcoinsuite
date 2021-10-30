@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::ByteArray;
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum BytesError {
     #[error("Index {split_idx} is out of bounds for array with length {len}")]
     InvalidSplit { split_idx: usize, len: usize },

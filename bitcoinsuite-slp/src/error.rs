@@ -3,7 +3,7 @@ use thiserror::Error;
 
 use crate::SlpAmount;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum SlpError {
     #[error("First must be OP_RETURN (0x6a), but got 0x{opcode:02x}")]
     MissingOpReturn { opcode: u8 },

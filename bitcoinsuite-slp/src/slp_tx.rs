@@ -1,12 +1,13 @@
 use bitcoinsuite_core::{ByteArray, Bytes, Script, TxInput, TxOutput, UnhashedTx};
 
-use crate::{SlpAmount, TokenId};
+use crate::{SlpAmount, SlpError, TokenId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlpTx {
     tx: UnhashedTx,
     slp_tx_data: Option<Box<SlpTxData>>,
     slp_burns: Vec<Option<Box<SlpBurn>>>,
+    slp_error: Option<SlpError>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,6 +113,20 @@ impl SlpTx {
             tx,
             slp_tx_data: slp_tx_data.map(Box::new),
             slp_burns,
+            slp_error: None,
+        }
+    }
+
+    pub fn new_err(
+        tx: UnhashedTx,
+        slp_burns: Vec<Option<Box<SlpBurn>>>,
+        slp_error: SlpError,
+    ) -> Self {
+        SlpTx {
+            tx,
+            slp_tx_data: None,
+            slp_burns,
+            slp_error: Some(slp_error),
         }
     }
 
