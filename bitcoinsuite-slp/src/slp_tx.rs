@@ -1,13 +1,13 @@
 use bitcoinsuite_core::{ByteArray, Bytes, Script, TxInput, TxOutput, UnhashedTx};
+use serde::{Deserialize, Serialize};
 
-use crate::{SlpAmount, SlpError, TokenId};
+use crate::{SlpAmount, TokenId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlpTx {
     tx: UnhashedTx,
     slp_tx_data: Option<Box<SlpTxData>>,
     slp_burns: Vec<Option<Box<SlpBurn>>>,
-    slp_error: Option<SlpError>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,7 +21,7 @@ pub struct SlpTxData {
     pub group_token_id: Option<Box<TokenId>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SlpTokenType {
     Fungible,
     Nft1Group,
@@ -29,7 +29,7 @@ pub enum SlpTokenType {
     Unknown,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SlpTxType {
     Genesis(Box<SlpGenesisInfo>),
     Send,
@@ -37,7 +37,7 @@ pub enum SlpTxType {
     Unknown,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct SlpGenesisInfo {
     pub token_ticker: Bytes,
     pub token_name: Bytes,
@@ -101,32 +101,11 @@ impl SlpTx {
                     slp_tx_data.input_tokens.len()
                 );
             }
-            if slp_tx_data.output_tokens.len() != tx.outputs.len() {
-                panic!(
-                    "tx outputs and slp data output tokens have inconsistent length: {} != {}",
-                    tx.outputs.len(),
-                    slp_tx_data.output_tokens.len()
-                );
-            }
         }
         SlpTx {
             tx,
             slp_tx_data: slp_tx_data.map(Box::new),
             slp_burns,
-            slp_error: None,
-        }
-    }
-
-    pub fn new_err(
-        tx: UnhashedTx,
-        slp_burns: Vec<Option<Box<SlpBurn>>>,
-        slp_error: SlpError,
-    ) -> Self {
-        SlpTx {
-            tx,
-            slp_tx_data: None,
-            slp_burns,
-            slp_error: Some(slp_error),
         }
     }
 

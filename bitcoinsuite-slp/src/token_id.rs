@@ -34,6 +34,10 @@ impl TokenId {
         &self.token_id_be
     }
 
+    pub fn token_id_be(&self) -> [u8; 32] {
+        self.token_id_be
+    }
+
     pub fn hash(&self) -> &Sha256d {
         &self.txid
     }

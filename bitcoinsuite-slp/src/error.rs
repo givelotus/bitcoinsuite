@@ -14,7 +14,7 @@ pub enum SlpError {
     #[error("Disallowed push: 0x{opcode:02x} at op {op_idx}")]
     DisallowedPush { opcode: u8, op_idx: usize },
     #[error(
-        "Field has invalid length: expected one of {expected:?} but got {actual} for field\
+        "Field has invalid length: expected one of {expected:?} but got {actual} for field \
         {field_name}"
     )]
     InvalidFieldSize {
