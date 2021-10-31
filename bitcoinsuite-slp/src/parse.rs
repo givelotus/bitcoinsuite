@@ -78,6 +78,7 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
             }
         }
         ParsedOutputs::Send(amounts) => {
+            output_tokens.resize(amounts.len() + 1, SlpToken::EMPTY);
             for (output_token, amount) in output_tokens.iter_mut().skip(1).zip(amounts) {
                 output_token.amount = amount;
             }
@@ -1046,39 +1047,44 @@ mod tests {
             (0x41, SlpTokenType::Nft1Child),
             (0x81, SlpTokenType::Nft1Group),
         ] {
-            assert_eq!(
-                parse_slp_tx(
-                    &Sha256d::new([3; 32]),
-                    &UnhashedTx {
-                        outputs: vec![
-                            TxOutput {
-                                value: 0,
-                                script: Script::from_slice(
-                                    &[
-                                        [0x6a, 0x04].as_ref(),
-                                        b"SLP\0",
-                                        &[0x01, type_byte],
-                                        &[0x04],
-                                        b"SEND",
-                                        &[0x20],
-                                        &[0x22; 32],
-                                        &[0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 231],
-                                    ]
-                                    .concat()
-                                ),
+            let script_intro = [
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
+                &[0x01, type_byte],
+                &[0x04],
+                b"SEND",
+                &[0x20],
+                &[0x22; 32],
+            ]
+            .concat();
+            for num_amounts in 1..=19 {
+                let mut script = script_intro.clone();
+                let mut amounts = vec![SlpToken::EMPTY];
+                for idx in 1..=num_amounts {
+                    script.extend([0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, idx as u8]);
+                    amounts.push(SlpToken::amount(idx as i128));
+                }
+                // output_tokens is independent of tx.outputs
+                for num_tx_outputs in 1..=20 {
+                    let mut tx_outputs = vec![TxOutput::default(); num_tx_outputs];
+                    tx_outputs[0].script = Script::from_slice(&script);
+                    assert_eq!(
+                        parse_slp_tx(
+                            &Sha256d::new([3; 32]),
+                            &UnhashedTx {
+                                outputs: tx_outputs,
+                                ..Default::default()
                             },
-                            TxOutput::default(),
-                        ],
-                        ..Default::default()
-                    }
-                ),
-                Ok(SlpParseData {
-                    output_tokens: vec![SlpToken::EMPTY, SlpToken::amount(231)],
-                    slp_token_type: token_type,
-                    slp_tx_type: SlpTxType::Send,
-                    token_id: TokenId::new(Sha256d::new([0x22; 32])),
-                }),
-            );
+                        ),
+                        Ok(SlpParseData {
+                            output_tokens: amounts.clone(),
+                            slp_token_type: token_type,
+                            slp_tx_type: SlpTxType::Send,
+                            token_id: TokenId::new(Sha256d::new([0x22; 32])),
+                        }),
+                    );
+                }
+            }
         }
         Ok(())
     }
