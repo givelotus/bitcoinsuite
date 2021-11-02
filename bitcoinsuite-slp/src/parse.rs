@@ -22,6 +22,7 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
         return Err(SlpError::NoOutputs);
     }
     let ops = tx.outputs[0].script.ops().collect::<Result<Vec<_>, _>>()?;
+    parse_lokad_id(&ops)?;
     let opreturn_data = parse_opreturn_ops(ops.into_iter())?;
     if opreturn_data.len() < 3 {
         return Err(SlpError::TooFewPushes {
@@ -29,7 +30,6 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
             expected: 3,
         });
     }
-    parse_lokad_id(&opreturn_data[0])?;
     if opreturn_data[1].is_empty() || opreturn_data[1].len() > 2 {
         return Err(SlpError::InvalidTokenType(opreturn_data[1].clone()));
     }
@@ -121,9 +121,26 @@ fn parse_opreturn_ops(ops: impl Iterator<Item = Op>) -> Result<Vec<Bytes>, SlpEr
     Ok(pushes)
 }
 
-fn parse_lokad_id(bytes: &Bytes) -> Result<(), SlpError> {
-    if bytes.as_ref() != SLP_LOKAD_ID {
-        return Err(SlpError::InvalidLokadId(bytes.clone()));
+fn parse_lokad_id(ops: &[Op]) -> Result<(), SlpError> {
+    match ops.get(0) {
+        Some(op) => match op {
+            Op::Code(0x6a) => {}
+            &Op::Code(opcode) | &Op::Push(opcode, _) => {
+                return Err(SlpError::MissingOpReturn { opcode });
+            }
+        },
+        None => return Err(SlpError::NoOpcodes),
+    }
+    match ops.get(1) {
+        Some(op) => match op {
+            &Op::Code(opcode) => return Err(SlpError::InvalidLokadId([opcode].into())),
+            Op::Push(_, bytes) => {
+                if bytes.as_ref() != SLP_LOKAD_ID {
+                    return Err(SlpError::InvalidLokadId(bytes.clone()));
+                }
+            }
+        },
+        None => return Err(SlpError::InvalidLokadId([].into())),
     }
     Ok(())
 }
@@ -381,63 +398,69 @@ mod tests {
             }),
         );
         // Missing OP_RETURN opcode
+        check_script(&[], SlpError::NoOpcodes);
         check_script(&[0xac], SlpError::MissingOpReturn { opcode: 0xac });
         // Disallowed push
         let mut scripts: Vec<(&[_], u8, usize)> = vec![
-            (&[0x6a, 0x00], 0x00, 1),
-            (&[0x6a, 0x4f], 0x4f, 1),
-            (&[0x6a, 0x4c, 0x00, 0x51], 0x51, 2),
-            (&[0x6a, 0x4d, 0x00, 0x00, 0x52], 0x52, 2),
-            (&[0x6a, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x53], 0x53, 2),
-            (&[0x6a, 0x01, 0x00, 0x54], 0x54, 2),
-            (&[0x6a, 0x02, 0x00, 0x00, 0x55], 0x55, 2),
-            (&[0x6a, 0x56], 0x56, 1),
-            (&[0x6a, 0x57], 0x57, 1),
-            (&[0x6a, 0x58], 0x58, 1),
-            (&[0x6a, 0x59], 0x59, 1),
-            (&[0x6a, 0x5a], 0x5a, 1),
-            (&[0x6a, 0x5b], 0x5b, 1),
-            (&[0x6a, 0x5c], 0x5c, 1),
-            (&[0x6a, 0x5d], 0x5d, 1),
-            (&[0x6a, 0x5e], 0x5e, 1),
-            (&[0x6a, 0x5f], 0x5f, 1),
-            (&[0x6a, 0x60], 0x60, 1),
+            (&[0x00], 0x00, 2),
+            (&[0x4f], 0x4f, 2),
+            (&[0x4c, 0x00, 0x51], 0x51, 3),
+            (&[0x4d, 0x00, 0x00, 0x52], 0x52, 3),
+            (&[0x4e, 0x00, 0x00, 0x00, 0x00, 0x53], 0x53, 3),
+            (&[0x01, 0x00, 0x54], 0x54, 3),
+            (&[0x02, 0x00, 0x00, 0x55], 0x55, 3),
+            (&[0x56], 0x56, 2),
+            (&[0x57], 0x57, 2),
+            (&[0x58], 0x58, 2),
+            (&[0x59], 0x59, 2),
+            (&[0x5a], 0x5a, 2),
+            (&[0x5b], 0x5b, 2),
+            (&[0x5c], 0x5c, 2),
+            (&[0x5d], 0x5d, 2),
+            (&[0x5e], 0x5e, 2),
+            (&[0x5f], 0x5f, 2),
+            (&[0x60], 0x60, 2),
         ];
-        let script = [[0x6a, 0x4b].as_ref(), &[0x00; 0x4b], &[0x00]].concat();
-        scripts.push((&script, 0x00, 2));
+        let script = [[0x4b].as_ref(), &[0x00; 0x4b], &[0x00]].concat();
+        scripts.push((&script, 0x00, 3));
         for (script, opcode, op_idx) in scripts {
-            check_script(script, SlpError::DisallowedPush { opcode, op_idx });
+            let script = [[0x6a, 0x04].as_ref(), b"SLP\0", script].concat();
+            check_script(&script, SlpError::DisallowedPush { opcode, op_idx });
         }
         // Non-pushop
         for opcode in 0x61..=0xff {
-            check_script(&[0x6a, opcode], SlpError::NonPushOp { opcode, op_idx: 1 });
+            check_script(
+                &[[0x6a, 0x04].as_ref(), b"SLP\0", &[opcode]].concat(),
+                SlpError::NonPushOp { opcode, op_idx: 2 },
+            );
         }
         // Too few pushes
         let scripts = [
-            [0x6a].as_ref(),
-            &[0x6a, 0x01, 0x00],
-            &[0x6a, 0x01, 0x00, 0x01, 0x00],
+            &[[0x6a, 0x04].as_ref(), b"SLP\0"].concat(),
+            &[[0x6a, 0x04].as_ref(), b"SLP\0", &[0x01, 0x00]].concat(),
         ];
         for (num_pushes, script) in scripts.into_iter().enumerate() {
             check_script(
                 script,
                 SlpError::TooFewPushes {
                     expected: 3,
-                    actual: num_pushes,
+                    actual: num_pushes + 1,
                 },
             );
         }
         // Invalid LOKAD ID
+        check_script(&[0x6a], SlpError::InvalidLokadId([].into()));
+        check_script(&[0x6a, 0x01, 0x00], SlpError::InvalidLokadId([0x00].into()));
         check_script(
-            &[0x6a, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00],
+            &[0x6a, 0x01, 0x00, 0x01, 0x00],
             SlpError::InvalidLokadId([0x00].into()),
         );
         check_script(
-            &[0x6a, 0x03, b'S', b'L', b'P', 0x01, 0x00, 0x01, 0x00],
+            &[0x6a, 0x03, b'S', b'L', b'P'],
             SlpError::InvalidLokadId(b"SLP".as_ref().into()),
         );
         check_script(
-            &[0x6a, 0x04, b'S', b'L', b'P', 0x99, 0x01, 0x00, 0x01, 0x00],
+            &[0x6a, 0x04, b'S', b'L', b'P', 0x99],
             SlpError::InvalidLokadId(b"SLP\x99".as_ref().into()),
         );
         // Valid Lokad ID (using OP_PUSHDATA1, OP_PUSHDATA2 and OP_PUSHDATA4)

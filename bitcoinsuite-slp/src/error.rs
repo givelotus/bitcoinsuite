@@ -7,6 +7,8 @@ use crate::SlpAmount;
 pub enum SlpError {
     #[error("First must be OP_RETURN (0x6a), but got 0x{opcode:02x}")]
     MissingOpReturn { opcode: u8 },
+    #[error("First must be OP_RETURN (0x6a), but got no opcodes")]
+    NoOpcodes,
     #[error("Tx has no outputs")]
     NoOutputs,
     #[error("Non-push op: 0x{opcode:02x} at op {op_idx}")]
