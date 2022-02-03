@@ -19,7 +19,7 @@ pub async fn setup_xec_chain(
         OsString::from_str("-uaclientname=Bitcoin NOT ABC").unwrap(),
         OsString::from_str("-ecash").unwrap(),
     ];
-    let xec_conf = BitcoindConf::from_env(BitcoindChain::XEC, xec_args)?;
+    let xec_conf = BitcoindConf::from_chain_regtest(BitcoindChain::XEC, xec_args)?;
     setup_chain(Network::XEC, xec_conf, num_generated_utxos, redeem_script).await
 }
 
@@ -27,7 +27,7 @@ pub async fn setup_bch_chain(
     num_generated_utxos: i32,
     redeem_script: &Script,
 ) -> Result<(BitcoindInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
-    let bch_conf = BitcoindConf::from_env(BitcoindChain::BCH, vec![])?;
+    let bch_conf = BitcoindConf::from_chain_regtest(BitcoindChain::BCH, vec![])?;
     setup_chain(Network::BCH, bch_conf, num_generated_utxos, redeem_script).await
 }
 

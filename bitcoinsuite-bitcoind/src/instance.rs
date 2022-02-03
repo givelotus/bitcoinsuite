@@ -18,12 +18,19 @@ pub enum BitcoindChain {
     BCH,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BitcoindNet {
+    Mainnet,
+    Regtest,
+}
+
 pub struct BitcoindConf {
     bitcoind_path: PathBuf,
     bitcoincli_path: PathBuf,
     additional_args: Vec<OsString>,
     p2p_port: u16,
     rpc_port: u16,
+    net: BitcoindNet,
 }
 
 pub struct BitcoindInstance {
@@ -34,7 +41,18 @@ pub struct BitcoindInstance {
 }
 
 impl BitcoindConf {
-    pub fn from_env(chain: BitcoindChain, additional_args: Vec<OsString>) -> Result<Self> {
+    pub fn from_chain_regtest(
+        chain: BitcoindChain,
+        additional_args: Vec<OsString>,
+    ) -> Result<Self> {
+        Self::new(chain, BitcoindNet::Regtest, additional_args)
+    }
+
+    pub fn new(
+        chain: BitcoindChain,
+        net: BitcoindNet,
+        additional_args: Vec<OsString>,
+    ) -> Result<Self> {
         let ports = pick_ports(2)?;
         let downloads_folder = Path::new("..").join("downloads");
         let bin_folder = match chain {
@@ -49,6 +67,7 @@ impl BitcoindConf {
             additional_args,
             p2p_port: ports[0],
             rpc_port: ports[1],
+            net,
         })
     }
 }
@@ -67,15 +86,18 @@ impl BitcoindInstance {
             .map_err(BitcoindError::TestInstance)?;
         let bitcoin_conf_str = format!(
             "\
-regtest=1
+{net_line}
 server=1
 rpcuser=user
 rpcpassword=pass
-[regtest]
-port={}
-rpcport={}
+{net_section_header}
+port={p2p_port}
+rpcport={rpc_port}
 ",
-            conf.p2p_port, conf.rpc_port
+            net_line = conf.net.conf_line(),
+            net_section_header = conf.net.conf_section_header(),
+            p2p_port = conf.p2p_port,
+            rpc_port = conf.rpc_port
         );
         {
             let mut bitcoin_conf = std::fs::File::create(datadir.join("bitcoin.conf"))
@@ -192,6 +214,22 @@ impl Drop for BitcoindInstance {
             if let Err(err) = self.shutdown_bitcoind() {
                 eprintln!("Failed to shut down bitcoind: {}", err);
             }
+        }
+    }
+}
+
+impl BitcoindNet {
+    fn conf_line(&self) -> &'static str {
+        match self {
+            BitcoindNet::Mainnet => "",
+            BitcoindNet::Regtest => "regtest=1",
+        }
+    }
+
+    fn conf_section_header(&self) -> &'static str {
+        match self {
+            BitcoindNet::Mainnet => "",
+            BitcoindNet::Regtest => "[regtest]",
         }
     }
 }
