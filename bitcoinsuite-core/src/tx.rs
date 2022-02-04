@@ -35,6 +35,13 @@ pub struct TxOutput {
     pub script: Script,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Coin {
+    pub tx_output: TxOutput,
+    pub height: Option<i32>,
+    pub is_coinbase: bool,
+}
+
 impl UnhashedTx {
     pub fn hashed(self) -> Tx {
         let mut data = BytesMut::new();

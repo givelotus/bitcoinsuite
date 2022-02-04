@@ -1,0 +1,25 @@
+[package]
+name = "bitcoinsuite-bitcoind-nng"
+version = "0.1.0"
+authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+flatbuffers = "2.0"
+nng = "1.0"
+
+# Error handling
+thiserror = "1.0"
+bitcoinsuite-error = { path = "../bitcoinsuite-error" }
+
+# Bitcoin stuff
+bitcoinsuite-core = { path = "../bitcoinsuite-core" }
+bitcoinsuite-bitcoind = { path = "../bitcoinsuite-bitcoind" }
+
+[dev-dependencies]
+hex = "0.4"
+json = "0.12"
+bitcoinsuite-test-utils = { path = "../bitcoinsuite-test-utils" }
+
+# For ipc named pipes
+tempdir = "0.3"

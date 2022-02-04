@@ -5,6 +5,8 @@ members = [
     "bitcoinsuite-bitcoind",
     # Downloads and builds bchd executables
     "bitcoinsuite-bchd-grpc",
+    # Builds flatbuffers
+    "bitcoinsuite-bitcoind-nng",
 
     "bitcoinsuite-core",
     "bitcoinsuite-ecc-secp256k1",

@@ -1,0 +1,8 @@
+[tasks.build]
+dependencies = [
+    "generate-fb",
+]
+
+# Build flatbuffer files and fix warnings
+[tasks.generate-fb]
+script = { file = "make-fb.sh" }

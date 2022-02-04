@@ -111,6 +111,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitcoinsuite-bitcoind-nng"
+version = "0.1.0"
+dependencies = [
+ "bitcoinsuite-bitcoind",
+ "bitcoinsuite-core",
+ "bitcoinsuite-error",
+ "bitcoinsuite-test-utils",
+ "flatbuffers",
+ "hex",
+ "json",
+ "nng",
+ "tempdir",
+ "thiserror",
+]
+
+[[package]]
 name = "bitcoinsuite-core"
 version = "0.1.0"
 dependencies = [
@@ -260,9 +276,9 @@ checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
 
 [[package]]
 name = "cc"
-version = "1.0.69"
+version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e70cc2f62c6ce1868963827bd677764c62d07c3d9a3e1fb1177ee1a9ab199eb2"
+checksum = "22a9137b95ea06864e018375b72adfb7db6e6f68cfc8df5a04d00288050485ee"
 
 [[package]]
 name = "cfg-if"
@@ -277,6 +293,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "cmake"
+version = "0.1.48"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8ad8cef104ac57b68b89df3208164d228503abbdce70f6880ffa3d970e7443a"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -340,6 +365,17 @@ name = "fixedbitset"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37ab347416e802de484e4d03c7316c48f1ecb56574dfd4a46a80f173ce1de04d"
+
+[[package]]
+name = "flatbuffers"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef4c5738bcd7fad10315029c50026f83c9da5e4a21f8ed66826f43e0e2bde5f6"
+dependencies = [
+ "bitflags",
+ "smallvec",
+ "thiserror",
+]
 
 [[package]]
 name = "fnv"
@@ -797,6 +833,26 @@ dependencies = [
  "safemem",
  "tempfile",
  "twoway",
+]
+
+[[package]]
+name = "nng"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20a18ed7ec1c8ff1658bcfea2ce76dcedf8be21dd9e8dd2e9762ba9632d16203"
+dependencies = [
+ "log",
+ "nng-sys",
+]
+
+[[package]]
+name = "nng-sys"
+version = "1.4.0-rc.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50d0e7f39a8fd1792a710da9351320e864dc799cf439960e332c977b2f876da6"
+dependencies = [
+ "cmake",
+ "version_check",
 ]
 
 [[package]]

@@ -19,6 +19,7 @@ use crate::BitcoindError;
 pub enum BitcoindChain {
     XEC,
     BCH,
+    XPI,
 }
 
 pub struct BitcoindConf {
@@ -28,6 +29,7 @@ pub struct BitcoindConf {
     p2p_port: u16,
     rpc_port: u16,
     net: Net,
+    chain: BitcoindChain,
 }
 
 pub struct BitcoindInstance {
@@ -57,9 +59,12 @@ impl BitcoindConf {
         let bin_folder = match chain {
             BitcoindChain::XEC => bin_folder.join("bitcoin-abc").join("bin"),
             BitcoindChain::BCH => bin_folder.join("bitcoin-cash-node").join("bin"),
+            BitcoindChain::XPI => bin_folder.join("lotusd").join("bin"),
         };
-        let bitcoind_path = bin_folder.join("bitcoind");
-        let bitcoincli_path = bin_folder.join("bitcoin-cli");
+        let (bitcoind_path, bitcoincli_path) = match chain {
+            BitcoindChain::XPI => (bin_folder.join("lotusd"), bin_folder.join("lotus-cli")),
+            _ => (bin_folder.join("bitcoind"), bin_folder.join("bitcoin-cli")),
+        };
         Ok(BitcoindConf {
             bitcoind_path,
             bitcoincli_path,
@@ -67,6 +72,7 @@ impl BitcoindConf {
             p2p_port: ports[0],
             rpc_port: ports[1],
             net,
+            chain,
         })
     }
 }
@@ -109,9 +115,12 @@ rpcport={rpc_port}
             p2p_port = conf.p2p_port,
             rpc_port = conf.rpc_port
         );
+        let conf_path = match conf.chain {
+            BitcoindChain::XPI => datadir.join("lotus.conf"),
+            _ => datadir.join("bitcoin.conf"),
+        };
         {
-            let mut bitcoin_conf =
-                File::create(datadir.join("bitcoin.conf")).wrap_err(BitcoindError::TestInstance)?;
+            let mut bitcoin_conf = File::create(conf_path).wrap_err(BitcoindError::TestInstance)?;
             bitcoin_conf
                 .write_all(bitcoin_conf_str.as_bytes())
                 .wrap_err(BitcoindError::TestInstance)?;
@@ -202,7 +211,7 @@ rpcport={rpc_port}
     }
 
     pub fn wait_for_ready(&mut self) -> Result<()> {
-        for _ in 0..40 {
+        for _ in 0..100 {
             self._ensure_bitcoind()?;
             std::thread::sleep(Duration::from_millis(50));
             let output = self.cmd_output("getblockcount", &[])?;
