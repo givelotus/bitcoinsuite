@@ -1,4 +1,4 @@
 mod error;
-pub mod test_instance;
+pub mod instance;
 
 pub use crate::error::BitcoindError;

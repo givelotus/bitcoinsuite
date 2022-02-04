@@ -5,7 +5,7 @@ use bitcoinsuite_bchd_grpc::{
     bchd_grpc::GetBlockchainInfoRequest,
     test_instance::{BchdTestConf, BchdTestInstance},
 };
-use bitcoinsuite_bitcoind::test_instance::{BitcoindChain, BitcoindTestConf, BitcoindTestInstance};
+use bitcoinsuite_bitcoind::instance::{BitcoindChain, BitcoindConf, BitcoindInstance};
 use bitcoinsuite_core::{
     BitcoinCode, Hashed, Network, OutPoint, Script, SequenceNo, Sha256d, TxInput, TxOutput,
     UnhashedTx,
@@ -14,30 +14,30 @@ use bitcoinsuite_core::{
 pub async fn setup_xec_chain(
     num_generated_utxos: i32,
     redeem_script: &Script,
-) -> Result<(BitcoindTestInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
+) -> Result<(BitcoindInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
     let xec_args = vec![
         OsString::from_str("-uaclientname=Bitcoin NOT ABC").unwrap(),
         OsString::from_str("-ecash").unwrap(),
     ];
-    let xec_conf = BitcoindTestConf::from_env(BitcoindChain::XEC, xec_args)?;
+    let xec_conf = BitcoindConf::from_env(BitcoindChain::XEC, xec_args)?;
     setup_chain(Network::XEC, xec_conf, num_generated_utxos, redeem_script).await
 }
 
 pub async fn setup_bch_chain(
     num_generated_utxos: i32,
     redeem_script: &Script,
-) -> Result<(BitcoindTestInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
-    let bch_conf = BitcoindTestConf::from_env(BitcoindChain::BCH, vec![])?;
+) -> Result<(BitcoindInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
+    let bch_conf = BitcoindConf::from_env(BitcoindChain::BCH, vec![])?;
     setup_chain(Network::BCH, bch_conf, num_generated_utxos, redeem_script).await
 }
 
 pub async fn setup_chain(
     network: Network,
-    bitcoind_conf: BitcoindTestConf,
+    bitcoind_conf: BitcoindConf,
     num_generated_utxos: i32,
     redeem_script: &Script,
-) -> Result<(BitcoindTestInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
-    let mut bitcoind = BitcoindTestInstance::setup(bitcoind_conf)?;
+) -> Result<(BitcoindInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
+    let mut bitcoind = BitcoindInstance::setup(bitcoind_conf)?;
     bitcoind.wait_for_ready()?;
     let bchd_conf = BchdTestConf::from_env(bitcoind.p2p_port(), vec![])?;
     let mut bchd = BchdTestInstance::setup(bchd_conf).await?;
