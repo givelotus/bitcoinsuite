@@ -10,3 +10,9 @@ thiserror = "1.0"
 
 # Random port sampling
 rand = "0.8"
+
+# Async
+tokio = { version = "1.9", features = ["full"] }
+
+# HTTP server
+warp = "0.3"
