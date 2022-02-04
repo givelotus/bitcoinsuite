@@ -3,6 +3,8 @@
 members = [
     "bitcoinsuite-bchd-grpc",
     "bitcoinsuite-core",
+    "bitcoinsuite-ecc",
+    "bitcoinsuite-ecc-secp256k1",
     "bitcoinsuite-slp",
     "bitcoinsuite-bitcoind",
     "bitcoinsuite-test-utils",

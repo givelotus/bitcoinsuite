@@ -86,3 +86,15 @@ impl Bytes {
         hex::encode(&self.data)
     }
 }
+
+impl From<Vec<u8>> for Bytes {
+    fn from(vec: Vec<u8>) -> Self {
+        Bytes::from_bytes(vec)
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for Bytes {
+    fn from(arr: [u8; N]) -> Self {
+        Bytes::from_slice(&arr)
+    }
+}

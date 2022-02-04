@@ -1,0 +1,17 @@
+[package]
+name = "bitcoinsuite-ecc"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+bitcoinsuite-core = { path = "../bitcoinsuite-core" }
+
+# Keeping secret keys hidden
+secrecy = "0.7"
+
+# Error handling
+thiserror = "1.0"
+
+# Parsing hex pubkeys
+hex = "0.4"
+hex-literal = "0.3"

@@ -29,6 +29,10 @@ impl<const N: usize> ByteArray<N> {
     pub fn as_array(&self) -> &[u8; N] {
         &self.data
     }
+
+    pub fn hex(&self) -> String {
+        hex::encode(&self.data)
+    }
 }
 
 impl<const N: usize> Default for ByteArray<N> {
@@ -56,5 +60,11 @@ impl<const N: usize> Eq for ByteArray<N> {}
 impl<const N: usize> Hash for ByteArray<N> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.data.hash(state)
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for ByteArray<N> {
+    fn from(arr: [u8; N]) -> Self {
+        ByteArray::new(arr)
     }
 }
