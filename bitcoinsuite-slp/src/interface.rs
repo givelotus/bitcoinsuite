@@ -1,8 +1,11 @@
-use async_trait::async_trait;
-use bitcoinsuite_core::{Sha256d, UnhashedTx};
-use bitcoinsuite_error::Result;
+use std::{collections::HashMap, pin::Pin};
 
-use crate::TokenId;
+use async_trait::async_trait;
+use bitcoinsuite_core::{CashAddress, Sha256d, UnhashedTx};
+use bitcoinsuite_error::Result;
+use futures::Stream;
+
+use crate::{SlpTx, TokenId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlpSend {
@@ -10,9 +13,24 @@ pub struct SlpSend {
     pub amounts: Vec<u64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TokenMetadata {
+    pub decimals: u32,
+}
+
 #[async_trait]
 pub trait SlpNodeInterface: Send + Sync {
     async fn submit_tx(&self, raw_tx: Vec<u8>) -> Result<Sha256d>;
+
+    async fn get_token_metadata(
+        &self,
+        token_ids: &[TokenId],
+    ) -> Result<HashMap<TokenId, TokenMetadata>>;
+
+    async fn address_tx_stream(
+        &self,
+        address: &CashAddress,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<SlpTx>> + Sync + Send>>>;
 }
 
 #[async_trait]

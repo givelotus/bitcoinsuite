@@ -5,6 +5,10 @@ authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+# Async
+tokio = { version="1.9", features = ["full"] }
+futures = "0.3"
+
 # Bitcoin tools
 bitcoinsuite-core = { path = "../bitcoinsuite-core" }
 bitcoinsuite-slp = { path = "../bitcoinsuite-slp" }
@@ -25,3 +29,9 @@ tokio-rustls = { version = "*", features = ["dangerous_configuration"] }
 
 [build-dependencies]
 tonic-build = "0.5"
+
+[dev-dependencies]
+bitcoinsuite-test-utils-blockchain = { path = "../bitcoinsuite-test-utils-blockchain" }
+
+bitcoinsuite-ecc-secp256k1 = { path = "../bitcoinsuite-ecc-secp256k1" }
+pretty_assertions = "0.7"
