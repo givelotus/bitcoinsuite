@@ -1,9 +1,8 @@
 use std::path::Path;
 
-use anyhow::Result;
 use async_trait::async_trait;
 use bitcoinsuite_core::{Hashed, Sha256d, UnhashedTx};
-use bitcoinsuite_error::ErrorMeta;
+use bitcoinsuite_error::{ErrorMeta, Report, Result};
 use bitcoinsuite_slp::{SlpInterface, SlpNodeInterface, SlpSend, TokenId};
 use thiserror::Error;
 use tonic::transport::Channel;
@@ -36,7 +35,7 @@ use self::BchdSlpError::*;
 
 #[async_trait]
 impl SlpInterface for BchdSlpInterface {
-    async fn parse_slp_send(&self, tx: &UnhashedTx) -> anyhow::Result<SlpSend> {
+    async fn parse_slp_send(&self, tx: &UnhashedTx) -> Result<SlpSend> {
         let mut bchd = self.client.clone();
         let output = tx.outputs.first().ok_or(NoOutputs)?;
         let parsed_script = bchd
@@ -66,14 +65,15 @@ impl SlpInterface for BchdSlpInterface {
 
 #[async_trait]
 impl SlpNodeInterface for BchdSlpInterface {
-    async fn submit_tx(&self, raw_tx: Vec<u8>) -> anyhow::Result<Sha256d> {
+    async fn submit_tx(&self, raw_tx: Vec<u8>) -> Result<Sha256d> {
         let mut bchd = self.client.clone();
         let response = bchd
             .submit_transaction(SubmitTransactionRequest {
                 transaction: raw_tx,
                 ..Default::default()
             })
-            .await?
+            .await
+            .map_err(|err| Report::msg(err.message().to_string()))?
             .into_inner();
         Ok(Sha256d::from_slice(&response.hash)?)
     }

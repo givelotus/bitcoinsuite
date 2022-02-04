@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::Result;
+use bitcoinsuite_error::Result;
 use bitcoinsuite_test_utils::{bin_folder, pick_ports};
 use tempdir::TempDir;
 use tonic::transport::Channel;

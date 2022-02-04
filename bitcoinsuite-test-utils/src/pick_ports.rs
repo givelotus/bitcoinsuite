@@ -1,9 +1,9 @@
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6, TcpListener, ToSocketAddrs};
 
+use bitcoinsuite_error::Result;
 use rand::Rng;
 
 use crate::UtilError;
-use anyhow::Result;
 
 /// Try to bind to a socket using TCP
 fn test_bind_tcp(addr: impl ToSocketAddrs) -> Option<u16> {

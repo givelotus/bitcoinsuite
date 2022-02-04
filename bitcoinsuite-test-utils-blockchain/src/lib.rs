@@ -1,6 +1,5 @@
 use std::{ffi::OsString, str::FromStr, time::Duration};
 
-use anyhow::Result;
 use bitcoinsuite_bchd_grpc::{
     bchd_grpc::GetBlockchainInfoRequest,
     test_instance::{BchdTestConf, BchdTestInstance},
@@ -10,6 +9,7 @@ use bitcoinsuite_core::{
     BitcoinCode, Hashed, Network, OutPoint, Script, SequenceNo, Sha256d, TxInput, TxOutput,
     UnhashedTx,
 };
+use bitcoinsuite_error::Result;
 use bitcoinsuite_test_utils::bin_folder;
 
 pub async fn setup_xec_chain(

@@ -12,7 +12,6 @@ async-trait = "0.1.50"
 
 # Error handling
 thiserror = "1.0"
-anyhow = "1.0"
 bitcoinsuite-error = { path = "../bitcoinsuite-error" }
 
 # For test instance datadir

@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 # Error handling
-anyhow = "1.0"
 thiserror = "1.0"
 bitcoinsuite-error = { path = "../bitcoinsuite-error" }
 

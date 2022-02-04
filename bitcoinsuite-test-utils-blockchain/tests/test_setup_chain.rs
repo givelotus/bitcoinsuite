@@ -1,6 +1,6 @@
-use anyhow::Result;
 use bitcoinsuite_bchd_grpc::bchd_grpc::GetBlockchainInfoRequest;
 use bitcoinsuite_core::Script;
+use bitcoinsuite_error::Result;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_setup_xec_chain() -> Result<()> {

@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use anyhow::Result;
+use bitcoinsuite_error::Result;
 use tokio_rustls::{
     rustls::{
         ClientConfig, DangerousClientConfig, RootCertStore, ServerCertVerified, ServerCertVerifier,

@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Result;
+use bitcoinsuite_error::Result;
 use bitcoinsuite_test_utils::pick_ports;
 use tempdir::TempDir;
 

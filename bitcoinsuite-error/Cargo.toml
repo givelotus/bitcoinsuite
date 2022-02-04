@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 bitcoinsuite-error-derive = { path = "../bitcoinsuite-error-derive" }
+eyre = "0.6"
