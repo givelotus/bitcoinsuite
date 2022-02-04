@@ -10,6 +10,10 @@ pub enum BitcoindError {
     TestInstance,
 
     #[critical()]
+    #[error("Bitcoind client IO error")]
+    Client,
+
+    #[critical()]
     #[error("JSON RPC error: {0}")]
     JsonRpc(String),
 

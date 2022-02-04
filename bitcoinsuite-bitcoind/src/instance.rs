@@ -13,7 +13,7 @@ use bitcoinsuite_error::{Result, WrapErr};
 use bitcoinsuite_test_utils::pick_ports;
 use tempdir::TempDir;
 
-use crate::BitcoindError;
+use crate::{client::BitcoindClient, BitcoindError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitcoindChain {
@@ -37,6 +37,7 @@ pub struct BitcoindInstance {
     instance_dir: PathBuf,
     datadir_arg: OsString,
     bitcoind_child: Child,
+    client: BitcoindClient,
 }
 
 impl BitcoindConf {
@@ -135,12 +136,21 @@ rpcport={rpc_port}
             .stderr(stderr)
             .spawn()
             .wrap_err(BitcoindError::TestInstance)?;
+        let client = BitcoindClient {
+            datadir_arg: datadir_arg.clone(),
+            bitcoincli_path: conf.bitcoincli_path.clone(),
+        };
         Ok(BitcoindInstance {
             conf,
             instance_dir,
             datadir_arg,
             bitcoind_child,
+            client,
         })
+    }
+
+    pub fn client(&self) -> &BitcoindClient {
+        &self.client
     }
 
     fn shutdown_bitcoind(&mut self) -> Result<()> {
@@ -171,27 +181,15 @@ rpcport={rpc_port}
     }
 
     pub fn cmd_output(&self, cmd: &str, args: &[&str]) -> Result<Output> {
-        Command::new(&self.conf.bitcoincli_path)
-            .arg(&self.datadir_arg)
-            .arg(cmd)
-            .args(args)
-            .output()
-            .wrap_err(BitcoindError::TestInstance)
+        self.client.cmd_output(cmd, args)
     }
 
     pub fn cmd_string(&self, cmd: &str, args: &[&str]) -> Result<String> {
-        let output = self.cmd_output(cmd, args)?;
-        if output.status.success() {
-            Ok(String::from_utf8(output.stdout)?
-                .trim_end_matches('\n')
-                .to_string())
-        } else {
-            Err(BitcoindError::JsonRpc(String::from_utf8(output.stderr)?).into())
-        }
+        self.client.cmd_string(cmd, args)
     }
 
     pub fn cmd_json(&self, cmd: &str, args: &[&str]) -> Result<json::JsonValue> {
-        Ok(json::parse(&self.cmd_string(cmd, args)?)?)
+        self.client.cmd_json(cmd, args)
     }
 
     fn _ensure_bitcoind(&mut self) -> Result<()> {
