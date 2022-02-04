@@ -1,0 +1,21 @@
+[package]
+name = "bitcoinsuite-error-derive"
+version = "0.1.0"
+authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+# Proc macro
+syn = { version = "1.0", features = ["full"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+
+# Convert enum variant to error code and severity to enum variant
+convert_case = "0.4"
+
+[dev-dependencies]
+bitcoinsuite-error = { path = "../bitcoinsuite-error" }
+thiserror = "1.0"

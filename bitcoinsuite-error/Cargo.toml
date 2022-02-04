@@ -1,0 +1,8 @@
+[package]
+name = "bitcoinsuite-error"
+version = "0.1.0"
+authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+bitcoinsuite-error-derive = { path = "../bitcoinsuite-error-derive" }

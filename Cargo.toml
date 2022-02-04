@@ -9,6 +9,8 @@ members = [
     "bitcoinsuite-core",
     "bitcoinsuite-ecc",
     "bitcoinsuite-ecc-secp256k1",
+    "bitcoinsuite-error",
+    "bitcoinsuite-error-derive",
     "bitcoinsuite-slp",
     "bitcoinsuite-test-utils",
     "bitcoinsuite-test-utils-blockchain",
