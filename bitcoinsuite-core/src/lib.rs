@@ -13,6 +13,7 @@ mod network;
 mod op;
 mod script;
 mod sequence;
+mod sighashtype;
 mod tx;
 
 pub use crate::address::*;
@@ -28,4 +29,5 @@ pub use crate::network::*;
 pub use crate::op::*;
 pub use crate::script::*;
 pub use crate::sequence::*;
+pub use crate::sighashtype::*;
 pub use crate::tx::*;
