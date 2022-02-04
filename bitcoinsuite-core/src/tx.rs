@@ -1,4 +1,4 @@
-use crate::{BitcoinCode, Bytes, BytesMut, Hashed, Result, Script, SequenceNo, Sha256d};
+use crate::{BitcoinCode, Bytes, BytesMut, Hashed, Result, Script, SequenceNo, Sha256d, SignData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UnhashedTx {
@@ -22,16 +22,11 @@ pub struct OutPoint {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct SigningData {
-    // empty for now
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TxInput {
     pub prev_out: OutPoint,
     pub script: Script,
     pub sequence: SequenceNo,
-    pub signing_data: Option<SigningData>,
+    pub sign_data: Option<SignData>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

@@ -14,6 +14,7 @@ mod op;
 mod script;
 mod sequence;
 mod sighashtype;
+mod sign;
 mod tx;
 
 pub use crate::address::*;
@@ -30,4 +31,5 @@ pub use crate::op::*;
 pub use crate::script::*;
 pub use crate::sequence::*;
 pub use crate::sighashtype::*;
+pub use crate::sign::*;
 pub use crate::tx::*;

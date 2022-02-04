@@ -1,7 +1,7 @@
 use hex::FromHexError;
 use thiserror::Error;
 
-use crate::BytesError;
+use crate::{BytesError, SignError};
 
 #[derive(Error, Debug)]
 pub enum BitcoinSuiteError {
@@ -19,6 +19,8 @@ pub enum BitcoinSuiteError {
     CodesepNotFound(usize),
     #[error("From hex error: {0}")]
     Hex(#[from] FromHexError),
+    #[error("Sign error: {0}")]
+    Sign(#[from] SignError),
 }
 
 pub type Result<T> = std::result::Result<T, BitcoinSuiteError>;
