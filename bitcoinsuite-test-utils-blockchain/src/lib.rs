@@ -6,7 +6,10 @@ use bitcoinsuite_bchd_grpc::{
     test_instance::{BchdTestConf, BchdTestInstance},
 };
 use bitcoinsuite_bitcoind::test_instance::{BitcoindChain, BitcoindTestConf, BitcoindTestInstance};
-use bitcoinsuite_core::{Hashed, Network, OutPoint, Script, Sha256d};
+use bitcoinsuite_core::{
+    BitcoinCode, Hashed, Network, OutPoint, Script, SequenceNo, Sha256d, TxInput, TxOutput,
+    UnhashedTx,
+};
 
 pub async fn setup_xec_chain(
     num_generated_utxos: i32,
@@ -80,4 +83,18 @@ pub async fn setup_chain(
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     Ok((bitcoind, bchd, utxos))
+}
+
+pub fn build_tx(outpoint: OutPoint, redeem_script: &Script, outputs: Vec<TxOutput>) -> UnhashedTx {
+    UnhashedTx {
+        version: 1,
+        inputs: vec![TxInput {
+            prev_out: outpoint,
+            script: Script::new(redeem_script.bytecode().ser()),
+            sequence: SequenceNo::finalized(),
+            ..Default::default()
+        }],
+        outputs,
+        lock_time: 0,
+    }
 }
