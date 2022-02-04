@@ -1,5 +1,5 @@
 mod bchd;
-mod error;
+pub mod error;
 mod interface;
 pub mod test_instance;
 mod tx;

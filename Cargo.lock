@@ -147,6 +147,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitcoinsuite-error-report"
+version = "0.1.0"
+dependencies = [
+ "bitcoinsuite-bchd-grpc",
+ "bitcoinsuite-bitcoind",
+ "bitcoinsuite-error",
+ "bitcoinsuite-test-utils",
+]
+
+[[package]]
+name = "bitcoinsuite-error-warp"
+version = "0.1.0"
+dependencies = [
+ "bitcoinsuite-error",
+ "serde",
+ "warp",
+]
+
+[[package]]
 name = "bitcoinsuite-slp"
 version = "0.1.0"
 dependencies = [

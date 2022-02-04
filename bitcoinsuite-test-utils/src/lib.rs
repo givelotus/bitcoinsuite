@@ -1,5 +1,5 @@
 mod bin_folder;
-mod error;
+pub mod error;
 mod pick_ports;
 mod serve;
 
