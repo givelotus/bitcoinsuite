@@ -1,12 +1,14 @@
 [workspace]
 
 members = [
+    # Downloads latest BCH and XEC versions
+    "bitcoinsuite-bitcoind",
+
     "bitcoinsuite-bchd-grpc",
     "bitcoinsuite-core",
     "bitcoinsuite-ecc",
     "bitcoinsuite-ecc-secp256k1",
     "bitcoinsuite-slp",
-    "bitcoinsuite-bitcoind",
     "bitcoinsuite-test-utils",
     "bitcoinsuite-test-utils-blockchain",
 ]

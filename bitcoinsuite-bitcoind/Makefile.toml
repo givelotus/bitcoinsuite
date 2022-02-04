@@ -1,0 +1,8 @@
+[tasks.build]
+dependencies = [
+    "ensure-bitcoind",
+]
+
+# make sure bitcoind executables are downloaded
+[tasks.ensure-bitcoind]
+script = { file = "ensure-bitcoind.sh" }
