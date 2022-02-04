@@ -32,6 +32,8 @@ pub enum SignError {
         max_fee: i64,
         required_fee: i64,
     },
+    #[error("OP_CODESEPARATOR #{0} not found")]
+    CodesepNotFound(usize),
 }
 
 pub type Result<T> = std::result::Result<T, SignError>;
