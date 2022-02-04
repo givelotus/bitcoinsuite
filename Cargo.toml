@@ -3,8 +3,9 @@
 members = [
     # Downloads latest BCH and XEC versions
     "bitcoinsuite-bitcoind",
-
+    # Downloads and builds bchd executables
     "bitcoinsuite-bchd-grpc",
+
     "bitcoinsuite-core",
     "bitcoinsuite-ecc",
     "bitcoinsuite-ecc-secp256k1",
