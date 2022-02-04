@@ -12,6 +12,13 @@ pub enum Network {
     XRG,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum Net {
+    Mainnet,
+    Regtest,
+}
+
 impl Network {
     pub fn dust_amount(&self) -> i64 {
         match self {
@@ -72,5 +79,11 @@ mod tests {
             _ => panic!("Unexpected parse result"),
         }
         Ok(())
+    }
+}
+
+impl Default for Net {
+    fn default() -> Self {
+        Net::Mainnet
     }
 }

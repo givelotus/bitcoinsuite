@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use async_trait::async_trait;
-use bitcoinsuite_core::{Hashed, Sha256d, UnhashedTx};
+use bitcoinsuite_core::{Hashed, Net, Sha256d, UnhashedTx};
 use bitcoinsuite_error::{ErrorMeta, Report, Result};
 use bitcoinsuite_slp::{SlpInterface, SlpNodeInterface, SlpSend, TokenId};
 use thiserror::Error;
@@ -18,6 +18,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct BchdSlpInterface {
     client: BchrpcClient<Channel>,
+    _net: Net,
 }
 
 #[derive(Error, ErrorMeta, Debug)]
@@ -80,12 +81,15 @@ impl SlpNodeInterface for BchdSlpInterface {
 }
 
 impl BchdSlpInterface {
-    pub fn new(bchd: BchrpcClient<Channel>) -> Self {
-        BchdSlpInterface { client: bchd }
+    pub fn new(bchd: BchrpcClient<Channel>, net: Net) -> Self {
+        BchdSlpInterface {
+            client: bchd,
+            _net: net,
+        }
     }
 
-    pub async fn connect(url: String, cert_path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn connect(url: String, cert_path: impl AsRef<Path>, net: Net) -> Result<Self> {
         let client = connect_bchd(url, cert_path).await?;
-        Ok(BchdSlpInterface { client })
+        Ok(BchdSlpInterface::new(client, net))
     }
 }

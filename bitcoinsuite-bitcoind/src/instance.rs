@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+use bitcoinsuite_core::Net;
 use bitcoinsuite_error::{Result, WrapErr};
 use bitcoinsuite_test_utils::pick_ports;
 use tempdir::TempDir;
@@ -20,19 +21,13 @@ pub enum BitcoindChain {
     BCH,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BitcoindNet {
-    Mainnet,
-    Regtest,
-}
-
 pub struct BitcoindConf {
     bitcoind_path: PathBuf,
     bitcoincli_path: PathBuf,
     additional_args: Vec<OsString>,
     p2p_port: u16,
     rpc_port: u16,
-    net: BitcoindNet,
+    net: Net,
 }
 
 pub struct BitcoindInstance {
@@ -48,13 +43,13 @@ impl BitcoindConf {
         chain: BitcoindChain,
         additional_args: Vec<OsString>,
     ) -> Result<Self> {
-        Self::new(bin_folder, chain, BitcoindNet::Regtest, additional_args)
+        Self::new(bin_folder, chain, Net::Regtest, additional_args)
     }
 
     pub fn new(
         bin_folder: impl AsRef<Path>,
         chain: BitcoindChain,
-        net: BitcoindNet,
+        net: Net,
         additional_args: Vec<OsString>,
     ) -> Result<Self> {
         let ports = pick_ports(2)?;
@@ -109,8 +104,8 @@ rpcpassword=pass
 port={p2p_port}
 rpcport={rpc_port}
 ",
-            net_line = conf.net.conf_line(),
-            net_section_header = conf.net.conf_section_header(),
+            net_line = net_conf_line(conf.net),
+            net_section_header = net_conf_section_header(conf.net),
             p2p_port = conf.p2p_port,
             rpc_port = conf.rpc_port
         );
@@ -233,18 +228,16 @@ impl Drop for BitcoindInstance {
     }
 }
 
-impl BitcoindNet {
-    fn conf_line(&self) -> &'static str {
-        match self {
-            BitcoindNet::Mainnet => "",
-            BitcoindNet::Regtest => "regtest=1",
-        }
+fn net_conf_line(net: Net) -> &'static str {
+    match net {
+        Net::Mainnet => "",
+        Net::Regtest => "regtest=1",
     }
+}
 
-    fn conf_section_header(&self) -> &'static str {
-        match self {
-            BitcoindNet::Mainnet => "",
-            BitcoindNet::Regtest => "[regtest]",
-        }
+fn net_conf_section_header(net: Net) -> &'static str {
+    match net {
+        Net::Mainnet => "",
+        Net::Regtest => "[regtest]",
     }
 }

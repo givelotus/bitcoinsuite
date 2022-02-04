@@ -5,6 +5,9 @@ authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+# Bitcoin stuff
+bitcoinsuite-core = { path = "../bitcoinsuite-core" }
+
 # Error handling
 thiserror = "1.0"
 bitcoinsuite-error = { path = "../bitcoinsuite-error" }
