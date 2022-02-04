@@ -42,22 +42,24 @@ pub struct BitcoindInstance {
 
 impl BitcoindConf {
     pub fn from_chain_regtest(
+        bin_folder: impl AsRef<Path>,
         chain: BitcoindChain,
         additional_args: Vec<OsString>,
     ) -> Result<Self> {
-        Self::new(chain, BitcoindNet::Regtest, additional_args)
+        Self::new(bin_folder, chain, BitcoindNet::Regtest, additional_args)
     }
 
     pub fn new(
+        bin_folder: impl AsRef<Path>,
         chain: BitcoindChain,
         net: BitcoindNet,
         additional_args: Vec<OsString>,
     ) -> Result<Self> {
         let ports = pick_ports(2)?;
-        let downloads_folder = Path::new("..").join("downloads");
+        let bin_folder = bin_folder.as_ref();
         let bin_folder = match chain {
-            BitcoindChain::XEC => downloads_folder.join("bitcoin-abc").join("bin"),
-            BitcoindChain::BCH => downloads_folder.join("bitcoin-cash-node").join("bin"),
+            BitcoindChain::XEC => bin_folder.join("bitcoin-abc").join("bin"),
+            BitcoindChain::BCH => bin_folder.join("bitcoin-cash-node").join("bin"),
         };
         let bitcoind_path = bin_folder.join("bitcoind");
         let bitcoincli_path = bin_folder.join("bitcoin-cli");

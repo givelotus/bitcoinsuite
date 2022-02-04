@@ -1,4 +1,9 @@
-use std::{ffi::OsString, str::FromStr, time::Duration};
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+    str::FromStr,
+    time::Duration,
+};
 
 use anyhow::Result;
 use bitcoinsuite_bchd_grpc::{
@@ -19,7 +24,7 @@ pub async fn setup_xec_chain(
         OsString::from_str("-uaclientname=Bitcoin NOT ABC").unwrap(),
         OsString::from_str("-ecash").unwrap(),
     ];
-    let xec_conf = BitcoindConf::from_chain_regtest(BitcoindChain::XEC, xec_args)?;
+    let xec_conf = BitcoindConf::from_chain_regtest(bin_folder(), BitcoindChain::XEC, xec_args)?;
     setup_chain(Network::XEC, xec_conf, num_generated_utxos, redeem_script).await
 }
 
@@ -27,7 +32,7 @@ pub async fn setup_bch_chain(
     num_generated_utxos: i32,
     redeem_script: &Script,
 ) -> Result<(BitcoindInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
-    let bch_conf = BitcoindConf::from_chain_regtest(BitcoindChain::BCH, vec![])?;
+    let bch_conf = BitcoindConf::from_chain_regtest(bin_folder(), BitcoindChain::BCH, vec![])?;
     setup_chain(Network::BCH, bch_conf, num_generated_utxos, redeem_script).await
 }
 
@@ -97,4 +102,8 @@ pub fn build_tx(outpoint: OutPoint, redeem_script: &Script, outputs: Vec<TxOutpu
         outputs,
         lock_time: 0,
     }
+}
+
+pub fn bin_folder() -> PathBuf {
+    Path::new("..").join("downloads")
 }
