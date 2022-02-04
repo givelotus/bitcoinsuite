@@ -18,3 +18,6 @@ bitcoinsuite-slp = { path = "../bitcoinsuite-slp" }
 # Nodes
 bitcoinsuite-bitcoind = { path = "../bitcoinsuite-bitcoind" }
 bitcoinsuite-bchd-grpc = { path = "../bitcoinsuite-bchd-grpc" }
+
+# Test utils
+bitcoinsuite-test-utils = { path = "../bitcoinsuite-test-utils" }

@@ -1017,6 +1017,7 @@ dependencies = [
  "bitcoinsuite-bitcoind",
  "bitcoinsuite-core",
  "bitcoinsuite-slp",
+ "bitcoinsuite-test-utils",
  "tokio",
 ]
 

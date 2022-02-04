@@ -1,12 +1,12 @@
 use std::{
     ffi::OsString,
     io::Write,
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::{Child, Command},
     str::FromStr,
 };
 
-use bitcoinsuite_test_utils::pick_ports;
+use bitcoinsuite_test_utils::{bin_folder, pick_ports};
 use tempdir::TempDir;
 use tonic::transport::Channel;
 
@@ -37,7 +37,7 @@ impl BchdTestConf {
     pub fn from_env(connect_port: u16, additional_args: Vec<OsString>) -> Result<Self> {
         let ports = pick_ports(2)?;
         Ok(BchdTestConf {
-            bchd_path: Path::new("..").join("downloads").join("bchd").join("bchd"),
+            bchd_path: bin_folder().join("bchd").join("bchd"),
             additional_args,
             connect_port,
             rpc_port: ports[0],

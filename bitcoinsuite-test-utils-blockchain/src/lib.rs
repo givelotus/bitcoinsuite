@@ -1,9 +1,4 @@
-use std::{
-    ffi::OsString,
-    path::{Path, PathBuf},
-    str::FromStr,
-    time::Duration,
-};
+use std::{ffi::OsString, str::FromStr, time::Duration};
 
 use anyhow::Result;
 use bitcoinsuite_bchd_grpc::{
@@ -15,6 +10,7 @@ use bitcoinsuite_core::{
     BitcoinCode, Hashed, Network, OutPoint, Script, SequenceNo, Sha256d, TxInput, TxOutput,
     UnhashedTx,
 };
+use bitcoinsuite_test_utils::bin_folder;
 
 pub async fn setup_xec_chain(
     num_generated_utxos: i32,
@@ -102,8 +98,4 @@ pub fn build_tx(outpoint: OutPoint, redeem_script: &Script, outputs: Vec<TxOutpu
         outputs,
         lock_time: 0,
     }
-}
-
-pub fn bin_folder() -> PathBuf {
-    Path::new("..").join("downloads")
 }
