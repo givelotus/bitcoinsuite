@@ -255,6 +255,7 @@ mod tests {
             hex::encode(&block.txs[0].tx.raw),
             json_block["tx"][0]["hex"]
         );
+        assert_eq!(block.txs[0].tx.spent_coins, None);
         assert_eq!(
             block.txs[0].tx.txid.to_hex_be(),
             json_block["tx"][0]["txid"]

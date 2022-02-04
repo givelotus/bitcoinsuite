@@ -1,4 +1,4 @@
-use bitcoinsuite_core::{Network, OutPoint, Sha256d, Tx, TxInput, TxOutput};
+use bitcoinsuite_core::{Coin, Network, OutPoint, Sha256d, Tx, TxInput, TxOutput};
 
 use crate::{SlpBurn, SlpToken, SlpTxData};
 
@@ -8,7 +8,7 @@ pub struct RichTx {
     pub txid: Sha256d,
     pub block: Option<RichTxBlock>,
     pub slp_tx_data: Option<Box<SlpTxData>>,
-    pub spent_outputs: Option<Vec<TxOutput>>,
+    pub spent_coins: Option<Vec<Coin>>,
     pub spends: Vec<Option<OutPoint>>,
     pub slp_burns: Vec<Option<Box<SlpBurn>>>,
     pub slp_error_msg: Option<String>,
@@ -25,7 +25,7 @@ pub struct RichTxInput<'tx> {
     pub tx_input: &'tx TxInput,
     pub slp_burn: Option<&'tx SlpBurn>,
     pub slp_token: SlpToken,
-    pub spent_output: Option<&'tx TxOutput>,
+    pub spent_coin: Option<&'tx Coin>,
 }
 
 pub struct RichTxOutput<'tx> {
@@ -44,10 +44,10 @@ impl RichTx {
                 .as_ref()
                 .and_then(|slp| slp.input_tokens.get(idx).cloned())
                 .unwrap_or_default(),
-            spent_output: self
-                .spent_outputs
+            spent_coin: self
+                .spent_coins
                 .as_ref()
-                .map(|spent_outputs| &spent_outputs[idx]),
+                .map(|spent_coins| &spent_coins[idx]),
         })
     }
 
