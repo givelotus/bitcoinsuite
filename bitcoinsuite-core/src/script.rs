@@ -1,4 +1,7 @@
-use crate::{bytes::Bytes, BitcoinCode, BytesError, BytesMut, Hashed, Op, Result, ShaRmd160};
+use crate::{
+    bytes::Bytes, BitcoinCode, BitcoinSuiteError, BytesError, BytesMut, Hashed, Op, Result,
+    ShaRmd160,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
 pub struct Script {
@@ -116,6 +119,30 @@ impl Script {
             bytecode: bytes.freeze(),
         }
     }
+
+    pub fn is_opreturn(&self) -> bool {
+        self.bytecode
+            .get(0)
+            .map(|&opcode| opcode == 0x6a)
+            .unwrap_or_default()
+    }
+
+    pub fn cut_out_codesep(&self, n_codesep: Option<usize>) -> Result<Script> {
+        if let Some(n_codesep) = n_codesep {
+            let mut n_codeseps_found = 0;
+            let mut ops = self.ops();
+            while let Some(op) = ops.next() {
+                if let Op::Code(0xab) = op? {
+                    if n_codesep == n_codeseps_found {
+                        return Ok(Script::new(ops.remaining_bytecode));
+                    }
+                    n_codeseps_found += 1;
+                }
+            }
+            return Err(BitcoinSuiteError::CodesepNotFound(n_codesep));
+        }
+        Ok(self.clone())
+    }
 }
 
 impl Iterator for ScriptOpIter {
@@ -127,5 +154,52 @@ impl Iterator for ScriptOpIter {
         } else {
             Some(Op::deser_op(&mut self.remaining_bytecode))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{BitcoinSuiteError, Script};
+
+    #[test]
+    fn test_cut_out_codesep_without() -> Result<(), Box<dyn std::error::Error>> {
+        let script = Script::from_slice(&[0x51, 0x52, 0x93, 0x53, 0x87]);
+        assert_eq!(script.cut_out_codesep(None)?, script);
+        for i in 0..100 {
+            match script.cut_out_codesep(Some(i)) {
+                Err(BitcoinSuiteError::CodesepNotFound(pos)) => assert_eq!(pos, i),
+                other => panic!("Unexpected result: {:?}", other),
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_cut_out_codesep() -> Result<(), Box<dyn std::error::Error>> {
+        let script =
+            Script::from_slice(&[0x51, 0xab, 0x52, 0xab, 0xab, 0x93, 0x53, 0xab, 0x87, 0xab]);
+        assert_eq!(script.cut_out_codesep(None)?, script);
+        assert_eq!(
+            script.cut_out_codesep(Some(0))?,
+            Script::from_slice(&[0x52, 0xab, 0xab, 0x93, 0x53, 0xab, 0x87, 0xab])
+        );
+        assert_eq!(
+            script.cut_out_codesep(Some(1))?,
+            Script::from_slice(&[0xab, 0x93, 0x53, 0xab, 0x87, 0xab])
+        );
+        assert_eq!(
+            script.cut_out_codesep(Some(2))?,
+            Script::from_slice(&[0x93, 0x53, 0xab, 0x87, 0xab])
+        );
+        assert_eq!(
+            script.cut_out_codesep(Some(3))?,
+            Script::from_slice(&[0x87, 0xab])
+        );
+        assert_eq!(script.cut_out_codesep(Some(4))?, Script::from_slice(&[]));
+        match script.cut_out_codesep(Some(5)) {
+            Err(BitcoinSuiteError::CodesepNotFound(5)) => {}
+            other => panic!("Unexpected result: {:?}", other),
+        }
+        Ok(())
     }
 }

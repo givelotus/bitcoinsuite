@@ -15,6 +15,8 @@ pub enum BitcoinSuiteError {
     NumberParseError,
     #[error("Unknown network: {0}")]
     UnknownNetwork(String),
+    #[error("OP_CODESEPARATOR #{0} not found")]
+    CodesepNotFound(usize),
     #[error("From hex error: {0}")]
     Hex(#[from] FromHexError),
 }
