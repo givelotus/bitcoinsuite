@@ -1,5 +1,6 @@
 use std::{path::Path, sync::Arc};
 
+use anyhow::Result;
 use tokio_rustls::{
     rustls::{
         ClientConfig, DangerousClientConfig, RootCertStore, ServerCertVerified, ServerCertVerifier,
@@ -9,7 +10,7 @@ use tokio_rustls::{
 };
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
 
-use crate::{bchd_grpc::bchrpc_client::BchrpcClient, error::Result, BchdError};
+use crate::{bchd_grpc::bchrpc_client::BchrpcClient, BchdError};
 
 struct NopCertVerifier;
 

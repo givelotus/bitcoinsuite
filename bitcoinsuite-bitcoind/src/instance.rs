@@ -7,10 +7,11 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Result;
 use bitcoinsuite_test_utils::pick_ports;
 use tempdir::TempDir;
 
-use crate::{error::Result, BitcoindError};
+use crate::BitcoindError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitcoindChain {
@@ -154,12 +155,12 @@ rpcport={rpc_port}
     }
 
     pub fn cmd_output(&self, cmd: &str, args: &[&str]) -> Result<Output> {
-        Command::new(&self.conf.bitcoincli_path)
+        Ok(Command::new(&self.conf.bitcoincli_path)
             .arg(&self.datadir_arg)
             .arg(cmd)
             .args(args)
             .output()
-            .map_err(BitcoindError::TestInstance)
+            .map_err(BitcoindError::TestInstance)?)
     }
 
     pub fn cmd_string(&self, cmd: &str, args: &[&str]) -> Result<String> {
@@ -169,7 +170,7 @@ rpcport={rpc_port}
                 .trim_end_matches('\n')
                 .to_string())
         } else {
-            Err(BitcoindError::JsonRpc(String::from_utf8(output.stderr)?))
+            Err(BitcoindError::JsonRpc(String::from_utf8(output.stderr)?).into())
         }
     }
 
@@ -184,7 +185,7 @@ rpcport={rpc_port}
             .map_err(BitcoindError::TestInstance)?
             .is_some()
         {
-            return Err(BitcoindError::BitcoindExited);
+            return Err(BitcoindError::BitcoindExited.into());
         }
         Ok(())
     }
@@ -202,11 +203,11 @@ rpcport={rpc_port}
                 return Ok(());
             }
         }
-        Err(BitcoindError::Timeout("bitcoind".into()))
+        Err(BitcoindError::Timeout("bitcoind".into()).into())
     }
 
     pub fn cleanup(&self) -> Result<()> {
-        std::fs::remove_dir_all(&self.instance_dir).map_err(BitcoindError::TestInstance)
+        Ok(std::fs::remove_dir_all(&self.instance_dir).map_err(BitcoindError::TestInstance)?)
     }
 }
 

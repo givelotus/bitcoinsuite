@@ -68,6 +68,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bitcoinsuite-core",
+ "bitcoinsuite-error",
  "bitcoinsuite-slp",
  "bitcoinsuite-test-utils",
  "prost",
@@ -82,6 +83,8 @@ dependencies = [
 name = "bitcoinsuite-bitcoind"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "bitcoinsuite-error",
  "bitcoinsuite-test-utils",
  "json",
  "tempdir",
@@ -159,6 +162,8 @@ dependencies = [
 name = "bitcoinsuite-test-utils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "bitcoinsuite-error",
  "rand 0.8.4",
  "thiserror",
  "tokio",

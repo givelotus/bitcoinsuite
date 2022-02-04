@@ -6,15 +6,14 @@ use std::{
     str::FromStr,
 };
 
+use anyhow::Result;
 use bitcoinsuite_test_utils::{bin_folder, pick_ports};
 use tempdir::TempDir;
 use tonic::transport::Channel;
 
 use crate::{
     bchd_grpc::{bchrpc_client::BchrpcClient, GetTransactionRequest, GetTransactionResponse},
-    connect_bchd,
-    error::Result,
-    BchdError,
+    connect_bchd, BchdError,
 };
 
 #[derive(Debug, Clone)]
