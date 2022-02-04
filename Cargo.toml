@@ -7,7 +7,6 @@ members = [
     "bitcoinsuite-bchd-grpc",
 
     "bitcoinsuite-core",
-    "bitcoinsuite-ecc",
     "bitcoinsuite-ecc-secp256k1",
     "bitcoinsuite-error",
     "bitcoinsuite-error-derive",

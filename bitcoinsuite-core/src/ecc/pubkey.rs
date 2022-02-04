@@ -1,9 +1,8 @@
 use std::convert::TryInto;
 
-use bitcoinsuite_core::ByteArray;
 use hex_literal::hex;
 
-use crate::EccError;
+use crate::{ecc::EccError, ByteArray};
 
 pub const PUBKEY_LENGTH: usize = 33;
 

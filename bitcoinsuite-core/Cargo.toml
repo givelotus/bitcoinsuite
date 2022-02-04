@@ -11,6 +11,7 @@ thiserror = "1.0"
 # Byte/string libs
 bytes = "1.0"
 hex = "0.4"
+hex-literal = "0.3"
 
 # Hashing
 digest = "0.9"
@@ -19,6 +20,9 @@ ripemd160 = "0.9"
 sha2 = "0.9"
 
 serde = { version = "1.0", features = ["derive"] }
+
+# Keeping secret keys hidden
+secrecy = "0.8"
 
 [dev-dependencies]
 serde_json = "1.0"
