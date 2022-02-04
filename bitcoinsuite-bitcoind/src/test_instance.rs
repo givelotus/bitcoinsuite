@@ -14,7 +14,7 @@ use crate::{error::Result, BitcoindError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitcoindChain {
-    ABC,
+    XEC,
     BCH,
 }
 
@@ -36,9 +36,9 @@ pub struct BitcoindTestInstance {
 impl BitcoindTestConf {
     pub fn from_env(chain: BitcoindChain, additional_args: Vec<OsString>) -> Result<Self> {
         let ports = pick_ports(2)?;
-        let downloads_folder = Path::new("..").join("..").join("downloads");
+        let downloads_folder = Path::new("..").join("downloads");
         let bin_folder = match chain {
-            BitcoindChain::ABC => downloads_folder.join("bitcoin-abc").join("bin"),
+            BitcoindChain::XEC => downloads_folder.join("bitcoin-abc").join("bin"),
             BitcoindChain::BCH => downloads_folder.join("bitcoin-cash-node").join("bin"),
         };
         let bitcoind_path = bin_folder.join("bitcoind");

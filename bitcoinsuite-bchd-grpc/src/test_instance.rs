@@ -37,11 +37,7 @@ impl BchdTestConf {
     pub fn from_env(connect_port: u16, additional_args: Vec<OsString>) -> Result<Self> {
         let ports = pick_ports(2)?;
         Ok(BchdTestConf {
-            bchd_path: Path::new("..")
-                .join("..")
-                .join("downloads")
-                .join("bchd")
-                .join("bchd"),
+            bchd_path: Path::new("..").join("downloads").join("bchd").join("bchd"),
             additional_args,
             connect_port,
             rpc_port: ports[0],

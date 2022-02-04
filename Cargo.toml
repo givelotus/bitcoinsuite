@@ -8,4 +8,5 @@ members = [
     "bitcoinsuite-slp",
     "bitcoinsuite-bitcoind",
     "bitcoinsuite-test-utils",
+    "bitcoinsuite-test-utils-blockchain",
 ]
