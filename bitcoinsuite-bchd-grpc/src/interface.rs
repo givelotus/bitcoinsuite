@@ -1,9 +1,14 @@
 use std::{collections::HashMap, path::Path, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
-use bitcoinsuite_core::{CashAddress, Hashed, Net, Sha256d, UnhashedTx, BCHREG, BITCOINCASH};
+use bitcoinsuite_core::{
+    CashAddress, Hashed, Net, OutPoint, Script, Sha256d, UnhashedTx, Utxo, BCHREG, BITCOINCASH,
+};
 use bitcoinsuite_error::{ErrorMeta, Report, Result, WrapErr};
-use bitcoinsuite_slp::{SlpInterface, SlpNodeInterface, SlpSend, SlpTx, TokenId, TokenMetadata};
+use bitcoinsuite_slp::{
+    SlpAmount, SlpInterface, SlpNodeInterface, SlpSend, SlpToken, SlpTx, SlpUtxo, TokenId,
+    TokenMetadata,
+};
 use futures::{Stream, StreamExt};
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -12,8 +17,8 @@ use tonic::transport::Channel;
 use crate::{
     bchd_grpc::{
         self, bchrpc_client::BchrpcClient, get_slp_parsed_script_response::SlpMetadata,
-        GetSlpParsedScriptRequest, SlpAction, SubmitTransactionRequest,
-        SubscribeTransactionsRequest, TransactionFilter,
+        GetAddressUnspentOutputsRequest, GetSlpParsedScriptRequest, SlpAction,
+        SubmitTransactionRequest, SubscribeTransactionsRequest, TransactionFilter,
     },
     connect_bchd, to_slp_tx,
 };
@@ -148,6 +153,51 @@ impl SlpNodeInterface for BchdSlpInterface {
             ..TransactionFilter::default()
         })
         .await
+    }
+
+    async fn address_utxos(&self, address: &CashAddress) -> Result<Vec<SlpUtxo>> {
+        let mut bchd = self.client.clone();
+        let prefix = match self.net {
+            Net::Mainnet => BITCOINCASH,
+            Net::Regtest => BCHREG,
+        };
+        let utxos = bchd
+            .get_address_unspent_outputs(GetAddressUnspentOutputsRequest {
+                address: address.with_prefix(prefix).into_string(),
+                include_mempool: true,
+                include_token_metadata: false,
+            })
+            .await
+            .wrap_err(GrpcFail)?
+            .into_inner();
+        Ok(utxos
+            .outputs
+            .into_iter()
+            .flat_map(|utxo| {
+                let outpoint = utxo.outpoint?;
+                Some(SlpUtxo {
+                    utxo: Utxo {
+                        outpoint: OutPoint {
+                            txid: Sha256d::from_slice(&outpoint.hash).ok()?,
+                            out_idx: outpoint.index,
+                        },
+                        script: Script::from_slice(&utxo.pubkey_script),
+                        value: utxo.value,
+                    },
+                    token: utxo
+                        .slp_token
+                        .as_ref()
+                        .map(|slp_token| SlpToken {
+                            amount: SlpAmount::new(slp_token.amount.into()),
+                            is_mint_baton: slp_token.is_mint_baton,
+                        })
+                        .unwrap_or_default(),
+                    token_id: utxo
+                        .slp_token
+                        .and_then(|slp_token| TokenId::from_slice_be(&slp_token.token_id).ok()),
+                })
+            })
+            .collect())
     }
 }
 

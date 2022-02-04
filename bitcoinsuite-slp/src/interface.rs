@@ -5,7 +5,7 @@ use bitcoinsuite_core::{CashAddress, Sha256d, UnhashedTx};
 use bitcoinsuite_error::Result;
 use futures::Stream;
 
-use crate::{SlpTx, TokenId};
+use crate::{SlpTx, SlpUtxo, TokenId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlpSend {
@@ -31,6 +31,8 @@ pub trait SlpNodeInterface: Send + Sync {
         &self,
         address: &CashAddress,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<SlpTx>> + Sync + Send>>>;
+
+    async fn address_utxos(&self, address: &CashAddress) -> Result<Vec<SlpUtxo>>;
 }
 
 #[async_trait]

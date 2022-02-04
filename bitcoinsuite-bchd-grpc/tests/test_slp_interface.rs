@@ -1,25 +1,27 @@
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 use bitcoinsuite_bchd_grpc::BchdSlpInterface;
 use bitcoinsuite_core::{
     ecc::Ecc, AddressType, BitcoinCode, Bytes, CashAddress, Hashed, Net, Network, OutPoint,
     P2PKHSignatory, Script, SequenceNo, Sha256d, ShaRmd160, SigHashType, SignData, SignField,
-    TxBuilder, TxInput, TxOutput, UnhashedTx, ECASH,
+    TxBuilder, TxInput, TxOutput, UnhashedTx, Utxo, ECASH,
 };
 use bitcoinsuite_ecc_secp256k1::EccSecp256k1;
 use bitcoinsuite_error::Result;
 use bitcoinsuite_slp::{
     genesis_opreturn, mint_opreturn, send_opreturn, SlpAmount, SlpBurn, SlpGenesisInfo,
-    SlpNodeInterface, SlpToken, SlpTx, SlpTxData, SlpTxType, TokenId,
+    SlpNodeInterface, SlpToken, SlpTx, SlpTxData, SlpTxType, SlpUtxo, TokenId,
 };
 use bitcoinsuite_test_utils_blockchain::{build_tx, setup_xec_chain};
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
 use tokio::time::timeout;
 
+#[allow(clippy::mutable_key_type)]
 async fn test_slp_interface() -> Result<()> {
     let ecc = EccSecp256k1::default();
     let redeem_script = Script::from_static_slice(&[0x51]);
+    let redeem_script2 = Script::from_static_slice(&[0x52]);
     let (bitcoind, mut bchd, mut utxos) = setup_xec_chain(10, &redeem_script).await?;
 
     let node = BchdSlpInterface::new(bchd.client().clone(), Net::Regtest);
@@ -35,13 +37,14 @@ async fn test_slp_interface() -> Result<()> {
     // Allow other thread to listen to stream before sending any txs
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    let (outpoint, utxo_value) = utxos.pop().unwrap();
+    let (outpoint, miner_value) = utxos.pop().unwrap();
+    let utxo_value = miner_value - 10_000;
     let tx = build_tx(
         outpoint,
         &redeem_script,
         vec![
             TxOutput {
-                value: utxo_value - 10_000,
+                value: utxo_value,
                 script: address.to_script(),
             },
             TxOutput {
@@ -53,7 +56,7 @@ async fn test_slp_interface() -> Result<()> {
     // submit on both BCHD and bitcoind:
     // - BCHD checks for valid SLP
     // - bitcoind checks for undersize etc. and other rules
-    node.submit_tx(tx.ser().to_vec()).await?;
+    let txid = node.submit_tx(tx.ser().to_vec()).await?;
     bitcoind.cmd_string("sendrawtransaction", &[&tx.ser().hex()])?;
     let mut tx_stream = tx_handle.await??;
     let actual_tx = timeout(Duration::from_secs(3), tx_stream.next())
@@ -61,6 +64,17 @@ async fn test_slp_interface() -> Result<()> {
         .expect("Stream ended unexpectedly")?;
     let expected_tx = SlpTx::new(tx, None, vec![None]);
     assert_eq!(expected_tx, actual_tx);
+    let address_utxos = node.address_utxos(&address).await?;
+    let sats_utxo = SlpUtxo {
+        utxo: Utxo {
+            outpoint: OutPoint { txid, out_idx: 0 },
+            script: address.to_script(),
+            value: utxo_value,
+        },
+        token: SlpToken::default(),
+        token_id: None,
+    };
+    assert_eq!(address_utxos, vec![sats_utxo.clone()]);
 
     let (utxo_outpoint, utxo_value) = utxos.pop().unwrap();
     let genesis_info = SlpGenesisInfo {
@@ -85,7 +99,7 @@ async fn test_slp_interface() -> Result<()> {
             },
             TxOutput {
                 value: genesis_output_value,
-                script: redeem_script.to_p2sh(),
+                script: redeem_script2.to_p2sh(),
             },
         ],
     );
@@ -118,6 +132,55 @@ async fn test_slp_interface() -> Result<()> {
         vec![None],
     );
     assert_eq!(expected_tx, actual_tx);
+    let address_utxos = node
+        .address_utxos(&address)
+        .await?
+        .into_iter()
+        .collect::<HashSet<_>>();
+    assert_eq!(
+        address_utxos,
+        vec![
+            sats_utxo,
+            SlpUtxo {
+                utxo: Utxo {
+                    outpoint: OutPoint {
+                        txid: genesis_txid.clone(),
+                        out_idx: 1
+                    },
+                    script: address.to_script(),
+                    value: genesis_output_value
+                },
+                token: SlpToken {
+                    amount: SlpAmount::new(20),
+                    is_mint_baton: false,
+                },
+                token_id: Some(token_id.clone()),
+            },
+        ]
+        .into_iter()
+        .collect(),
+    );
+    let mint_sh = ShaRmd160::digest(redeem_script2.bytecode().clone());
+    let mint_address = CashAddress::from_hash(ECASH, AddressType::P2SH, mint_sh);
+    let genesis_mint_utxos = node.address_utxos(&mint_address).await?;
+    assert_eq!(
+        genesis_mint_utxos,
+        vec![SlpUtxo {
+            utxo: Utxo {
+                outpoint: OutPoint {
+                    txid: genesis_txid.clone(),
+                    out_idx: 2
+                },
+                script: mint_address.to_script(),
+                value: genesis_output_value
+            },
+            token: SlpToken {
+                amount: SlpAmount::default(),
+                is_mint_baton: true,
+            },
+            token_id: Some(token_id.clone()),
+        }]
+    );
 
     let mint_output_value = genesis_output_value / 2 - 10_000;
     let mint_tx = build_tx(
@@ -125,7 +188,7 @@ async fn test_slp_interface() -> Result<()> {
             txid: genesis_txid,
             out_idx: 2,
         },
-        &redeem_script,
+        &redeem_script2,
         vec![
             TxOutput {
                 value: 0,

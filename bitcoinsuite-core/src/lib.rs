@@ -16,6 +16,7 @@ mod sequence;
 mod sighashtype;
 mod sign;
 mod tx;
+mod utxo;
 
 pub use crate::address::*;
 pub use crate::bitcoin_code::*;
@@ -33,3 +34,4 @@ pub use crate::sequence::*;
 pub use crate::sighashtype::*;
 pub use crate::sign::*;
 pub use crate::tx::*;
+pub use crate::utxo::*;
