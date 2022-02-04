@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use bitcoinsuite_error::Result;
+use bitcoinsuite_error::{Result, WrapErr};
 use tokio_rustls::{
     rustls::{
         ClientConfig, DangerousClientConfig, RootCertStore, ServerCertVerified, ServerCertVerifier,
@@ -33,11 +33,11 @@ pub async fn connect_bchd(
 ) -> Result<BchrpcClient<Channel>> {
     use std::fs;
     use std::io::Read;
-    let mut cert_file = fs::File::open(cert_path).map_err(BchdError::CertFile)?;
+    let mut cert_file = fs::File::open(cert_path).wrap_err(BchdError::CertFile)?;
     let mut cert = Vec::new();
     cert_file
         .read_to_end(&mut cert)
-        .map_err(BchdError::CertFile)?;
+        .wrap_err(BchdError::CertFile)?;
     let mut config = ClientConfig::new();
     config.set_protocols(&[ALPN_H2.to_vec()]);
     let mut dangerous_config = DangerousClientConfig { cfg: &mut config };

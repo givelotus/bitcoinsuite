@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
 };
 
-use bitcoinsuite_error::Result;
+use bitcoinsuite_error::{Result, WrapErr};
 use bitcoinsuite_test_utils::{bin_folder, pick_ports};
 use tempdir::TempDir;
 use tonic::transport::Channel;
@@ -50,7 +50,7 @@ impl BchdTestConf {
 impl BchdTestInstance {
     pub async fn setup(conf: BchdTestConf) -> Result<Self> {
         let instance_dir = TempDir::new("bchd_test_dir")
-            .map_err(BchdError::TestInstanceIo)?
+            .wrap_err(BchdError::TestInstanceIo)?
             .into_path();
         let datadir = instance_dir.join("datadir");
         let certdir = instance_dir.join("certdir");
@@ -58,13 +58,13 @@ impl BchdTestInstance {
         let cert_path = certdir.join("localhost.crt");
         let conf_file_path = instance_dir.join("bchd.conf");
         println!("Running BCHD in {}", instance_dir.to_str().unwrap());
-        std::fs::create_dir(&datadir).map_err(BchdError::TestInstanceIo)?;
-        std::fs::create_dir(&certdir).map_err(BchdError::TestInstanceIo)?;
-        std::fs::create_dir(&logdir).map_err(BchdError::TestInstanceIo)?;
+        std::fs::create_dir(&datadir).wrap_err(BchdError::TestInstanceIo)?;
+        std::fs::create_dir(&certdir).wrap_err(BchdError::TestInstanceIo)?;
+        std::fs::create_dir(&logdir).wrap_err(BchdError::TestInstanceIo)?;
         let stdout = std::fs::File::create(instance_dir.join("stdout.txt"))
-            .map_err(BchdError::TestInstanceIo)?;
+            .wrap_err(BchdError::TestInstanceIo)?;
         let stderr = std::fs::File::create(instance_dir.join("stderr.txt"))
-            .map_err(BchdError::TestInstanceIo)?;
+            .wrap_err(BchdError::TestInstanceIo)?;
         let bitcoin_conf_str = format!(
             "\
 [Application Options]
@@ -94,11 +94,11 @@ slpindex=1",
         );
         {
             let mut bchd_conf =
-                std::fs::File::create(&conf_file_path).map_err(BchdError::TestInstanceIo)?;
+                std::fs::File::create(&conf_file_path).wrap_err(BchdError::TestInstanceIo)?;
             bchd_conf
                 .write_all(bitcoin_conf_str.as_bytes())
-                .map_err(BchdError::TestInstanceIo)?;
-            bchd_conf.flush().map_err(BchdError::TestInstanceIo)?;
+                .wrap_err(BchdError::TestInstanceIo)?;
+            bchd_conf.flush().wrap_err(BchdError::TestInstanceIo)?;
         }
         let mut configfile_arg = OsString::from_str("--configfile=").unwrap();
         configfile_arg.push(conf_file_path.as_os_str());
@@ -114,7 +114,7 @@ slpindex=1",
             .stdout(stdout)
             .stderr(stderr)
             .spawn()
-            .map_err(BchdError::TestInstanceIo)?;
+            .wrap_err(BchdError::TestInstanceIo)?;
         let mut attempts: i32 = 0;
         let client = loop {
             match connect_bchd(format!("http://localhost:{}", conf.grpc_port), &cert_path).await {
@@ -160,13 +160,13 @@ slpindex=1",
     }
 
     fn shutdown_bchd(&mut self) -> Result<()> {
-        self.bchd_child.kill().map_err(BchdError::TestInstanceIo)?;
-        self.bchd_child.wait().map_err(BchdError::TestInstanceIo)?;
+        self.bchd_child.kill().wrap_err(BchdError::TestInstanceIo)?;
+        self.bchd_child.wait().wrap_err(BchdError::TestInstanceIo)?;
         Ok(())
     }
 
     pub fn cleanup(&self) -> Result<()> {
-        std::fs::remove_dir_all(&self.instance_dir).map_err(BchdError::TestInstanceIo)?;
+        std::fs::remove_dir_all(&self.instance_dir).wrap_err(BchdError::TestInstanceIo)?;
         Ok(())
     }
 }

@@ -1,5 +1,6 @@
 use std::{
     ffi::OsString,
+    fs::File,
     io::Write,
     path::{Path, PathBuf},
     process::{Child, Command, Output},
@@ -7,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use bitcoinsuite_error::Result;
+use bitcoinsuite_error::{Result, WrapErr};
 use bitcoinsuite_test_utils::pick_ports;
 use tempdir::TempDir;
 
@@ -78,15 +79,26 @@ impl BitcoindConf {
 impl BitcoindInstance {
     pub fn setup(conf: BitcoindConf) -> Result<Self> {
         let instance_dir = TempDir::new("bitcoind_test_dir")
-            .map_err(BitcoindError::TestInstance)?
+            .wrap_err(BitcoindError::TestInstance)?
             .into_path();
         let datadir = instance_dir.join("datadir");
+        std::fs::create_dir(&datadir).wrap_err(BitcoindError::TestInstance)?;
+        Self::start(instance_dir, datadir, conf)
+    }
+
+    pub fn start(
+        instance_dir: PathBuf,
+        datadir: impl AsRef<Path>,
+        conf: BitcoindConf,
+    ) -> Result<Self> {
+        let mut datadir_arg = OsString::from_str("-datadir=").unwrap();
+        datadir_arg.push(datadir.as_ref().as_os_str());
+        let datadir = datadir.as_ref();
         println!("{}", datadir.to_str().unwrap());
-        std::fs::create_dir(&datadir).map_err(BitcoindError::TestInstance)?;
-        let stdout = std::fs::File::create(instance_dir.join("stdout.txt"))
-            .map_err(BitcoindError::TestInstance)?;
-        let stderr = std::fs::File::create(instance_dir.join("stderr.txt"))
-            .map_err(BitcoindError::TestInstance)?;
+        let stdout =
+            File::create(instance_dir.join("stdout.txt")).wrap_err(BitcoindError::TestInstance)?;
+        let stderr =
+            File::create(instance_dir.join("stderr.txt")).wrap_err(BitcoindError::TestInstance)?;
         let bitcoin_conf_str = format!(
             "\
 {net_line}
@@ -103,12 +115,12 @@ rpcport={rpc_port}
             rpc_port = conf.rpc_port
         );
         {
-            let mut bitcoin_conf = std::fs::File::create(datadir.join("bitcoin.conf"))
-                .map_err(BitcoindError::TestInstance)?;
+            let mut bitcoin_conf =
+                File::create(datadir.join("bitcoin.conf")).wrap_err(BitcoindError::TestInstance)?;
             bitcoin_conf
                 .write_all(bitcoin_conf_str.as_bytes())
-                .map_err(BitcoindError::TestInstance)?;
-            bitcoin_conf.flush().map_err(BitcoindError::TestInstance)?;
+                .wrap_err(BitcoindError::TestInstance)?;
+            bitcoin_conf.flush().wrap_err(BitcoindError::TestInstance)?;
         }
         let mut datadir_arg = OsString::from_str("-datadir=").unwrap();
         datadir_arg.push(datadir.as_os_str());
@@ -118,7 +130,7 @@ rpcport={rpc_port}
             .stdout(stdout)
             .stderr(stderr)
             .spawn()
-            .map_err(BitcoindError::TestInstance)?;
+            .wrap_err(BitcoindError::TestInstance)?;
         Ok(BitcoindInstance {
             conf,
             instance_dir,
@@ -130,37 +142,37 @@ rpcport={rpc_port}
     fn shutdown_bitcoind(&mut self) -> Result<()> {
         self.bitcoind_child
             .kill()
-            .map_err(BitcoindError::TestInstance)?;
+            .wrap_err(BitcoindError::TestInstance)?;
         self.bitcoind_child
             .wait()
-            .map_err(BitcoindError::TestInstance)?;
+            .wrap_err(BitcoindError::TestInstance)?;
         Ok(())
     }
 
     pub fn restart_with_args(&mut self, args: &[OsString]) -> Result<()> {
         self.shutdown_bitcoind()?;
-        let stdout = std::fs::File::create(self.instance_dir.join("stdout1.txt"))
-            .map_err(BitcoindError::TestInstance)?;
-        let stderr = std::fs::File::create(self.instance_dir.join("stderr1.txt"))
-            .map_err(BitcoindError::TestInstance)?;
+        let stdout = File::create(self.instance_dir.join("stdout1.txt"))
+            .wrap_err(BitcoindError::TestInstance)?;
+        let stderr = File::create(self.instance_dir.join("stderr1.txt"))
+            .wrap_err(BitcoindError::TestInstance)?;
         let bitcoind_child = Command::new(&self.conf.bitcoind_path)
             .arg(&self.datadir_arg)
             .args(args)
             .stdout(stdout)
             .stderr(stderr)
             .spawn()
-            .map_err(BitcoindError::TestInstance)?;
+            .wrap_err(BitcoindError::TestInstance)?;
         self.bitcoind_child = bitcoind_child;
         Ok(())
     }
 
     pub fn cmd_output(&self, cmd: &str, args: &[&str]) -> Result<Output> {
-        Ok(Command::new(&self.conf.bitcoincli_path)
+        Command::new(&self.conf.bitcoincli_path)
             .arg(&self.datadir_arg)
             .arg(cmd)
             .args(args)
             .output()
-            .map_err(BitcoindError::TestInstance)?)
+            .wrap_err(BitcoindError::TestInstance)
     }
 
     pub fn cmd_string(&self, cmd: &str, args: &[&str]) -> Result<String> {
@@ -182,7 +194,7 @@ rpcport={rpc_port}
         if self
             .bitcoind_child
             .try_wait()
-            .map_err(BitcoindError::TestInstance)?
+            .wrap_err(BitcoindError::TestInstance)?
             .is_some()
         {
             return Err(BitcoindError::BitcoindExited.into());
@@ -207,7 +219,7 @@ rpcport={rpc_port}
     }
 
     pub fn cleanup(&self) -> Result<()> {
-        Ok(std::fs::remove_dir_all(&self.instance_dir).map_err(BitcoindError::TestInstance)?)
+        std::fs::remove_dir_all(&self.instance_dir).wrap_err(BitcoindError::TestInstance)
     }
 }
 

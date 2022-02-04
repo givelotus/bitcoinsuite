@@ -6,20 +6,20 @@ use thiserror::Error;
 #[derive(Debug, Error, ErrorMeta)]
 pub enum BitcoindError {
     #[critical()]
-    #[error("Bitcoind test instance IO error: {0}")]
-    TestInstance(std::io::Error),
+    #[error("Bitcoind test instance IO error")]
+    TestInstance,
 
     #[critical()]
     #[error("JSON RPC error: {0}")]
     JsonRpc(String),
 
     #[critical()]
-    #[error("JSON error: {0}")]
-    JsonError(#[from] json::JsonError),
+    #[error("JSON error")]
+    JsonError,
 
     #[critical()]
     #[error("Invalid UTF8")]
-    UTF8(#[from] std::string::FromUtf8Error),
+    UTF8,
 
     #[critical()]
     #[error("Bitcoind exited")]

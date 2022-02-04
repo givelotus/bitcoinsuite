@@ -4,14 +4,14 @@ use thiserror::Error;
 #[derive(Debug, Error, ErrorMeta)]
 pub enum BchdError {
     #[critical()]
-    #[error("Cert file IO error: {0}")]
-    CertFile(std::io::Error),
+    #[error("Cert file IO error")]
+    CertFile,
 
     #[critical()]
-    #[error("BCHD test instance IO error: {0}")]
-    TestInstanceIo(std::io::Error),
+    #[error("BCHD test instance IO error")]
+    TestInstanceIo,
 
     #[critical()]
-    #[error("Tonic connection error: {0}")]
-    TonicTransport(#[from] tonic::transport::Error),
+    #[error("Tonic connection error")]
+    TonicTransport,
 }
