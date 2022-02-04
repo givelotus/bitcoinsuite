@@ -44,7 +44,6 @@ impl UnsignedTx {
         self.tx
     }
 
-    #[cfg(test)]
     pub(crate) fn input_at(&mut self, input_idx: usize) -> UnsignedTxInput {
         UnsignedTxInput {
             idx: input_idx,

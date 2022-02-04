@@ -100,6 +100,8 @@ name = "bitcoinsuite-core"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "bitcoinsuite-ecc-secp256k1",
+ "bitcoinsuite-test-utils-blockchain",
  "bytes",
  "digest",
  "hex",
@@ -111,6 +113,7 @@ dependencies = [
  "sha-1",
  "sha2",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -181,6 +184,19 @@ dependencies = [
  "thiserror",
  "tokio",
  "warp",
+]
+
+[[package]]
+name = "bitcoinsuite-test-utils-blockchain"
+version = "0.1.0"
+dependencies = [
+ "bitcoinsuite-bchd-grpc",
+ "bitcoinsuite-bitcoind",
+ "bitcoinsuite-core",
+ "bitcoinsuite-error",
+ "bitcoinsuite-slp",
+ "bitcoinsuite-test-utils",
+ "tokio",
 ]
 
 [[package]]
@@ -1314,19 +1330,6 @@ dependencies = [
  "redox_syscall",
  "remove_dir_all",
  "winapi",
-]
-
-[[package]]
-name = "test-utils-blockchain"
-version = "0.1.0"
-dependencies = [
- "bitcoinsuite-bchd-grpc",
- "bitcoinsuite-bitcoind",
- "bitcoinsuite-core",
- "bitcoinsuite-error",
- "bitcoinsuite-slp",
- "bitcoinsuite-test-utils",
- "tokio",
 ]
 
 [[package]]
