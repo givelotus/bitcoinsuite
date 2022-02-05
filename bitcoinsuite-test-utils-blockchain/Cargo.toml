@@ -9,7 +9,7 @@ edition = "2021"
 bitcoinsuite-error = { path = "../bitcoinsuite-error" }
 
 # Async
-tokio = { version = "1.12", features = ["full"] }
+tokio = { version = "1.14", features = ["full"] }
 
 # Bitcoin stuff
 bitcoinsuite-core = { path = "../bitcoinsuite-core" }
