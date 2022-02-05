@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use bitcoinsuite_error::{ErrorMeta, Report};
 use thiserror::Error;
 
-#[derive(Debug, Error, ErrorMeta)]
+#[derive(Debug, Error, ErrorMeta, PartialEq, Eq)]
 pub enum BitcoindError {
     #[critical()]
     #[error("Bitcoind test instance IO error")]
@@ -16,6 +16,10 @@ pub enum BitcoindError {
     #[critical()]
     #[error("JSON RPC error: {0}")]
     JsonRpc(String),
+
+    #[critical()]
+    #[error("JSON RPC error ({code}): {message}")]
+    JsonRpcCode { code: i32, message: String },
 
     #[critical()]
     #[error("JSON error")]

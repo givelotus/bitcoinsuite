@@ -13,7 +13,11 @@ use bitcoinsuite_error::{Result, WrapErr};
 use bitcoinsuite_test_utils::pick_ports;
 use tempdir::TempDir;
 
-use crate::{cli::BitcoinCli, BitcoindError};
+use crate::{
+    cli::BitcoinCli,
+    rpc_client::{BitcoindRpcClient, BitcoindRpcClientConf},
+    BitcoindError,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitcoindChain {
@@ -37,7 +41,8 @@ pub struct BitcoindInstance {
     instance_dir: PathBuf,
     datadir_arg: OsString,
     bitcoind_child: Child,
-    client: BitcoinCli,
+    cli: BitcoinCli,
+    client: BitcoindRpcClient,
 }
 
 impl BitcoindConf {
@@ -101,12 +106,14 @@ impl BitcoindInstance {
             File::create(instance_dir.join("stdout.txt")).wrap_err(BitcoindError::TestInstance)?;
         let stderr =
             File::create(instance_dir.join("stderr.txt")).wrap_err(BitcoindError::TestInstance)?;
+        let rpc_user = "user";
+        let rpc_pass = "pass";
         let bitcoin_conf_str = format!(
             "\
 {net_line}
 server=1
-rpcuser=user
-rpcpassword=pass
+rpcuser={rpc_user}
+rpcpassword={rpc_pass}
 {net_section_header}
 port={p2p_port}
 rpcport={rpc_port}
@@ -136,20 +143,30 @@ rpcport={rpc_port}
             .stderr(stderr)
             .spawn()
             .wrap_err(BitcoindError::TestInstance)?;
-        let client = BitcoinCli {
+        let cli = BitcoinCli {
             datadir_arg: datadir_arg.clone(),
             bitcoincli_path: conf.bitcoincli_path.clone(),
         };
+        let client = BitcoindRpcClient::new(BitcoindRpcClientConf {
+            url: format!("http://127.0.0.1:{}", conf.rpc_port),
+            rpc_user: rpc_user.to_string(),
+            rpc_pass: rpc_pass.to_string(),
+        });
         Ok(BitcoindInstance {
             conf,
             instance_dir,
             datadir_arg,
             bitcoind_child,
+            cli,
             client,
         })
     }
 
-    pub fn client(&self) -> &BitcoinCli {
+    pub fn cli(&self) -> &BitcoinCli {
+        &self.cli
+    }
+
+    pub fn rpc_client(&self) -> &BitcoindRpcClient {
         &self.client
     }
 
@@ -181,15 +198,15 @@ rpcport={rpc_port}
     }
 
     pub fn cmd_output(&self, cmd: &str, args: &[&str]) -> Result<Output> {
-        self.client.cmd_output(cmd, args)
+        self.cli.cmd_output(cmd, args)
     }
 
     pub fn cmd_string(&self, cmd: &str, args: &[&str]) -> Result<String> {
-        self.client.cmd_string(cmd, args)
+        self.cli.cmd_string(cmd, args)
     }
 
     pub fn cmd_json(&self, cmd: &str, args: &[&str]) -> Result<json::JsonValue> {
-        self.client.cmd_json(cmd, args)
+        self.cli.cmd_json(cmd, args)
     }
 
     fn _ensure_bitcoind(&mut self) -> Result<()> {
