@@ -7,6 +7,7 @@ mod slp_amount;
 mod slp_tx;
 mod slp_utxo;
 mod token_id;
+mod validate;
 mod value;
 
 pub use crate::build::*;
@@ -17,4 +18,5 @@ pub use crate::slp_amount::*;
 pub use crate::slp_tx::*;
 pub use crate::slp_utxo::*;
 pub use crate::token_id::*;
+pub use crate::validate::*;
 pub use crate::value::*;

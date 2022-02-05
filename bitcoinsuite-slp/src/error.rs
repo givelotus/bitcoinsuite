@@ -29,13 +29,9 @@ pub enum SlpError {
     #[error("NFT1 Child Genesis cannot have mint baton")]
     Nft1ChildCannotHaveMintBaton,
     #[error("Invalid NFT1 Child Genesis initial quantity, expected 1 but got {actual}")]
-    Nft1ChildInvalidInitialQuantity {
-        actual: SlpAmount,
-    },
+    Nft1ChildInvalidInitialQuantity { actual: SlpAmount },
     #[error("Invalid NFT1 Child Genesis decimals, expected 0 but got {actual}")]
-    Nft1ChildInvalidDecimals {
-        actual: u32,
-    },
+    Nft1ChildInvalidDecimals { actual: u32 },
     #[error("Too few pushes, expected at least {expected} but only got {actual}")]
     TooFewPushes { expected: usize, actual: usize },
     #[error("Too few pushes, expected exactly {expected} but only got {actual}")]
@@ -53,6 +49,8 @@ pub enum SlpError {
         output_sum: SlpAmount,
         input_sum: SlpAmount,
     },
+    #[error("Invalid NFT1 Child GENESIS: No group token")]
+    HasNoNft1Group,
     #[error("Invalid MINT: No baton")]
     HasNoMintBaton,
     #[error("Found orphan txs")]

@@ -36,7 +36,7 @@ pub enum SlpTxType {
     Unknown,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct SlpGenesisInfo {
     pub token_ticker: Bytes,
     pub token_name: Bytes,
