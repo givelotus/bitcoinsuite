@@ -1,3 +1,4 @@
+mod address;
 mod bitcoin_code;
 mod block;
 mod byte_array;
@@ -13,6 +14,7 @@ mod script;
 mod sequence;
 mod tx;
 
+pub use crate::address::*;
 pub use crate::bitcoin_code::*;
 pub use crate::block::*;
 pub use crate::byte_array::*;
