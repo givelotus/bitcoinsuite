@@ -7,7 +7,7 @@ edition = "2018"
 bitcoinsuite-core = { path = "../bitcoinsuite-core" }
 
 # Keeping secret keys hidden
-secrecy = "0.7"
+secrecy = "0.8"
 
 # Error handling
 thiserror = "1.0"
