@@ -1,4 +1,4 @@
-use std::{convert::TryInto, hash::Hash, ops::Deref};
+use std::{hash::Hash, ops::Deref};
 
 use crate::{BitcoinSuiteError, Result};
 

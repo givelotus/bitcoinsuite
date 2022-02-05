@@ -139,7 +139,7 @@ async fn test_slp_interface() -> Result<()> {
         .collect::<HashSet<_>>();
     assert_eq!(
         address_utxos,
-        vec![
+        [
             sats_utxo,
             SlpUtxo {
                 utxo: Utxo {

@@ -2,7 +2,7 @@
 name = "bitcoinsuite-bitcoind-nng"
 version = "0.1.0"
 authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 flatbuffers = "2.0"

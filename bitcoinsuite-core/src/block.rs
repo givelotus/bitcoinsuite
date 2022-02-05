@@ -253,6 +253,7 @@ mod tests {
         SequenceNo, Sha256d, TxInput, TxOutput, UnhashedTx,
     };
 
+    #[allow(clippy::inconsistent_digit_grouping)]
     #[test]
     fn test_bitcoin_genesis_block() {
         let genesis_header = BitcoinHeader {

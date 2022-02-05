@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use bitcoinsuite_core::Script;
 
 use crate::{

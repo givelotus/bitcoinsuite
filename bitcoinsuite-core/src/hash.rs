@@ -1,6 +1,5 @@
 use std::{
     cmp::Ordering,
-    convert::TryInto,
     fmt::{Debug, Display},
     hash::Hash,
 };

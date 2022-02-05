@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::TryInto, str::FromStr};
+use std::{borrow::Cow, str::FromStr};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;

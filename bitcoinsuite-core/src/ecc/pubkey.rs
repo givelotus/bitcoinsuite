@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use hex_literal::hex;
 
 use crate::{ecc::EccError, ByteArray};

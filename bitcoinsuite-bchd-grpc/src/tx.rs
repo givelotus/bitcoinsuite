@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use bitcoinsuite_core::{
     ByteArray, Bytes, Hashed, OutPoint, Script, SequenceNo, Sha256d, TxInput, TxOutput, UnhashedTx,
 };

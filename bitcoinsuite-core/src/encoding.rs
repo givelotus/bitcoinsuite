@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use crate::{Bytes, BytesError, BytesMut};
 
 pub fn read_compact_size(bytes: &mut Bytes) -> Result<u64, BytesError> {
