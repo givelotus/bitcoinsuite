@@ -143,7 +143,7 @@ impl SlpNodeInterface for BchdSlpInterface {
     async fn address_tx_stream(
         &self,
         address: &CashAddress,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<SlpTx>> + Sync + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<SlpTx>> + Send>>> {
         let prefix = match self.net {
             Net::Mainnet => BITCOINCASH,
             Net::Regtest => BCHREG,
@@ -218,7 +218,7 @@ impl BchdSlpInterface {
     async fn tx_stream(
         &self,
         tx_filter: TransactionFilter,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<SlpTx>> + Sync + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<SlpTx>> + Send>>> {
         let mut bchd = self.client.clone();
         let stream = bchd
             .subscribe_transactions(SubscribeTransactionsRequest {

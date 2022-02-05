@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 # Async
-tokio = { version="1.12", features = ["full"] }
+tokio = { version="1.13", features = ["full"] }
 futures = "0.3"
 
 # Bitcoin tools
@@ -23,12 +23,13 @@ tempdir = "0.3"
 bitcoinsuite-test-utils = { path = "../bitcoinsuite-test-utils" }
 
 # GRPC
-tonic = { version = "0.5", features = ["transport", "tls"] }
-prost = "0.8"
-tokio-rustls = { version = "*", features = ["dangerous_configuration"] }
+tonic = { version = "0.6", features = ["transport", "tls"] }
+prost = "0.9"
+rustls = { version = "0.19.1", features = ["dangerous_configuration"] }
+webpki = "0.21"
 
 [build-dependencies]
-tonic-build = "0.5"
+tonic-build = "0.6"
 
 [dev-dependencies]
 bitcoinsuite-test-utils-blockchain = { path = "../bitcoinsuite-test-utils-blockchain" }

@@ -1,12 +1,9 @@
 use std::{path::Path, sync::Arc};
 
 use bitcoinsuite_error::{Result, WrapErr};
-use tokio_rustls::{
-    rustls::{
-        ClientConfig, DangerousClientConfig, RootCertStore, ServerCertVerified, ServerCertVerifier,
-        TLSError,
-    },
-    webpki::DNSNameRef,
+use rustls::{
+    ClientConfig, DangerousClientConfig, RootCertStore, ServerCertVerified, ServerCertVerifier,
+    TLSError,
 };
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
 
@@ -18,8 +15,8 @@ impl ServerCertVerifier for NopCertVerifier {
     fn verify_server_cert(
         &self,
         _roots: &RootCertStore,
-        _presented_certs: &[tokio_rustls::rustls::Certificate],
-        _dns_name: DNSNameRef,
+        _presented_certs: &[rustls::Certificate],
+        _dns_name: webpki::DNSNameRef,
         _ocsp_response: &[u8],
     ) -> std::result::Result<ServerCertVerified, TLSError> {
         Ok(ServerCertVerified::assertion())

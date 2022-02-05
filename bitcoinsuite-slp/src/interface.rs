@@ -30,7 +30,7 @@ pub trait SlpNodeInterface: Send + Sync {
     async fn address_tx_stream(
         &self,
         address: &CashAddress,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<SlpTx>> + Sync + Send>>>;
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<SlpTx>> + Send>>>;
 
     async fn address_utxos(&self, address: &CashAddress) -> Result<Vec<SlpUtxo>>;
 }
