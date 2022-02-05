@@ -237,6 +237,7 @@ dependencies = [
  "bitcoinsuite-core",
  "bitcoinsuite-error",
  "futures",
+ "pretty_assertions",
  "serde",
  "thiserror",
 ]
