@@ -9,7 +9,7 @@ edition = "2021"
 thiserror = "1.0"
 
 # Byte/string libs
-bytes = "1.0"
+bytes = { version = "1.0", features = ["serde"] }
 hex = "0.4"
 hex-literal = "0.3"
 

@@ -1,5 +1,7 @@
 use std::{hash::Hash, ops::Deref};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{BitcoinSuiteError, Result};
 
 #[derive(Debug, Clone)]
@@ -66,5 +68,28 @@ impl<const N: usize> Hash for ByteArray<N> {
 impl<const N: usize> From<[u8; N]> for ByteArray<N> {
     fn from(arr: [u8; N]) -> Self {
         ByteArray::new(arr)
+    }
+}
+
+impl<'de, const N: usize> Deserialize<'de> for ByteArray<N> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let data = <Vec<u8>>::deserialize(deserializer)?;
+        let data: [u8; N] = data
+            .try_into()
+            .map_err(|_| D::Error::custom("ByteArray: invalid data size"))?;
+        Ok(ByteArray { data })
+    }
+}
+
+impl<const N: usize> Serialize for ByteArray<N> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.data.to_vec().serialize(serializer)
     }
 }

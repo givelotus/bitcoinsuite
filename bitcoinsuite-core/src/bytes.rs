@@ -1,5 +1,6 @@
 use std::{hash::Hash, ops::Deref};
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::ByteArray;
@@ -10,7 +11,7 @@ pub enum BytesError {
     InvalidSplit { split_idx: usize, len: usize },
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Bytes {
     data: bytes::Bytes,
 }
