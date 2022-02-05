@@ -37,6 +37,14 @@ pub enum SlpTxType {
     Unknown,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SlpTxTypeVariant {
+    Genesis,
+    Send,
+    Mint,
+    Unknown,
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub struct SlpGenesisInfo {
     pub token_ticker: Bytes,
@@ -161,6 +169,17 @@ impl SlpToken {
         SlpToken {
             amount: SlpAmount::new(amount),
             is_mint_baton: false,
+        }
+    }
+}
+
+impl SlpTxType {
+    pub fn tx_type_variant(&self) -> SlpTxTypeVariant {
+        match &self {
+            SlpTxType::Genesis(_) => SlpTxTypeVariant::Genesis,
+            SlpTxType::Send => SlpTxTypeVariant::Send,
+            SlpTxType::Mint => SlpTxTypeVariant::Mint,
+            SlpTxType::Unknown => SlpTxTypeVariant::Unknown,
         }
     }
 }
