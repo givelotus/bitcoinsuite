@@ -13,7 +13,7 @@ use bitcoinsuite_error::{Result, WrapErr};
 use bitcoinsuite_test_utils::pick_ports;
 use tempdir::TempDir;
 
-use crate::{client::BitcoindClient, BitcoindError};
+use crate::{cli::BitcoinCli, BitcoindError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitcoindChain {
@@ -37,7 +37,7 @@ pub struct BitcoindInstance {
     instance_dir: PathBuf,
     datadir_arg: OsString,
     bitcoind_child: Child,
-    client: BitcoindClient,
+    client: BitcoinCli,
 }
 
 impl BitcoindConf {
@@ -136,7 +136,7 @@ rpcport={rpc_port}
             .stderr(stderr)
             .spawn()
             .wrap_err(BitcoindError::TestInstance)?;
-        let client = BitcoindClient {
+        let client = BitcoinCli {
             datadir_arg: datadir_arg.clone(),
             bitcoincli_path: conf.bitcoincli_path.clone(),
         };
@@ -149,7 +149,7 @@ rpcport={rpc_port}
         })
     }
 
-    pub fn client(&self) -> &BitcoindClient {
+    pub fn client(&self) -> &BitcoinCli {
         &self.client
     }
 

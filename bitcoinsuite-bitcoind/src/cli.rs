@@ -9,12 +9,12 @@ use bitcoinsuite_error::{Result, WrapErr};
 use crate::BitcoindError;
 
 #[derive(Debug, Clone)]
-pub struct BitcoindClient {
+pub struct BitcoinCli {
     pub bitcoincli_path: PathBuf,
     pub datadir_arg: OsString,
 }
 
-impl BitcoindClient {
+impl BitcoinCli {
     pub fn cmd_output(&self, cmd: &str, args: &[&str]) -> Result<Output> {
         Command::new(&self.bitcoincli_path)
             .arg(&self.datadir_arg)
