@@ -1,0 +1,27 @@
+[package]
+name = "bitcoinsuite-bchd-grpc"
+version = "0.1.0"
+authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+# Bitcoin tools
+bitcoinsuite-core = { path = "../bitcoinsuite-core" }
+bitcoinsuite-slp = { path = "../bitcoinsuite-slp" }
+async-trait = "0.1.50"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# For test instance datadir
+tempdir = "0.3"
+bitcoinsuite-test-utils = { path = "../bitcoinsuite-test-utils" }
+
+# GRPC
+tonic = { version = "0.4", features = ["transport", "tls"] }
+prost = "0.7"
+tokio-rustls = { version = "*", features = ["dangerous_configuration"] }
+
+[build-dependencies]
+tonic-build = "0.4"

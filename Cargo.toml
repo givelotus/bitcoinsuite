@@ -1,0 +1,9 @@
+[workspace]
+
+members = [
+    "bitcoinsuite-bchd-grpc",
+    "bitcoinsuite-core",
+    "bitcoinsuite-slp",
+    "bitcoinsuite-bitcoind",
+    "bitcoinsuite-test-utils",
+]

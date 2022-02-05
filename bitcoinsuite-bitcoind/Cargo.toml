@@ -1,0 +1,17 @@
+[package]
+name = "bitcoinsuite-bitcoind"
+version = "0.1.0"
+authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+# Error handling
+thiserror = "1.0"
+
+# For test instance datadir
+tempdir = "0.3"
+
+# For the JSON RPC
+json = "0.12"
+
+bitcoinsuite-test-utils = { path = "../bitcoinsuite-test-utils" }

@@ -1,0 +1,12 @@
+[package]
+name = "bitcoinsuite-test-utils"
+version = "0.1.0"
+authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+# Error handling
+thiserror = "1.0"
+
+# Random port sampling
+rand = "0.8"

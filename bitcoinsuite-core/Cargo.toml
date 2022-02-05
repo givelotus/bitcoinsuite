@@ -1,0 +1,21 @@
+[package]
+name = "bitcoinsuite-core"
+version = "0.1.0"
+authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+# Error handling
+thiserror = "1.0"
+
+# Byte/string libs
+bytes = "1.0"
+hex = "0.4"
+
+# Hashing
+digest = "0.9"
+sha-1 = "0.9"
+ripemd160 = "0.9"
+sha2 = "0.9"
+
+serde = { version = "1.0", features = ["derive"] }
