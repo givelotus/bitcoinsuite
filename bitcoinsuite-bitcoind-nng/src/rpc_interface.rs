@@ -199,6 +199,7 @@ mod tests {
 
     #[test]
     fn test_rpc() -> Result<()> {
+        bitcoinsuite_error::install()?;
         let ipc_dir = TempDir::new("ipc_rpc_dir")?;
         let rpc_url = format!(
             "ipc://{}",

@@ -1,4 +1,6 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::atomic};
+
+use lazy_static::lazy_static;
 
 pub use bitcoinsuite_error_derive::ErrorMeta;
 pub use eyre::{bail, Report, Result, WrapErr};
@@ -39,4 +41,20 @@ impl ErrorFmt for eyre::Report {
     fn fmt_err(&self) -> String {
         format!("{:#}", self)
     }
+}
+
+lazy_static! {
+    static ref ERROR_HANDLE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    static ref ERROR_HANDLE_IS_STARTED: atomic::AtomicBool = atomic::AtomicBool::new(false);
+}
+
+pub fn install() -> Result<()> {
+    let lock = ERROR_HANDLE_LOCK.lock().unwrap();
+    let is_started = ERROR_HANDLE_IS_STARTED.load(atomic::Ordering::SeqCst);
+    if !is_started {
+        stable_eyre::install()?;
+        ERROR_HANDLE_IS_STARTED.store(true, atomic::Ordering::SeqCst);
+    }
+    std::mem::drop(lock);
+    Ok(())
 }

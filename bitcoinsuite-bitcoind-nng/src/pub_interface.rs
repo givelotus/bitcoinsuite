@@ -124,6 +124,7 @@ mod tests {
 
     #[test]
     fn test_pub() -> Result<()> {
+        bitcoinsuite_error::install()?;
         let ipc_dir = TempDir::new("ipc_pub_dir")?;
         let pub_url = format!(
             "ipc://{}",

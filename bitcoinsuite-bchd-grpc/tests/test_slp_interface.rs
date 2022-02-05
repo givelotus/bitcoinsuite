@@ -356,6 +356,7 @@ async fn test_slp_interface() -> Result<()> {
 
 #[test]
 fn run_slp_interface_tests() -> Result<()> {
+    bitcoinsuite_error::install()?;
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
