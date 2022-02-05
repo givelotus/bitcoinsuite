@@ -13,7 +13,7 @@ bitcoinsuite-error = { path = "../bitcoinsuite-error" }
 rand = "0.8"
 
 # Async
-tokio = { version = "1.9", features = ["full"] }
+tokio = { version = "1.12", features = ["full"] }
 
 # HTTP server
 warp = "0.3"
