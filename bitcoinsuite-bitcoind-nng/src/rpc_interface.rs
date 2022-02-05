@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use bitcoinsuite_core::Hashed;
 use bitcoinsuite_error::{ErrorMeta, Result};
+use flatbuffers::VerifierOptions;
 use nng::{Message, Protocol, Socket};
 use thiserror::Error;
 
@@ -20,6 +21,7 @@ use crate::{
 pub struct RpcInterface {
     sock: Socket,
     mutex: Mutex<()>,
+    fbb_opts: VerifierOptions,
 }
 
 #[derive(Error, Debug, ErrorMeta)]
@@ -38,6 +40,10 @@ impl RpcInterface {
         Ok(RpcInterface {
             sock,
             mutex: Mutex::new(()),
+            fbb_opts: VerifierOptions {
+                max_tables: 0xffff_ffff,
+                ..Default::default()
+            },
         })
     }
 
@@ -79,7 +85,10 @@ impl RpcInterface {
         );
         fbb.finish(rpc_call, None);
         let msg = self.tranceive(&fbb)?;
-        let response = flatbuffers::root::<GetBlockResponse>(self.handle_msg(&msg)?)?;
+        let response = flatbuffers::root_with_opts::<GetBlockResponse>(
+            &self.fbb_opts,
+            self.handle_msg(&msg)?,
+        )?;
         let block = response.block().field("GetBlockResponse.block")?;
         structs::Block::from_fbs(block)
     }
@@ -106,7 +115,10 @@ impl RpcInterface {
         );
         fbb.finish(rpc_call, None);
         let msg = self.tranceive(&fbb)?;
-        let response = flatbuffers::root::<GetBlockRangeResponse>(self.handle_msg(&msg)?)?;
+        let response = flatbuffers::root_with_opts::<GetBlockRangeResponse>(
+            &self.fbb_opts,
+            self.handle_msg(&msg)?,
+        )?;
         response
             .blocks()
             .field("GetBlockRangeResponse.blocks")?
@@ -134,7 +146,10 @@ impl RpcInterface {
         );
         fbb.finish(rpc_call, None);
         let msg = self.tranceive(&fbb)?;
-        let response = flatbuffers::root::<GetBlockSliceResponse>(self.handle_msg(&msg)?)?;
+        let response = flatbuffers::root_with_opts::<GetBlockSliceResponse>(
+            &self.fbb_opts,
+            self.handle_msg(&msg)?,
+        )?;
         Ok(response
             .data()
             .field("GetBlockSliceResponse.data")?
@@ -172,7 +187,7 @@ impl RpcInterface {
     }
 
     fn handle_msg<'a>(&self, msg: &'a Message) -> Result<&'a [u8]> {
-        let result = flatbuffers::root::<RpcResult>(&msg[..])?;
+        let result = flatbuffers::root_with_opts::<RpcResult>(&self.fbb_opts, &msg[..])?;
         if result.is_success() {
             result.data().field("data")
         } else {
