@@ -58,6 +58,8 @@ pub trait Ecc {
 
     fn derive_pubkey(&self, seckey: &SecKey) -> PubKey;
 
+    fn serialize_pubkey_uncompressed(&self, pubkey: &PubKey) -> [u8; 65];
+
     fn normalize_sig(&self, sig: &Bytes) -> Result<Bytes, EccError>;
 }
 
@@ -101,6 +103,10 @@ impl Ecc for DummyEcc {
 
     fn derive_pubkey(&self, _seckey: &SecKey) -> PubKey {
         PubKey::new_unchecked([0; PUBKEY_LENGTH])
+    }
+
+    fn serialize_pubkey_uncompressed(&self, _pubkey: &PubKey) -> [u8; 65] {
+        [0; 65]
     }
 
     fn normalize_sig(&self, sig: &Bytes) -> Result<Bytes, EccError> {

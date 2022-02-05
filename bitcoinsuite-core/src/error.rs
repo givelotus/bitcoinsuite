@@ -1,7 +1,7 @@
 use hex::FromHexError;
 use thiserror::Error;
 
-use crate::{BytesError, SignError};
+use crate::{ecc::EccError, BytesError, SignError};
 
 #[derive(Error, Debug)]
 pub enum BitcoinSuiteError {
@@ -13,6 +13,8 @@ pub enum BitcoinSuiteError {
     InconsistentOpPush(u8),
     #[error("Parsing number failed")]
     NumberParseError,
+    #[error("Invalid VarInt")]
+    InvalidVarInt,
     #[error("Unknown network: {0}")]
     UnknownNetwork(String),
     #[error("OP_CODESEPARATOR #{0} not found")]
@@ -21,6 +23,8 @@ pub enum BitcoinSuiteError {
     Hex(#[from] FromHexError),
     #[error("Sign error: {0}")]
     Sign(#[from] SignError),
+    #[error("Ecc error: {0}")]
+    Ecc(#[from] EccError),
 }
 
 pub type Result<T> = std::result::Result<T, BitcoinSuiteError>;

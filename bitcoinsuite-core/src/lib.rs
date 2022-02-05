@@ -4,6 +4,7 @@ mod block;
 mod byte_array;
 mod bytes;
 mod bytes_mut;
+pub mod compression;
 pub mod ecc;
 pub mod encoding;
 mod error;

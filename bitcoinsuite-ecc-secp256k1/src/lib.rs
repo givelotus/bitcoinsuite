@@ -77,6 +77,12 @@ impl Ecc for EccSecp256k1 {
         PubKey::new_unchecked(pubkey.serialize())
     }
 
+    fn serialize_pubkey_uncompressed(&self, pubkey: &PubKey) -> [u8; 65] {
+        PublicKey::from_slice(pubkey.as_slice())
+            .expect("Invalid pubkey")
+            .serialize_uncompressed()
+    }
+
     fn normalize_sig(&self, sig: &Bytes) -> Result<Bytes, EccError> {
         let mut sig = Signature::from_der_lax(sig).map_err(|_| EccError::InvalidSignatureFormat)?;
         sig.normalize_s();
