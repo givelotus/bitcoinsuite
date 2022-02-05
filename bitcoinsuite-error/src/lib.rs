@@ -10,6 +10,7 @@ pub type ErrorMetaFunc<'a> = &'a dyn Fn(&Report) -> Option<&dyn ErrorMeta>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorSeverity {
     Unknown,
+    NotFound,
     InvalidUserInput,
     InvalidClientInput,
     Warning,
@@ -40,6 +41,31 @@ pub trait ErrorFmt {
 impl ErrorFmt for eyre::Report {
     fn fmt_err(&self) -> String {
         format!("{:#}", self)
+    }
+}
+
+pub fn report_to_details(report: &Report, detail_funcs: &[ErrorMetaFunc]) -> ErrorDetails {
+    let short_msg = report.to_string();
+    let msg = report.fmt_err();
+    let full_debug_report = format!("{:?}", report);
+    let meta = detail_funcs.iter().find_map(|f| f(report));
+    match meta {
+        Some(meta) => ErrorDetails {
+            severity: meta.severity(),
+            error_code: meta.error_code(),
+            tags: meta.tags(),
+            short_msg,
+            msg,
+            full_debug_report,
+        },
+        None => ErrorDetails {
+            severity: ErrorSeverity::Unknown,
+            error_code: "unknown".into(),
+            tags: [].as_ref().into(),
+            short_msg,
+            msg,
+            full_debug_report,
+        },
     }
 }
 

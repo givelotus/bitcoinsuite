@@ -5,6 +5,10 @@ use thiserror::Error;
 fn test_derive() {
     #[derive(Error, ErrorMeta, Debug)]
     enum TestError {
+        #[not_found()]
+        #[error("Not found")]
+        NotFound,
+
         #[invalid_user_input()]
         #[error("Invalid user input case")]
         InvalidUserInput,
@@ -24,6 +28,12 @@ fn test_derive() {
         #[critical()]
         #[error("Critical case")]
         Critical,
+    }
+    {
+        let error = TestError::NotFound;
+        assert_eq!(error.severity(), ErrorSeverity::NotFound);
+        assert_eq!(error.error_code(), "not-found");
+        assert_eq!(error.tags().as_ref(), &[]);
     }
     {
         let error = TestError::InvalidUserInput;

@@ -8,6 +8,7 @@ use quote::quote;
 use syn::spanned::Spanned;
 
 const SEVERITIES: &[&str] = &[
+    "not_found",
     "invalid_user_input",
     "invalid_client_input",
     "warning",
@@ -156,7 +157,14 @@ fn generate(item_struct: syn::ItemEnum) -> Result<TokenStream, syn::Error> {
 
 #[proc_macro_derive(
     ErrorMeta,
-    attributes(invalid_user_input, invalid_client_input, warning, bug, critical)
+    attributes(
+        not_found,
+        invalid_user_input,
+        invalid_client_input,
+        warning,
+        bug,
+        critical
+    )
 )]
 pub fn error_meta_macro(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let item_enum = syn::parse_macro_input!(item as syn::ItemEnum);
