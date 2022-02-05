@@ -1,10 +1,12 @@
 use std::borrow::Cow;
 
-use bitcoinsuite_error::{ErrorDetails, ErrorSeverity, Report};
+use bitcoinsuite_error::{ErrorDetails, ErrorFmt, ErrorMetaFunc, ErrorSeverity, Report};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use warp::{hyper::StatusCode, Rejection};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[error(transparent)]
 pub struct WarpError(pub Report);
 
 impl warp::reject::Reject for WarpError {}
@@ -21,12 +23,34 @@ pub struct HttpError {
     is_user_error: bool,
 }
 
-pub async fn rejection_to_reply(
-    err: Rejection,
-    report_to_details: impl Fn(&Report) -> ErrorDetails,
-) -> impl warp::Reply {
+pub fn report_to_details(report: &Report, detail_funcs: &[ErrorMetaFunc]) -> ErrorDetails {
+    let short_msg = report.to_string();
+    let msg = report.fmt_err();
+    let full_debug_report = format!("{:?}", report);
+    let meta = detail_funcs.iter().find_map(|f| f(report));
+    match meta {
+        Some(meta) => ErrorDetails {
+            severity: meta.severity(),
+            error_code: meta.error_code(),
+            tags: meta.tags(),
+            short_msg,
+            msg,
+            full_debug_report,
+        },
+        None => ErrorDetails {
+            severity: ErrorSeverity::Unknown,
+            error_code: "unknown".into(),
+            tags: [].as_ref().into(),
+            short_msg,
+            msg,
+            full_debug_report,
+        },
+    }
+}
+
+pub fn rejection_to_reply(err: Rejection, detail_funcs: &[ErrorMetaFunc]) -> impl warp::Reply {
     let (status_code, http_error) = if let Some(WarpError(report)) = err.find::<WarpError>() {
-        let details = report_to_details(report);
+        let details = report_to_details(report, detail_funcs);
         match details.severity {
             ErrorSeverity::InvalidUserInput => (
                 StatusCode::BAD_REQUEST,

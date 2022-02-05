@@ -183,6 +183,7 @@ dependencies = [
  "bitcoinsuite-bchd-grpc",
  "bitcoinsuite-bitcoind",
  "bitcoinsuite-error",
+ "bitcoinsuite-error-warp",
  "bitcoinsuite-test-utils",
 ]
 
@@ -192,6 +193,7 @@ version = "0.1.0"
 dependencies = [
  "bitcoinsuite-error",
  "serde",
+ "thiserror",
  "warp",
 ]
 

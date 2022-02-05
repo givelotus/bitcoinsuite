@@ -12,3 +12,5 @@ bitcoinsuite-error = { path = "../bitcoinsuite-error" }
 
 # Serialize HTTP errors
 serde = { version = "1.0", features = ["derive"] }
+
+thiserror = "1.0"

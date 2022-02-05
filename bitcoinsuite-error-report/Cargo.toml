@@ -6,6 +6,7 @@ edition = "2018"
 [dependencies]
 # Error handling
 bitcoinsuite-error = { path = "../bitcoinsuite-error" }
+bitcoinsuite-error-warp = { path = "../bitcoinsuite-error-warp" }
 
 # bitcoin/ errors
 bitcoinsuite-bchd-grpc = { path = "../bitcoinsuite-bchd-grpc" }

@@ -3,6 +3,8 @@ use std::borrow::Cow;
 pub use bitcoinsuite_error_derive::ErrorMeta;
 pub use eyre::{bail, Report, Result, WrapErr};
 
+pub type ErrorMetaFunc<'a> = &'a dyn Fn(&Report) -> Option<&dyn ErrorMeta>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorSeverity {
     Unknown,
