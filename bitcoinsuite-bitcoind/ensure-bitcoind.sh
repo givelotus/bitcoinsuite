@@ -2,8 +2,11 @@
 dloc="../downloads"
 abc_url_osx="https://download.bitcoinabc.org/latest/osx/"
 abc_url_linux="https://download.bitcoinabc.org/latest/linux/"
+lotusd_version="2.1.3"
+lotusd_url_linux="https://storage.googleapis.com/lotus-project/lotus-$lotusd_version-x86_64-linux-gnu.tar.gz"
 mkdir -p "$dloc"/bitcoin-cash-node
 mkdir -p "$dloc"/bitcoin-abc
+mkdir -p "$dloc"/lotusd
 touch "$dloc/abcversion"
 touch "$dloc/bchversion"
 
@@ -117,10 +120,19 @@ linuxabc() {
     echo "$linuxABC" > "$dloc/abcversion"
 }
 
+linuxlotusd() {
+    wget -P "$dloc/lotusd/" "$lotusd_url_linux"
+    tar xvf $dloc/lotusd/*tar.gz -C $dloc/lotusd
+    mv $dloc/lotusd/*/* $dloc/lotusd/
+    find $dloc/lotusd/ -empty -type d -delete
+    rm $dloc/lotusd/*tar.gz
+}
+
 if [ "$(uname -s)" = "Darwin" ];then
     osxabc
     osxbch
 else
     linuxabc
     linuxbch
+    linuxlotusd
 fi
