@@ -222,17 +222,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitcoinsuite-error-report"
-version = "0.1.0"
-dependencies = [
- "bitcoinsuite-bchd-grpc",
- "bitcoinsuite-bitcoind",
- "bitcoinsuite-error",
- "bitcoinsuite-error-warp",
- "bitcoinsuite-test-utils",
-]
-
-[[package]]
 name = "bitcoinsuite-error-warp"
 version = "0.1.0"
 dependencies = [

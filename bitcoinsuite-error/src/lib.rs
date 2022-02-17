@@ -1,11 +1,9 @@
-use std::{borrow::Cow, sync::atomic};
+use std::{borrow::Cow, fmt::Display, sync::atomic};
 
 use lazy_static::lazy_static;
 
 pub use bitcoinsuite_error_derive::ErrorMeta;
 pub use eyre::{bail, Report, Result, WrapErr};
-
-pub type ErrorMetaFunc<'a> = &'a dyn Fn(&Report) -> Option<&dyn ErrorMeta>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorSeverity {
@@ -44,11 +42,14 @@ impl ErrorFmt for eyre::Report {
     }
 }
 
-pub fn report_to_details(report: &Report, detail_funcs: &[ErrorMetaFunc]) -> ErrorDetails {
+pub fn report_to_details(
+    report: &Report,
+    detail_func: impl Fn(&Report) -> Option<&dyn ErrorMeta>,
+) -> ErrorDetails {
     let short_msg = report.to_string();
     let msg = report.fmt_err();
     let full_debug_report = format!("{:?}", report);
-    let meta = detail_funcs.iter().find_map(|f| f(report));
+    let meta = detail_func(report);
     match meta {
         Some(meta) => ErrorDetails {
             severity: meta.severity(),
@@ -66,6 +67,12 @@ pub fn report_to_details(report: &Report, detail_funcs: &[ErrorMetaFunc]) -> Err
             msg,
             full_debug_report,
         },
+    }
+}
+
+impl Display for ErrorSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
     }
 }
 

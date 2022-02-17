@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use bitcoinsuite_error::{report_to_details, ErrorMetaFunc, ErrorSeverity, Report};
+use bitcoinsuite_error::{report_to_details, ErrorMeta, ErrorSeverity, Report};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use warp::{hyper::StatusCode, Rejection};
@@ -23,9 +23,12 @@ pub struct HttpError {
     is_user_error: bool,
 }
 
-pub fn rejection_to_reply(err: Rejection, detail_funcs: &[ErrorMetaFunc]) -> impl warp::Reply {
+pub fn rejection_to_reply(
+    err: Rejection,
+    detail_func: impl Fn(&Report) -> Option<&dyn ErrorMeta>,
+) -> impl warp::Reply {
     let (status_code, http_error) = if let Some(WarpError(report)) = err.find::<WarpError>() {
-        let details = report_to_details(report, detail_funcs);
+        let details = report_to_details(report, detail_func);
         match details.severity {
             ErrorSeverity::NotFound => (
                 StatusCode::NOT_FOUND,
