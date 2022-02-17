@@ -12,7 +12,6 @@ members = [
     "bitcoinsuite-ecc-secp256k1",
     "bitcoinsuite-error",
     "bitcoinsuite-error-derive",
-    "bitcoinsuite-error-report",
     "bitcoinsuite-error-warp",
     "bitcoinsuite-slp",
     "bitcoinsuite-test-utils",
