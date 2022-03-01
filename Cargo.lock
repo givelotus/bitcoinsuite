@@ -170,6 +170,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitcoinsuite-chronik-client"
+version = "0.1.0"
+dependencies = [
+ "bitcoinsuite-core",
+ "bitcoinsuite-error",
+ "hex",
+ "pretty_assertions",
+ "prost",
+ "prost-build",
+ "reqwest",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "bitcoinsuite-core"
 version = "0.1.0"
 dependencies = [

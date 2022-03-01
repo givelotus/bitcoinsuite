@@ -1,0 +1,31 @@
+[package]
+name = "bitcoinsuite-chronik-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitcoinsuite-error = { path = "../bitcoinsuite-error" }
+bitcoinsuite-core = { path = "../bitcoinsuite-core" }
+
+# Error structs/enums
+thiserror = "1.0"
+
+# HTTP client
+reqwest = "0.11"
+
+# Async runtime and scheduler
+tokio = { version = "1.14", features = ["full"] }
+
+# Protobuf (de)serialization
+prost = "0.9"
+
+# Hex en-/decoding
+hex = "0.4"
+
+[build-dependencies]
+# Build Protobuf structs
+prost-build = "0.9"
+
+[dev-dependencies]
+# Colorful diffs for assertions
+pretty_assertions = "1.0"
