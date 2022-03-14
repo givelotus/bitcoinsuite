@@ -42,16 +42,15 @@ pub fn decompress_amount(mut x: u64) -> u64 {
     // x = 10*(9*n + d - 1) + e
     let mut e = x % 10;
     x /= 10;
-    let mut n;
-    if e < 9 {
+    let mut n = if e < 9 {
         // x = 9*n + d - 1
         let d = (x % 9) + 1;
         x /= 9;
         // x = n
-        n = x * 10 + d;
+        x * 10 + d
     } else {
-        n = x + 1;
-    }
+        x + 1
+    };
     while e != 0 {
         n *= 10;
         e -= 1;
