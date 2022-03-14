@@ -1,6 +1,7 @@
 mod address;
 mod bitcoin_code;
 mod block;
+mod build_block;
 mod byte_array;
 mod bytes;
 mod bytes_mut;
@@ -22,6 +23,7 @@ mod utxo;
 pub use crate::address::*;
 pub use crate::bitcoin_code::*;
 pub use crate::block::*;
+pub use crate::build_block::*;
 pub use crate::byte_array::*;
 pub use crate::bytes::*;
 pub use crate::bytes_mut::*;
