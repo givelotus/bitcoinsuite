@@ -30,6 +30,12 @@ impl AsRef<[u8]> for Bytes {
     }
 }
 
+impl std::borrow::Borrow<[u8]> for Bytes {
+    fn borrow(&self) -> &[u8] {
+        self
+    }
+}
+
 impl PartialEq for Bytes {
     fn eq(&self, other: &Self) -> bool {
         self.data.eq(&other.data)
@@ -37,6 +43,18 @@ impl PartialEq for Bytes {
 }
 
 impl Eq for Bytes {}
+
+impl PartialOrd for Bytes {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.data.partial_cmp(&other.data)
+    }
+}
+
+impl Ord for Bytes {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.data.cmp(&other.data)
+    }
+}
 
 impl Hash for Bytes {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

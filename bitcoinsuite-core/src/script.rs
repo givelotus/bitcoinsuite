@@ -87,6 +87,16 @@ impl Script {
         }
     }
 
+    pub fn p2pk_legacy(pubkey: [u8; 65]) -> Self {
+        let mut bytes = BytesMut::new();
+        bytes.put_slice(&[0x41]);
+        bytes.put_slice(&pubkey);
+        bytes.put_slice(&[0xac]);
+        Script {
+            bytecode: bytes.freeze(),
+        }
+    }
+
     pub fn p2pkh(hash: &ShaRmd160) -> Self {
         let mut bytes = BytesMut::new();
         bytes.put_slice(&[0x76, 0xa9, 0x14]);

@@ -18,7 +18,7 @@ pub struct Tx {
     raw: Bytes,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct OutPoint {
     pub txid: Sha256d,
     pub out_idx: u32,

@@ -12,6 +12,7 @@ pub struct RichTx {
     pub spends: Vec<Option<OutPoint>>,
     pub slp_burns: Vec<Option<Box<SlpBurn>>>,
     pub slp_error_msg: Option<String>,
+    pub time_first_seen: i64,
     pub network: Network,
 }
 
@@ -19,6 +20,7 @@ pub struct RichTx {
 pub struct RichTxBlock {
     pub height: i32,
     pub hash: Sha256d,
+    pub timestamp: i64,
 }
 
 pub struct RichTxInput<'tx> {
@@ -61,5 +63,16 @@ impl RichTx {
                 .unwrap_or_default(),
             spent_by: self.spends[idx].as_ref(),
         })
+    }
+
+    pub fn timestamp(&self) -> i64 {
+        match self.time_first_seen {
+            0 => self
+                .block
+                .as_ref()
+                .map(|block| block.timestamp)
+                .unwrap_or_default(),
+            _ => self.time_first_seen,
+        }
     }
 }
