@@ -1,4 +1,4 @@
-use std::sync::atomic;
+use std::sync::{atomic, Arc};
 
 use bitcoinsuite_error::{Result, WrapErr};
 use serde::{Deserialize, Serialize};
@@ -12,10 +12,11 @@ pub struct BitcoindRpcClientConf {
     pub rpc_pass: String,
 }
 
+#[derive(Clone)]
 pub struct BitcoindRpcClient {
     conf: BitcoindRpcClientConf,
     client: reqwest::Client,
-    last_id: atomic::AtomicUsize,
+    last_id: Arc<atomic::AtomicUsize>,
 }
 
 impl BitcoindRpcClient {
@@ -23,20 +24,24 @@ impl BitcoindRpcClient {
         BitcoindRpcClient {
             conf,
             client: reqwest::Client::new(),
-            last_id: atomic::AtomicUsize::new(1),
+            last_id: Arc::new(atomic::AtomicUsize::new(1)),
         }
     }
 
-    pub async fn cmd_text(&self, cmd: &str, args: &[&str]) -> Result<String> {
+    pub async fn cmd_text(&self, cmd: &str, args: &[json::JsonValue]) -> Result<String> {
         Ok(self.cmd_json(cmd, args).await?.to_string())
     }
 
-    pub async fn cmd_json(&self, cmd: &str, args: &[&str]) -> Result<json::JsonValue> {
+    pub async fn cmd_json(&self, cmd: &str, args: &[json::JsonValue]) -> Result<json::JsonValue> {
         let response = self.cmd_response(cmd, args).await?;
         Self::cmd_handle_error(response).await
     }
 
-    pub(crate) async fn cmd_response(&self, cmd: &str, args: &[&str]) -> Result<reqwest::Response> {
+    pub(crate) async fn cmd_response(
+        &self,
+        cmd: &str,
+        args: &[json::JsonValue],
+    ) -> Result<reqwest::Response> {
         Ok(self
             .client
             .post(&self.conf.url)
