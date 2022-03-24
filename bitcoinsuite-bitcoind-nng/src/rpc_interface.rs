@@ -12,8 +12,9 @@ use crate::{
         BlockHash, BlockHashArgs, BlockHeight, BlockHeightArgs, BlockIdentifier,
         GetBlockRangeRequest, GetBlockRangeRequestArgs, GetBlockRangeResponse, GetBlockRequest,
         GetBlockRequestArgs, GetBlockResponse, GetBlockSliceRequest, GetBlockSliceRequestArgs,
-        GetBlockSliceResponse, GetMempoolRequest, GetMempoolRequestArgs, GetMempoolResponse, Hash,
-        RpcCall, RpcCallArgs, RpcRequest, RpcResult,
+        GetBlockSliceResponse, GetMempoolRequest, GetMempoolRequestArgs, GetMempoolResponse,
+        GetUndoSliceRequest, GetUndoSliceRequestArgs, GetUndoSliceResponse, Hash, RpcCall,
+        RpcCallArgs, RpcRequest, RpcResult,
     },
     structs,
 };
@@ -154,6 +155,32 @@ impl RpcInterface {
             .data()
             .field("GetBlockSliceResponse.data")?
             .to_vec())
+    }
+
+    pub fn get_undo_slice(&self, file_num: u32, undo_pos: u32, num_bytes: u32) -> Result<Vec<u8>> {
+        let mut fbb = flatbuffers::FlatBufferBuilder::with_capacity(1024);
+        let request = GetUndoSliceRequest::create(
+            &mut fbb,
+            &GetUndoSliceRequestArgs {
+                file_num,
+                undo_pos,
+                num_bytes,
+            },
+        );
+        let rpc_call = RpcCall::create(
+            &mut fbb,
+            &RpcCallArgs {
+                rpc_type: RpcRequest::GetUndoSliceRequest,
+                rpc: Some(request.as_union_value()),
+            },
+        );
+        fbb.finish(rpc_call, None);
+        let msg = self.tranceive(&fbb)?;
+        let response = flatbuffers::root_with_opts::<GetUndoSliceResponse>(
+            &self.fbb_opts,
+            self.handle_msg(&msg)?,
+        )?;
+        Ok(response.data().field("GetUndoSliceResponse.data")?.to_vec())
     }
 
     pub fn get_mempool(&self) -> Result<Vec<structs::MempoolTx>> {
