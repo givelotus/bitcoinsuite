@@ -12,6 +12,9 @@ bitcoinsuite-core = { path = "../bitcoinsuite-core" }
 thiserror = "1.0"
 bitcoinsuite-error = { path = "../bitcoinsuite-error" }
 
+# Hex en-/decoding
+hex = "0.4"
+
 # Config
 serde = { version = "1.0", features = ["derive"] }
 
