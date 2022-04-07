@@ -37,6 +37,31 @@ impl BitcoindRpcClient {
         Self::cmd_handle_error(response).await
     }
 
+    pub async fn test_mempool_accept(
+        &self,
+        raw_tx: &[u8],
+    ) -> Result<std::result::Result<(), String>> {
+        let result = self
+            .cmd_json("testmempoolaccept", &[json::array![hex::encode(raw_tx)]])
+            .await;
+        match result {
+            Ok(json_result) => {
+                let tx_result = &json_result[0];
+                if !tx_result["allowed"].as_bool().expect("No 'allowed' field") {
+                    return Ok(Err(tx_result["reject-reason"]
+                        .as_str()
+                        .expect("No 'reject-reason' field")
+                        .to_string()));
+                }
+                Ok(Ok(()))
+            }
+            Err(report) => match report.downcast::<BitcoindError>()? {
+                BitcoindError::JsonRpcCode { message, .. } => Ok(Err(message)),
+                bitcoind_error => Err(bitcoind_error.into()),
+            },
+        }
+    }
+
     pub(crate) async fn cmd_response(
         &self,
         cmd: &str,
