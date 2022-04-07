@@ -12,7 +12,7 @@ pub struct BitcoindRpcClientConf {
     pub rpc_pass: String,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct BitcoindRpcClient {
     conf: BitcoindRpcClientConf,
     client: reqwest::Client,
