@@ -21,6 +21,9 @@ sha2 = "0.9"
 
 serde = { version = "1.0", features = ["derive"] }
 
+# Parsing base58
+bs58 = "0.4"
+
 # Keeping secret keys hidden
 secrecy = "0.8"
 

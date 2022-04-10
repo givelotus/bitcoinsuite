@@ -1,6 +1,8 @@
 mod cashaddress;
+mod lotusaddress;
 
 pub use crate::address::cashaddress::*;
+pub use crate::address::lotusaddress::*;
 
 use serde::{Deserialize, Serialize};
 

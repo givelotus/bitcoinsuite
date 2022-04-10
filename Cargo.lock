@@ -192,6 +192,7 @@ dependencies = [
  "bincode",
  "bitcoinsuite-ecc-secp256k1",
  "bitcoinsuite-test-utils-blockchain",
+ "bs58",
  "bytes",
  "digest",
  "hex",
@@ -298,6 +299,12 @@ checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
  "generic-array",
 ]
+
+[[package]]
+name = "bs58"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
 
 [[package]]
 name = "buf_redux"
