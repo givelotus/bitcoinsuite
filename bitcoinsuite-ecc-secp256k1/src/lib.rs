@@ -4,7 +4,7 @@ use bitcoinsuite_core::{
 };
 use secp256k1_abc::{All, Message, PublicKey, Secp256k1, SecretKey, Signature};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct EccSecp256k1 {
     curve: Secp256k1<All>,
 }
