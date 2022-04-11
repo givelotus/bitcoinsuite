@@ -1,9 +1,10 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 use thiserror::Error;
 
 use crate::{BytesMut, Hashed, Net, Script, Sha256};
 
 pub const LOTUS_ADDRESS_CHECKSUM_LEN: usize = 4;
+pub const LOTUS_PREFIX: &str = "lotus";
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct LotusAddress {
@@ -11,6 +12,11 @@ pub struct LotusAddress {
     net: Net,
     lotus_addr: String,
     script: Script,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub enum LotusAddressType {
+    OutputScript = 0,
 }
 
 #[derive(Error, Clone, Debug, PartialEq)]
@@ -63,6 +69,37 @@ impl LotusAddress {
     }
 }
 
+impl LotusAddress {
+    pub fn new(prefix: &str, net: Net, script: Script) -> Self {
+        let mut lotus_addr = prefix.to_string();
+        let net_char = match net {
+            Net::Mainnet => '_',
+            Net::Regtest => 'R',
+        };
+        lotus_addr.push(net_char);
+
+        let checksum = calc_checksum(
+            prefix,
+            net_char,
+            LotusAddressType::OutputScript as u8,
+            script.bytecode(),
+        );
+
+        let mut data = BytesMut::new();
+        data.put_slice(&[LotusAddressType::OutputScript as u8]);
+        data.put_slice(script.bytecode());
+        data.put_slice(&checksum);
+        lotus_addr.push_str(&bs58::encode(data.as_slice()).into_string());
+
+        LotusAddress {
+            prefix: prefix.to_string(),
+            net,
+            lotus_addr,
+            script,
+        }
+    }
+}
+
 impl FromStr for LotusAddress {
     type Err = LotusAddressError;
 
@@ -100,14 +137,7 @@ impl FromStr for LotusAddress {
             return Err(MissingPayload);
         }
         let expected_checksum = &data[data.len() - LOTUS_ADDRESS_CHECKSUM_LEN..];
-
-        // The data that will be hashed for the checksum
-        let mut checksum_preimage = BytesMut::new();
-        checksum_preimage.put_slice(prefix.as_bytes());
-        checksum_preimage.put_slice(&[net_char as u8, payload_type as u8]);
-        checksum_preimage.put_slice(payload);
-        let checksum_hash = Sha256::digest(checksum_preimage.freeze());
-        let actual_checksum = &checksum_hash.as_slice()[..LOTUS_ADDRESS_CHECKSUM_LEN];
+        let actual_checksum = calc_checksum(&prefix, net_char, payload_type, payload);
 
         // Verify checksum
         if expected_checksum != actual_checksum {
@@ -126,41 +156,76 @@ impl FromStr for LotusAddress {
     }
 }
 
+impl Display for LotusAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.lotus_addr.fmt(f)
+    }
+}
+
+fn calc_checksum(prefix: &str, net_char: char, payload_type: u8, payload: &[u8]) -> [u8; 4] {
+    // The data that will be hashed for the checksum
+    let mut checksum_preimage = BytesMut::new();
+    checksum_preimage.put_slice(prefix.as_bytes());
+    checksum_preimage.put_slice(&[net_char as u8, payload_type]);
+    checksum_preimage.put_slice(payload);
+    let checksum_hash = Sha256::digest(checksum_preimage.freeze());
+    checksum_hash.as_slice()[..LOTUS_ADDRESS_CHECKSUM_LEN]
+        .try_into()
+        .unwrap()
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{Hashed, LotusAddress, LotusAddressError, Net, Script, ShaRmd160};
+    use crate::{Hashed, LotusAddress, LotusAddressError, Net, Script, ShaRmd160, LOTUS_PREFIX};
 
     #[test]
     fn decode_lotus_address() -> Result<(), Box<dyn std::error::Error>> {
+        let p2pkh = Script::p2pkh(&ShaRmd160::from_hex(
+            "b50b86a893d80c9e2ee72b199612374b7b4c1cd8",
+        )?);
+        let p2sh = Script::p2sh(&ShaRmd160::from_hex(
+            "260617ebf668c9102f71ce24aba97fcaaf9c666a",
+        )?);
         {
             let address =
                 "lotus_16PSJNf1EDEfGvaYzaXJCJZrXH4pgiTo7kyW61iGi".parse::<LotusAddress>()?;
             assert_eq!(address.prefix(), "lotus");
             assert_eq!(address.net(), Net::Mainnet);
-            assert_eq!(
-                address.script(),
-                &Script::p2pkh(&ShaRmd160::from_hex(
-                    "b50b86a893d80c9e2ee72b199612374b7b4c1cd8",
-                )?),
-            );
+            assert_eq!(address.script(), &p2pkh);
             assert_eq!(
                 address.as_str(),
                 "lotus_16PSJNf1EDEfGvaYzaXJCJZrXH4pgiTo7kyW61iGi",
             );
         }
         {
+            let address =
+                "lotusR16PSJNf1EDEfGvaYzaXJCJZrXH4pgiTo7kyVqAied".parse::<LotusAddress>()?;
+            assert_eq!(address.prefix(), "lotus");
+            assert_eq!(address.net(), Net::Regtest);
+            assert_eq!(address.script(), &p2pkh);
+            assert_eq!(
+                address.as_str(),
+                "lotusR16PSJNf1EDEfGvaYzaXJCJZrXH4pgiTo7kyVqAied",
+            );
+        }
+        {
             let address = "lotus_1PrQReKdmXH6hyCk4NFR398HeWxvJWW4E3jjM3".parse::<LotusAddress>()?;
             assert_eq!(address.prefix(), "lotus");
             assert_eq!(address.net(), Net::Mainnet);
-            assert_eq!(
-                address.script(),
-                &Script::p2sh(&ShaRmd160::from_hex(
-                    "260617ebf668c9102f71ce24aba97fcaaf9c666a",
-                )?),
-            );
+            assert_eq!(address.script(), &p2sh);
             assert_eq!(
                 address.as_str(),
                 "lotus_1PrQReKdmXH6hyCk4NFR398HeWxvJWW4E3jjM3",
+            );
+        }
+        {
+            let address = "lotusR1PrQReKdmXH6hyCk4NFR398HeWxvJWW4Hie3rA".parse::<LotusAddress>()?;
+            assert_eq!(address.prefix(), "lotus");
+            assert_eq!(address.net(), Net::Regtest);
+            assert_eq!(address.script(), &p2sh);
+            assert_eq!(
+                address.as_str(),
+                "lotusR1PrQReKdmXH6hyCk4NFR398HeWxvJWW4Hie3rA",
             );
         }
 
@@ -210,6 +275,58 @@ mod tests {
                 actual: "66276ef9".to_string(),
             },
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn encode_lotus_address() -> Result<(), Box<dyn std::error::Error>> {
+        let p2pkh = Script::p2pkh(&ShaRmd160::from_hex(
+            "b50b86a893d80c9e2ee72b199612374b7b4c1cd8",
+        )?);
+        let p2sh = Script::p2sh(&ShaRmd160::from_hex(
+            "260617ebf668c9102f71ce24aba97fcaaf9c666a",
+        )?);
+        {
+            let address = LotusAddress::new(LOTUS_PREFIX, Net::Mainnet, p2pkh.clone());
+            assert_eq!(address.prefix(), "lotus");
+            assert_eq!(address.net(), Net::Mainnet);
+            assert_eq!(address.script(), &p2pkh);
+            assert_eq!(
+                address.as_str(),
+                "lotus_16PSJNf1EDEfGvaYzaXJCJZrXH4pgiTo7kyW61iGi",
+            );
+        }
+        {
+            let address = LotusAddress::new(LOTUS_PREFIX, Net::Regtest, p2pkh.clone());
+            assert_eq!(address.prefix(), "lotus");
+            assert_eq!(address.net(), Net::Regtest);
+            assert_eq!(address.script(), &p2pkh);
+            assert_eq!(
+                address.as_str(),
+                "lotusR16PSJNf1EDEfGvaYzaXJCJZrXH4pgiTo7kyVqAied",
+            );
+        }
+        {
+            let address = LotusAddress::new(LOTUS_PREFIX, Net::Mainnet, p2sh.clone());
+            assert_eq!(address.prefix(), "lotus");
+            assert_eq!(address.net(), Net::Mainnet);
+            assert_eq!(address.script(), &p2sh);
+            assert_eq!(
+                address.as_str(),
+                "lotus_1PrQReKdmXH6hyCk4NFR398HeWxvJWW4E3jjM3",
+            );
+        }
+        {
+            let address = LotusAddress::new(LOTUS_PREFIX, Net::Regtest, p2sh.clone());
+            assert_eq!(address.prefix(), "lotus");
+            assert_eq!(address.net(), Net::Regtest);
+            assert_eq!(address.script(), &p2sh);
+            assert_eq!(
+                address.as_str(),
+                "lotusR1PrQReKdmXH6hyCk4NFR398HeWxvJWW4Hie3rA",
+            );
+        }
 
         Ok(())
     }
