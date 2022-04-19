@@ -26,16 +26,18 @@ pub enum BitcoindChain {
     XPI,
 }
 
+#[derive(Debug, Clone)]
 pub struct BitcoindConf {
-    bitcoind_path: PathBuf,
-    bitcoincli_path: PathBuf,
-    additional_args: Vec<OsString>,
-    p2p_port: u16,
-    rpc_port: u16,
-    net: Net,
-    chain: BitcoindChain,
+    pub bitcoind_path: PathBuf,
+    pub bitcoincli_path: PathBuf,
+    pub additional_args: Vec<OsString>,
+    pub p2p_port: u16,
+    pub rpc_port: u16,
+    pub net: Net,
+    pub chain: BitcoindChain,
 }
 
+#[derive(Debug)]
 pub struct BitcoindInstance {
     conf: BitcoindConf,
     instance_dir: PathBuf,
