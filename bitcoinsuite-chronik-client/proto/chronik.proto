@@ -28,6 +28,11 @@ message BroadcastTxsResponse {
     repeated bytes txids = 1;
 }
 
+message BlockchainInfo {
+    bytes tip_hash = 1;
+    int32 tip_height = 2;
+}
+
 message Tx {
     bytes txid = 1;
     int32 version = 2;
@@ -49,6 +54,11 @@ message Utxo {
     SlpMeta slp_meta = 6;
     SlpToken slp_token = 7;
     Network network = 9;
+}
+
+message Token {
+    SlpTxData slp_tx_data = 1;
+    TokenStats token_stats = 2;
 }
 
 message BlockInfo {
@@ -75,8 +85,16 @@ message BlockInfo {
     int64 sum_burned_sats = 13;
 }
 
+message BlockDetails {
+    int32 version = 1;
+    bytes merkle_root = 2;
+    uint64 nonce = 3;
+    int64 median_timestamp = 4;
+}
+
 message Block {
     BlockInfo block_info = 1;
+    BlockDetails block_details = 3;
     repeated Tx txs = 2;
 }
 
@@ -108,6 +126,14 @@ message SlpMeta {
     SlpTxType tx_type = 2;
     bytes token_id = 3;
     bytes group_token_id = 4;
+}
+
+message TokenStats {
+    // This doesn't fit into uint64, so we use a string with the decimal
+    // representation. If available, use i128 to parse, otherwise some
+    // BigNumber library.
+    string total_minted = 1;
+    string total_burned = 2;
 }
 
 message TxInput {
@@ -203,6 +229,8 @@ message SubscribeMsg {
         MsgRemovedFromMempool RemovedFromMempool = 3;
         MsgConfirmed Confirmed = 4;
         MsgReorg Reorg = 5;
+        MsgBlockConnected BlockConnected = 6;
+        MsgBlockDisconnected BlockDisconnected = 7;
     }
 }
 
@@ -220,6 +248,14 @@ message MsgConfirmed {
 
 message MsgReorg {
     bytes txid = 1;
+}
+
+message MsgBlockConnected {
+    bytes block_hash = 1;
+}
+
+message MsgBlockDisconnected {
+    bytes block_hash = 1;
 }
 
 message Error {
