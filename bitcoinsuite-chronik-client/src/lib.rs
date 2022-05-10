@@ -122,6 +122,10 @@ impl ChronikClient {
         self._post("/broadcast-txs", &request).await
     }
 
+    pub async fn blockchain_info(&self) -> Result<proto::BlockchainInfo> {
+        self._get("/blockchain-info").await
+    }
+
     pub async fn block_by_height(&self, height: i32) -> Result<proto::Block> {
         self._get(&format!("/block/{}", height)).await
     }
@@ -143,6 +147,10 @@ impl ChronikClient {
 
     pub async fn tx(&self, txid: &Sha256d) -> Result<proto::Tx> {
         self._get(&format!("/tx/{}", txid)).await
+    }
+
+    pub async fn token(&self, token_id: &Sha256d) -> Result<proto::Token> {
+        self._get(&format!("/token/{}", token_id)).await
     }
 
     pub async fn validate_utxos(

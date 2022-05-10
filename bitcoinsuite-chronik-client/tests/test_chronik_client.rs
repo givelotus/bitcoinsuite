@@ -60,6 +60,15 @@ pub async fn test_broadcast_txs() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+pub async fn test_blockchain_info() -> Result<()> {
+    let client = ChronikClient::new(CHRONIK_URL.to_string())?;
+    let blockchain_info = client.blockchain_info().await?;
+    assert!(blockchain_info.tip_height > 243892);
+    assert_eq!(blockchain_info.tip_hash[28..], [0; 4]);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn test_block() -> Result<()> {
     let client = ChronikClient::new(CHRONIK_URL.to_string())?;
     let block_hash =
@@ -67,29 +76,39 @@ pub async fn test_block() -> Result<()> {
     let prev_block_hash =
         Sha256d::from_hex_be("0000000000125aa2c3d6dce7c1f204aa588790efed73086c28938b93cb985c0a")?;
     let expected_height = 129_113;
-    let expected_block_info = Some(proto::BlockInfo {
-        hash: block_hash.as_slice().to_vec(),
-        prev_hash: prev_block_hash.as_slice().to_vec(),
-        height: expected_height,
-        n_bits: 0x1b14_5080,
-        timestamp: 1_638_416_969,
-        block_size: 5067,
-        num_txs: 2,
-        num_inputs: 30,
-        num_outputs: 17,
-        sum_input_sats: 32_524_544_607,
-        sum_coinbase_output_sats: 2_250_449_185,
-        sum_normal_output_sats: 32_524_540_237,
-        sum_burned_sats: 0,
-    });
+    let block = client.block_by_hash(&block_hash).await?;
     assert_eq!(
-        client.block_by_hash(&block_hash).await?.block_info,
-        expected_block_info,
+        block.block_info,
+        Some(proto::BlockInfo {
+            hash: block_hash.as_slice().to_vec(),
+            prev_hash: prev_block_hash.as_slice().to_vec(),
+            height: expected_height,
+            n_bits: 0x1b14_5080,
+            timestamp: 1_638_416_969,
+            block_size: 5067,
+            num_txs: 2,
+            num_inputs: 30,
+            num_outputs: 17,
+            sum_input_sats: 32_524_544_607,
+            sum_coinbase_output_sats: 2_250_449_185,
+            sum_normal_output_sats: 32_524_540_237,
+            sum_burned_sats: 0,
+        }),
     );
     assert_eq!(
-        client.block_by_height(expected_height).await?.block_info,
-        expected_block_info,
+        block.block_details,
+        Some(proto::BlockDetails {
+            version: 1,
+            merkle_root: Sha256d::from_hex_be(
+                "c918c874d0231b6cdbac222ec7bde52cfaa6c5eafdc1a0c2bc5ed2d2ffdb40d7"
+            )?
+            .as_slice()
+            .to_vec(),
+            nonce: 5831068090634202948,
+            median_timestamp: 1638416423,
+        }),
     );
+    assert_eq!(client.block_by_height(expected_height).await?, block,);
     Ok(())
 }
 
@@ -197,6 +216,36 @@ pub async fn test_tx() -> Result<()> {
         network: proto::Network::Xpi as i32,
     };
     assert_eq!(actual_tx, expected_tx);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+pub async fn test_token() -> Result<()> {
+    let client = ChronikClient::new("https://chronik.be.cash/xec".to_string())?;
+    let token_id =
+        Sha256d::from_hex_be("0daf200e3418f2df1158efef36fbb507f12928f1fdcf3543703e64e75a4a9073")?;
+    let token = client.token(&token_id).await?;
+    assert_eq!(
+        token.slp_tx_data,
+        Some(proto::SlpTxData {
+            slp_meta: Some(proto::SlpMeta {
+                token_type: proto::SlpTokenType::Fungible as i32,
+                tx_type: proto::SlpTxType::Genesis as i32,
+                token_id: token_id.to_vec_be(),
+                group_token_id: vec![],
+            }),
+            genesis_info: Some(proto::SlpGenesisInfo {
+                token_ticker: b"USDR".to_vec(),
+                token_name: b"RaiUSD".to_vec(),
+                token_document_url: b"https://www.raiusd.co/etoken".to_vec(),
+                token_document_hash: vec![],
+                decimals: 4,
+            }),
+        }),
+    );
+    let token_stats = token.token_stats.unwrap();
+    assert!(!token_stats.total_minted.is_empty());
+    assert!(!token_stats.total_burned.is_empty());
     Ok(())
 }
 
