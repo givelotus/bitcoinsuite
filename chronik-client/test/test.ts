@@ -2,8 +2,10 @@ import * as chai from "chai"
 import chaiAsPromised from "chai-as-promised"
 import Long from "long"
 import {
+  BlockDetails,
   BlockInfo,
   ChronikClient,
+  SlpTokenTxData,
   SubscribeMsg,
   Tx,
   Utxo,
@@ -41,6 +43,13 @@ const GENESIS_BLOCK_INFO: BlockInfo = {
   sumCoinbaseOutputSats: Long.fromString("5000000000"),
   sumNormalOutputSats: i64(0),
   sumBurnedSats: i64(0),
+}
+const GENESIS_BLOCK_DETAILS: BlockDetails = {
+  version: 1,
+  merkleRoot:
+    "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
+  nonce: u64(2083236893),
+  medianTimestamp: i64(1231006505),
 }
 const GENESIS_TX: Tx = {
   txid: "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
@@ -118,6 +127,15 @@ describe("/broadcast-tx", () => {
   })
 })
 
+describe("/blockchain-info", () => {
+  const chronik = new ChronikClient(TEST_URL)
+  it("gives us the blockchain info", async () => {
+    const blockchainInfo = await chronik.blockchainInfo()
+    expect(blockchainInfo.tipHash.length).to.eql(64)
+    expect(blockchainInfo.tipHeight).to.gte(739039)
+  })
+})
+
 describe("/block/:hash", () => {
   const chronik = new ChronikClient(TEST_URL)
   it("gives us the Genesis block by hash", async () => {
@@ -125,11 +143,13 @@ describe("/block/:hash", () => {
       "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
     )
     expect(block.blockInfo).to.eql(GENESIS_BLOCK_INFO)
+    expect(block.blockDetails).to.eql(GENESIS_BLOCK_DETAILS)
     expect(block.txs).to.eql([GENESIS_TX])
   })
   it("gives us the Genesis block by height", async () => {
     const block = await chronik.block(0)
     expect(block.blockInfo).to.eql(GENESIS_BLOCK_INFO)
+    expect(block.blockDetails).to.eql(GENESIS_BLOCK_DETAILS)
     expect(block.txs).to.eql([GENESIS_TX])
   })
 })
@@ -290,6 +310,47 @@ describe("/tx/:txid", () => {
     })
     expect(tx.timeFirstSeen).to.eql(i64(0))
     expect(tx.network).to.eql("XEC")
+  })
+})
+
+describe("/token/:tokenId", () => {
+  const chronik = new ChronikClient(TEST_URL)
+  it("results in Not Found", async () => {
+    assert.isRejected(
+      chronik.token(
+        "0000000000000000000000000000000000000000000000000000000000000000",
+      ),
+      Error,
+    )
+  })
+  it("results in Not Found", async () => {
+    assert.isRejected(
+      chronik.token(
+        "0f3c3908a2ddec8dea91d2fe1f77295bbbb158af869bff345d44ae800f0a5498",
+      ),
+      Error,
+    )
+  })
+  it("gives us a token", async () => {
+    const token = await chronik.token(
+      "0daf200e3418f2df1158efef36fbb507f12928f1fdcf3543703e64e75a4a9073",
+    )
+    expect(token.slpTxData).to.eql({
+      genesisInfo: {
+        decimals: 4,
+        tokenDocumentHash: "",
+        tokenDocumentUrl: "https://www.raiusd.co/etoken",
+        tokenName: "RaiUSD",
+        tokenTicker: "USDR",
+      },
+      slpMeta: {
+        groupTokenId: undefined,
+        tokenId:
+          "0daf200e3418f2df1158efef36fbb507f12928f1fdcf3543703e64e75a4a9073",
+        tokenType: "FUNGIBLE",
+        txType: "GENESIS",
+      },
+    } as SlpTokenTxData)
   })
 })
 

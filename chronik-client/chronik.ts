@@ -1,6 +1,6 @@
 /* eslint-disable */
 import Long from "long"
-import _m0 from "protobufjs/minimal"
+import * as _m0 from "protobufjs/minimal"
 
 export const protobufPackage = "chronik"
 
@@ -206,6 +206,11 @@ export interface BroadcastTxsResponse {
   txids: Uint8Array[]
 }
 
+export interface BlockchainInfo {
+  tipHash: Uint8Array
+  tipHeight: number
+}
+
 export interface Tx {
   txid: Uint8Array
   version: number
@@ -227,6 +232,11 @@ export interface Utxo {
   slpMeta: SlpMeta | undefined
   slpToken: SlpToken | undefined
   network: Network
+}
+
+export interface Token {
+  slpTxData: SlpTxData | undefined
+  tokenStats: TokenStats | undefined
 }
 
 export interface BlockInfo {
@@ -253,8 +263,16 @@ export interface BlockInfo {
   sumBurnedSats: Long
 }
 
+export interface BlockDetails {
+  version: number
+  merkleRoot: Uint8Array
+  nonce: Long
+  medianTimestamp: Long
+}
+
 export interface Block {
   blockInfo: BlockInfo | undefined
+  blockDetails: BlockDetails | undefined
   txs: Tx[]
 }
 
@@ -286,6 +304,16 @@ export interface SlpMeta {
   txType: SlpTxType
   tokenId: Uint8Array
   groupTokenId: Uint8Array
+}
+
+export interface TokenStats {
+  /**
+   * This doesn't fit into uint64, so we use a string with the decimal
+   * representation. If available, use i128 to parse, otherwise some
+   * BigNumber library.
+   */
+  totalMinted: string
+  totalBurned: string
 }
 
 export interface TxInput {
@@ -352,6 +380,8 @@ export interface SubscribeMsg {
   RemovedFromMempool: MsgRemovedFromMempool | undefined
   Confirmed: MsgConfirmed | undefined
   Reorg: MsgReorg | undefined
+  BlockConnected: MsgBlockConnected | undefined
+  BlockDisconnected: MsgBlockDisconnected | undefined
 }
 
 export interface MsgAddedToMempool {
@@ -370,13 +400,23 @@ export interface MsgReorg {
   txid: Uint8Array
 }
 
+export interface MsgBlockConnected {
+  blockHash: Uint8Array
+}
+
+export interface MsgBlockDisconnected {
+  blockHash: Uint8Array
+}
+
 export interface Error {
   errorCode: string
   msg: string
   isUserError: boolean
 }
 
-const baseValidateUtxoRequest: object = {}
+function createBaseValidateUtxoRequest(): ValidateUtxoRequest {
+  return { outpoints: [] }
+}
 
 export const ValidateUtxoRequest = {
   encode(
@@ -392,8 +432,7 @@ export const ValidateUtxoRequest = {
   decode(input: _m0.Reader | Uint8Array, length?: number): ValidateUtxoRequest {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseValidateUtxoRequest } as ValidateUtxoRequest
-    message.outpoints = []
+    const message = createBaseValidateUtxoRequest()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -409,11 +448,11 @@ export const ValidateUtxoRequest = {
   },
 
   fromJSON(object: any): ValidateUtxoRequest {
-    const message = { ...baseValidateUtxoRequest } as ValidateUtxoRequest
-    message.outpoints = (object.outpoints ?? []).map((e: any) =>
-      OutPoint.fromJSON(e),
-    )
-    return message
+    return {
+      outpoints: Array.isArray(object?.outpoints)
+        ? object.outpoints.map((e: any) => OutPoint.fromJSON(e))
+        : [],
+    }
   },
 
   toJSON(message: ValidateUtxoRequest): unknown {
@@ -431,14 +470,16 @@ export const ValidateUtxoRequest = {
   fromPartial<I extends Exact<DeepPartial<ValidateUtxoRequest>, I>>(
     object: I,
   ): ValidateUtxoRequest {
-    const message = { ...baseValidateUtxoRequest } as ValidateUtxoRequest
+    const message = createBaseValidateUtxoRequest()
     message.outpoints =
       object.outpoints?.map(e => OutPoint.fromPartial(e)) || []
     return message
   },
 }
 
-const baseValidateUtxoResponse: object = {}
+function createBaseValidateUtxoResponse(): ValidateUtxoResponse {
+  return { utxoStates: [] }
+}
 
 export const ValidateUtxoResponse = {
   encode(
@@ -457,8 +498,7 @@ export const ValidateUtxoResponse = {
   ): ValidateUtxoResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseValidateUtxoResponse } as ValidateUtxoResponse
-    message.utxoStates = []
+    const message = createBaseValidateUtxoResponse()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -474,11 +514,11 @@ export const ValidateUtxoResponse = {
   },
 
   fromJSON(object: any): ValidateUtxoResponse {
-    const message = { ...baseValidateUtxoResponse } as ValidateUtxoResponse
-    message.utxoStates = (object.utxoStates ?? []).map((e: any) =>
-      UtxoState.fromJSON(e),
-    )
-    return message
+    return {
+      utxoStates: Array.isArray(object?.utxoStates)
+        ? object.utxoStates.map((e: any) => UtxoState.fromJSON(e))
+        : [],
+    }
   },
 
   toJSON(message: ValidateUtxoResponse): unknown {
@@ -496,14 +536,16 @@ export const ValidateUtxoResponse = {
   fromPartial<I extends Exact<DeepPartial<ValidateUtxoResponse>, I>>(
     object: I,
   ): ValidateUtxoResponse {
-    const message = { ...baseValidateUtxoResponse } as ValidateUtxoResponse
+    const message = createBaseValidateUtxoResponse()
     message.utxoStates =
       object.utxoStates?.map(e => UtxoState.fromPartial(e)) || []
     return message
   },
 }
 
-const baseBroadcastTxRequest: object = { skipSlpCheck: false }
+function createBaseBroadcastTxRequest(): BroadcastTxRequest {
+  return { rawTx: new Uint8Array(), skipSlpCheck: false }
+}
 
 export const BroadcastTxRequest = {
   encode(
@@ -522,8 +564,7 @@ export const BroadcastTxRequest = {
   decode(input: _m0.Reader | Uint8Array, length?: number): BroadcastTxRequest {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBroadcastTxRequest } as BroadcastTxRequest
-    message.rawTx = new Uint8Array()
+    const message = createBaseBroadcastTxRequest()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -542,16 +583,14 @@ export const BroadcastTxRequest = {
   },
 
   fromJSON(object: any): BroadcastTxRequest {
-    const message = { ...baseBroadcastTxRequest } as BroadcastTxRequest
-    message.rawTx =
-      object.rawTx !== undefined && object.rawTx !== null
+    return {
+      rawTx: isSet(object.rawTx)
         ? bytesFromBase64(object.rawTx)
-        : new Uint8Array()
-    message.skipSlpCheck =
-      object.skipSlpCheck !== undefined && object.skipSlpCheck !== null
+        : new Uint8Array(),
+      skipSlpCheck: isSet(object.skipSlpCheck)
         ? Boolean(object.skipSlpCheck)
-        : false
-    return message
+        : false,
+    }
   },
 
   toJSON(message: BroadcastTxRequest): unknown {
@@ -568,14 +607,16 @@ export const BroadcastTxRequest = {
   fromPartial<I extends Exact<DeepPartial<BroadcastTxRequest>, I>>(
     object: I,
   ): BroadcastTxRequest {
-    const message = { ...baseBroadcastTxRequest } as BroadcastTxRequest
+    const message = createBaseBroadcastTxRequest()
     message.rawTx = object.rawTx ?? new Uint8Array()
     message.skipSlpCheck = object.skipSlpCheck ?? false
     return message
   },
 }
 
-const baseBroadcastTxResponse: object = {}
+function createBaseBroadcastTxResponse(): BroadcastTxResponse {
+  return { txid: new Uint8Array() }
+}
 
 export const BroadcastTxResponse = {
   encode(
@@ -591,8 +632,7 @@ export const BroadcastTxResponse = {
   decode(input: _m0.Reader | Uint8Array, length?: number): BroadcastTxResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBroadcastTxResponse } as BroadcastTxResponse
-    message.txid = new Uint8Array()
+    const message = createBaseBroadcastTxResponse()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -608,12 +648,11 @@ export const BroadcastTxResponse = {
   },
 
   fromJSON(object: any): BroadcastTxResponse {
-    const message = { ...baseBroadcastTxResponse } as BroadcastTxResponse
-    message.txid =
-      object.txid !== undefined && object.txid !== null
+    return {
+      txid: isSet(object.txid)
         ? bytesFromBase64(object.txid)
-        : new Uint8Array()
-    return message
+        : new Uint8Array(),
+    }
   },
 
   toJSON(message: BroadcastTxResponse): unknown {
@@ -628,13 +667,15 @@ export const BroadcastTxResponse = {
   fromPartial<I extends Exact<DeepPartial<BroadcastTxResponse>, I>>(
     object: I,
   ): BroadcastTxResponse {
-    const message = { ...baseBroadcastTxResponse } as BroadcastTxResponse
+    const message = createBaseBroadcastTxResponse()
     message.txid = object.txid ?? new Uint8Array()
     return message
   },
 }
 
-const baseBroadcastTxsRequest: object = { skipSlpCheck: false }
+function createBaseBroadcastTxsRequest(): BroadcastTxsRequest {
+  return { rawTxs: [], skipSlpCheck: false }
+}
 
 export const BroadcastTxsRequest = {
   encode(
@@ -653,8 +694,7 @@ export const BroadcastTxsRequest = {
   decode(input: _m0.Reader | Uint8Array, length?: number): BroadcastTxsRequest {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBroadcastTxsRequest } as BroadcastTxsRequest
-    message.rawTxs = []
+    const message = createBaseBroadcastTxsRequest()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -673,13 +713,14 @@ export const BroadcastTxsRequest = {
   },
 
   fromJSON(object: any): BroadcastTxsRequest {
-    const message = { ...baseBroadcastTxsRequest } as BroadcastTxsRequest
-    message.rawTxs = (object.rawTxs ?? []).map((e: any) => bytesFromBase64(e))
-    message.skipSlpCheck =
-      object.skipSlpCheck !== undefined && object.skipSlpCheck !== null
+    return {
+      rawTxs: Array.isArray(object?.rawTxs)
+        ? object.rawTxs.map((e: any) => bytesFromBase64(e))
+        : [],
+      skipSlpCheck: isSet(object.skipSlpCheck)
         ? Boolean(object.skipSlpCheck)
-        : false
-    return message
+        : false,
+    }
   },
 
   toJSON(message: BroadcastTxsRequest): unknown {
@@ -699,14 +740,16 @@ export const BroadcastTxsRequest = {
   fromPartial<I extends Exact<DeepPartial<BroadcastTxsRequest>, I>>(
     object: I,
   ): BroadcastTxsRequest {
-    const message = { ...baseBroadcastTxsRequest } as BroadcastTxsRequest
+    const message = createBaseBroadcastTxsRequest()
     message.rawTxs = object.rawTxs?.map(e => e) || []
     message.skipSlpCheck = object.skipSlpCheck ?? false
     return message
   },
 }
 
-const baseBroadcastTxsResponse: object = {}
+function createBaseBroadcastTxsResponse(): BroadcastTxsResponse {
+  return { txids: [] }
+}
 
 export const BroadcastTxsResponse = {
   encode(
@@ -725,8 +768,7 @@ export const BroadcastTxsResponse = {
   ): BroadcastTxsResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBroadcastTxsResponse } as BroadcastTxsResponse
-    message.txids = []
+    const message = createBaseBroadcastTxsResponse()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -742,9 +784,11 @@ export const BroadcastTxsResponse = {
   },
 
   fromJSON(object: any): BroadcastTxsResponse {
-    const message = { ...baseBroadcastTxsResponse } as BroadcastTxsResponse
-    message.txids = (object.txids ?? []).map((e: any) => bytesFromBase64(e))
-    return message
+    return {
+      txids: Array.isArray(object?.txids)
+        ? object.txids.map((e: any) => bytesFromBase64(e))
+        : [],
+    }
   },
 
   toJSON(message: BroadcastTxsResponse): unknown {
@@ -762,18 +806,94 @@ export const BroadcastTxsResponse = {
   fromPartial<I extends Exact<DeepPartial<BroadcastTxsResponse>, I>>(
     object: I,
   ): BroadcastTxsResponse {
-    const message = { ...baseBroadcastTxsResponse } as BroadcastTxsResponse
+    const message = createBaseBroadcastTxsResponse()
     message.txids = object.txids?.map(e => e) || []
     return message
   },
 }
 
-const baseTx: object = {
-  version: 0,
-  lockTime: 0,
-  slpErrorMsg: "",
-  timeFirstSeen: Long.ZERO,
-  network: 0,
+function createBaseBlockchainInfo(): BlockchainInfo {
+  return { tipHash: new Uint8Array(), tipHeight: 0 }
+}
+
+export const BlockchainInfo = {
+  encode(
+    message: BlockchainInfo,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    if (message.tipHash.length !== 0) {
+      writer.uint32(10).bytes(message.tipHash)
+    }
+    if (message.tipHeight !== 0) {
+      writer.uint32(16).int32(message.tipHeight)
+    }
+    return writer
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): BlockchainInfo {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
+    let end = length === undefined ? reader.len : reader.pos + length
+    const message = createBaseBlockchainInfo()
+    while (reader.pos < end) {
+      const tag = reader.uint32()
+      switch (tag >>> 3) {
+        case 1:
+          message.tipHash = reader.bytes()
+          break
+        case 2:
+          message.tipHeight = reader.int32()
+          break
+        default:
+          reader.skipType(tag & 7)
+          break
+      }
+    }
+    return message
+  },
+
+  fromJSON(object: any): BlockchainInfo {
+    return {
+      tipHash: isSet(object.tipHash)
+        ? bytesFromBase64(object.tipHash)
+        : new Uint8Array(),
+      tipHeight: isSet(object.tipHeight) ? Number(object.tipHeight) : 0,
+    }
+  },
+
+  toJSON(message: BlockchainInfo): unknown {
+    const obj: any = {}
+    message.tipHash !== undefined &&
+      (obj.tipHash = base64FromBytes(
+        message.tipHash !== undefined ? message.tipHash : new Uint8Array(),
+      ))
+    message.tipHeight !== undefined &&
+      (obj.tipHeight = Math.round(message.tipHeight))
+    return obj
+  },
+
+  fromPartial<I extends Exact<DeepPartial<BlockchainInfo>, I>>(
+    object: I,
+  ): BlockchainInfo {
+    const message = createBaseBlockchainInfo()
+    message.tipHash = object.tipHash ?? new Uint8Array()
+    message.tipHeight = object.tipHeight ?? 0
+    return message
+  },
+}
+
+function createBaseTx(): Tx {
+  return {
+    txid: new Uint8Array(),
+    version: 0,
+    inputs: [],
+    outputs: [],
+    lockTime: 0,
+    slpTxData: undefined,
+    slpErrorMsg: "",
+    block: undefined,
+    timeFirstSeen: Long.ZERO,
+    network: 0,
+  }
 }
 
 export const Tx = {
@@ -814,10 +934,7 @@ export const Tx = {
   decode(input: _m0.Reader | Uint8Array, length?: number): Tx {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseTx } as Tx
-    message.inputs = []
-    message.outputs = []
-    message.txid = new Uint8Array()
+    const message = createBaseTx()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -860,44 +977,30 @@ export const Tx = {
   },
 
   fromJSON(object: any): Tx {
-    const message = { ...baseTx } as Tx
-    message.txid =
-      object.txid !== undefined && object.txid !== null
+    return {
+      txid: isSet(object.txid)
         ? bytesFromBase64(object.txid)
-        : new Uint8Array()
-    message.version =
-      object.version !== undefined && object.version !== null
-        ? Number(object.version)
-        : 0
-    message.inputs = (object.inputs ?? []).map((e: any) => TxInput.fromJSON(e))
-    message.outputs = (object.outputs ?? []).map((e: any) =>
-      TxOutput.fromJSON(e),
-    )
-    message.lockTime =
-      object.lockTime !== undefined && object.lockTime !== null
-        ? Number(object.lockTime)
-        : 0
-    message.slpTxData =
-      object.slpTxData !== undefined && object.slpTxData !== null
+        : new Uint8Array(),
+      version: isSet(object.version) ? Number(object.version) : 0,
+      inputs: Array.isArray(object?.inputs)
+        ? object.inputs.map((e: any) => TxInput.fromJSON(e))
+        : [],
+      outputs: Array.isArray(object?.outputs)
+        ? object.outputs.map((e: any) => TxOutput.fromJSON(e))
+        : [],
+      lockTime: isSet(object.lockTime) ? Number(object.lockTime) : 0,
+      slpTxData: isSet(object.slpTxData)
         ? SlpTxData.fromJSON(object.slpTxData)
-        : undefined
-    message.slpErrorMsg =
-      object.slpErrorMsg !== undefined && object.slpErrorMsg !== null
-        ? String(object.slpErrorMsg)
-        : ""
-    message.block =
-      object.block !== undefined && object.block !== null
+        : undefined,
+      slpErrorMsg: isSet(object.slpErrorMsg) ? String(object.slpErrorMsg) : "",
+      block: isSet(object.block)
         ? BlockMetadata.fromJSON(object.block)
-        : undefined
-    message.timeFirstSeen =
-      object.timeFirstSeen !== undefined && object.timeFirstSeen !== null
-        ? Long.fromString(object.timeFirstSeen)
-        : Long.ZERO
-    message.network =
-      object.network !== undefined && object.network !== null
-        ? networkFromJSON(object.network)
-        : 0
-    return message
+        : undefined,
+      timeFirstSeen: isSet(object.timeFirstSeen)
+        ? Long.fromValue(object.timeFirstSeen)
+        : Long.ZERO,
+      network: isSet(object.network) ? networkFromJSON(object.network) : 0,
+    }
   },
 
   toJSON(message: Tx): unknown {
@@ -938,7 +1041,7 @@ export const Tx = {
   },
 
   fromPartial<I extends Exact<DeepPartial<Tx>, I>>(object: I): Tx {
-    const message = { ...baseTx } as Tx
+    const message = createBaseTx()
     message.txid = object.txid ?? new Uint8Array()
     message.version = object.version ?? 0
     message.inputs = object.inputs?.map(e => TxInput.fromPartial(e)) || []
@@ -962,11 +1065,16 @@ export const Tx = {
   },
 }
 
-const baseUtxo: object = {
-  blockHeight: 0,
-  isCoinbase: false,
-  value: Long.ZERO,
-  network: 0,
+function createBaseUtxo(): Utxo {
+  return {
+    outpoint: undefined,
+    blockHeight: 0,
+    isCoinbase: false,
+    value: Long.ZERO,
+    slpMeta: undefined,
+    slpToken: undefined,
+    network: 0,
+  }
 }
 
 export const Utxo = {
@@ -998,7 +1106,7 @@ export const Utxo = {
   decode(input: _m0.Reader | Uint8Array, length?: number): Utxo {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseUtxo } as Utxo
+    const message = createBaseUtxo()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1032,36 +1140,21 @@ export const Utxo = {
   },
 
   fromJSON(object: any): Utxo {
-    const message = { ...baseUtxo } as Utxo
-    message.outpoint =
-      object.outpoint !== undefined && object.outpoint !== null
+    return {
+      outpoint: isSet(object.outpoint)
         ? OutPoint.fromJSON(object.outpoint)
-        : undefined
-    message.blockHeight =
-      object.blockHeight !== undefined && object.blockHeight !== null
-        ? Number(object.blockHeight)
-        : 0
-    message.isCoinbase =
-      object.isCoinbase !== undefined && object.isCoinbase !== null
-        ? Boolean(object.isCoinbase)
-        : false
-    message.value =
-      object.value !== undefined && object.value !== null
-        ? Long.fromString(object.value)
-        : Long.ZERO
-    message.slpMeta =
-      object.slpMeta !== undefined && object.slpMeta !== null
+        : undefined,
+      blockHeight: isSet(object.blockHeight) ? Number(object.blockHeight) : 0,
+      isCoinbase: isSet(object.isCoinbase) ? Boolean(object.isCoinbase) : false,
+      value: isSet(object.value) ? Long.fromValue(object.value) : Long.ZERO,
+      slpMeta: isSet(object.slpMeta)
         ? SlpMeta.fromJSON(object.slpMeta)
-        : undefined
-    message.slpToken =
-      object.slpToken !== undefined && object.slpToken !== null
+        : undefined,
+      slpToken: isSet(object.slpToken)
         ? SlpToken.fromJSON(object.slpToken)
-        : undefined
-    message.network =
-      object.network !== undefined && object.network !== null
-        ? networkFromJSON(object.network)
-        : 0
-    return message
+        : undefined,
+      network: isSet(object.network) ? networkFromJSON(object.network) : 0,
+    }
   },
 
   toJSON(message: Utxo): unknown {
@@ -1089,7 +1182,7 @@ export const Utxo = {
   },
 
   fromPartial<I extends Exact<DeepPartial<Utxo>, I>>(object: I): Utxo {
-    const message = { ...baseUtxo } as Utxo
+    const message = createBaseUtxo()
     message.outpoint =
       object.outpoint !== undefined && object.outpoint !== null
         ? OutPoint.fromPartial(object.outpoint)
@@ -1113,18 +1206,96 @@ export const Utxo = {
   },
 }
 
-const baseBlockInfo: object = {
-  height: 0,
-  nBits: 0,
-  timestamp: Long.ZERO,
-  blockSize: Long.UZERO,
-  numTxs: Long.UZERO,
-  numInputs: Long.UZERO,
-  numOutputs: Long.UZERO,
-  sumInputSats: Long.ZERO,
-  sumCoinbaseOutputSats: Long.ZERO,
-  sumNormalOutputSats: Long.ZERO,
-  sumBurnedSats: Long.ZERO,
+function createBaseToken(): Token {
+  return { slpTxData: undefined, tokenStats: undefined }
+}
+
+export const Token = {
+  encode(message: Token, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.slpTxData !== undefined) {
+      SlpTxData.encode(message.slpTxData, writer.uint32(10).fork()).ldelim()
+    }
+    if (message.tokenStats !== undefined) {
+      TokenStats.encode(message.tokenStats, writer.uint32(18).fork()).ldelim()
+    }
+    return writer
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): Token {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
+    let end = length === undefined ? reader.len : reader.pos + length
+    const message = createBaseToken()
+    while (reader.pos < end) {
+      const tag = reader.uint32()
+      switch (tag >>> 3) {
+        case 1:
+          message.slpTxData = SlpTxData.decode(reader, reader.uint32())
+          break
+        case 2:
+          message.tokenStats = TokenStats.decode(reader, reader.uint32())
+          break
+        default:
+          reader.skipType(tag & 7)
+          break
+      }
+    }
+    return message
+  },
+
+  fromJSON(object: any): Token {
+    return {
+      slpTxData: isSet(object.slpTxData)
+        ? SlpTxData.fromJSON(object.slpTxData)
+        : undefined,
+      tokenStats: isSet(object.tokenStats)
+        ? TokenStats.fromJSON(object.tokenStats)
+        : undefined,
+    }
+  },
+
+  toJSON(message: Token): unknown {
+    const obj: any = {}
+    message.slpTxData !== undefined &&
+      (obj.slpTxData = message.slpTxData
+        ? SlpTxData.toJSON(message.slpTxData)
+        : undefined)
+    message.tokenStats !== undefined &&
+      (obj.tokenStats = message.tokenStats
+        ? TokenStats.toJSON(message.tokenStats)
+        : undefined)
+    return obj
+  },
+
+  fromPartial<I extends Exact<DeepPartial<Token>, I>>(object: I): Token {
+    const message = createBaseToken()
+    message.slpTxData =
+      object.slpTxData !== undefined && object.slpTxData !== null
+        ? SlpTxData.fromPartial(object.slpTxData)
+        : undefined
+    message.tokenStats =
+      object.tokenStats !== undefined && object.tokenStats !== null
+        ? TokenStats.fromPartial(object.tokenStats)
+        : undefined
+    return message
+  },
+}
+
+function createBaseBlockInfo(): BlockInfo {
+  return {
+    hash: new Uint8Array(),
+    prevHash: new Uint8Array(),
+    height: 0,
+    nBits: 0,
+    timestamp: Long.ZERO,
+    blockSize: Long.UZERO,
+    numTxs: Long.UZERO,
+    numInputs: Long.UZERO,
+    numOutputs: Long.UZERO,
+    sumInputSats: Long.ZERO,
+    sumCoinbaseOutputSats: Long.ZERO,
+    sumNormalOutputSats: Long.ZERO,
+    sumBurnedSats: Long.ZERO,
+  }
 }
 
 export const BlockInfo = {
@@ -1177,9 +1348,7 @@ export const BlockInfo = {
   decode(input: _m0.Reader | Uint8Array, length?: number): BlockInfo {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBlockInfo } as BlockInfo
-    message.hash = new Uint8Array()
-    message.prevHash = new Uint8Array()
+    const message = createBaseBlockInfo()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1231,62 +1400,41 @@ export const BlockInfo = {
   },
 
   fromJSON(object: any): BlockInfo {
-    const message = { ...baseBlockInfo } as BlockInfo
-    message.hash =
-      object.hash !== undefined && object.hash !== null
+    return {
+      hash: isSet(object.hash)
         ? bytesFromBase64(object.hash)
-        : new Uint8Array()
-    message.prevHash =
-      object.prevHash !== undefined && object.prevHash !== null
+        : new Uint8Array(),
+      prevHash: isSet(object.prevHash)
         ? bytesFromBase64(object.prevHash)
-        : new Uint8Array()
-    message.height =
-      object.height !== undefined && object.height !== null
-        ? Number(object.height)
-        : 0
-    message.nBits =
-      object.nBits !== undefined && object.nBits !== null
-        ? Number(object.nBits)
-        : 0
-    message.timestamp =
-      object.timestamp !== undefined && object.timestamp !== null
-        ? Long.fromString(object.timestamp)
-        : Long.ZERO
-    message.blockSize =
-      object.blockSize !== undefined && object.blockSize !== null
-        ? Long.fromString(object.blockSize)
-        : Long.UZERO
-    message.numTxs =
-      object.numTxs !== undefined && object.numTxs !== null
-        ? Long.fromString(object.numTxs)
-        : Long.UZERO
-    message.numInputs =
-      object.numInputs !== undefined && object.numInputs !== null
-        ? Long.fromString(object.numInputs)
-        : Long.UZERO
-    message.numOutputs =
-      object.numOutputs !== undefined && object.numOutputs !== null
-        ? Long.fromString(object.numOutputs)
-        : Long.UZERO
-    message.sumInputSats =
-      object.sumInputSats !== undefined && object.sumInputSats !== null
-        ? Long.fromString(object.sumInputSats)
-        : Long.ZERO
-    message.sumCoinbaseOutputSats =
-      object.sumCoinbaseOutputSats !== undefined &&
-      object.sumCoinbaseOutputSats !== null
-        ? Long.fromString(object.sumCoinbaseOutputSats)
-        : Long.ZERO
-    message.sumNormalOutputSats =
-      object.sumNormalOutputSats !== undefined &&
-      object.sumNormalOutputSats !== null
-        ? Long.fromString(object.sumNormalOutputSats)
-        : Long.ZERO
-    message.sumBurnedSats =
-      object.sumBurnedSats !== undefined && object.sumBurnedSats !== null
-        ? Long.fromString(object.sumBurnedSats)
-        : Long.ZERO
-    return message
+        : new Uint8Array(),
+      height: isSet(object.height) ? Number(object.height) : 0,
+      nBits: isSet(object.nBits) ? Number(object.nBits) : 0,
+      timestamp: isSet(object.timestamp)
+        ? Long.fromValue(object.timestamp)
+        : Long.ZERO,
+      blockSize: isSet(object.blockSize)
+        ? Long.fromValue(object.blockSize)
+        : Long.UZERO,
+      numTxs: isSet(object.numTxs) ? Long.fromValue(object.numTxs) : Long.UZERO,
+      numInputs: isSet(object.numInputs)
+        ? Long.fromValue(object.numInputs)
+        : Long.UZERO,
+      numOutputs: isSet(object.numOutputs)
+        ? Long.fromValue(object.numOutputs)
+        : Long.UZERO,
+      sumInputSats: isSet(object.sumInputSats)
+        ? Long.fromValue(object.sumInputSats)
+        : Long.ZERO,
+      sumCoinbaseOutputSats: isSet(object.sumCoinbaseOutputSats)
+        ? Long.fromValue(object.sumCoinbaseOutputSats)
+        : Long.ZERO,
+      sumNormalOutputSats: isSet(object.sumNormalOutputSats)
+        ? Long.fromValue(object.sumNormalOutputSats)
+        : Long.ZERO,
+      sumBurnedSats: isSet(object.sumBurnedSats)
+        ? Long.fromValue(object.sumBurnedSats)
+        : Long.ZERO,
+    }
   },
 
   toJSON(message: BlockInfo): unknown {
@@ -1329,7 +1477,7 @@ export const BlockInfo = {
   fromPartial<I extends Exact<DeepPartial<BlockInfo>, I>>(
     object: I,
   ): BlockInfo {
-    const message = { ...baseBlockInfo } as BlockInfo
+    const message = createBaseBlockInfo()
     message.hash = object.hash ?? new Uint8Array()
     message.prevHash = object.prevHash ?? new Uint8Array()
     message.height = object.height ?? 0
@@ -1376,12 +1524,123 @@ export const BlockInfo = {
   },
 }
 
-const baseBlock: object = {}
+function createBaseBlockDetails(): BlockDetails {
+  return {
+    version: 0,
+    merkleRoot: new Uint8Array(),
+    nonce: Long.UZERO,
+    medianTimestamp: Long.ZERO,
+  }
+}
+
+export const BlockDetails = {
+  encode(
+    message: BlockDetails,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    if (message.version !== 0) {
+      writer.uint32(8).int32(message.version)
+    }
+    if (message.merkleRoot.length !== 0) {
+      writer.uint32(18).bytes(message.merkleRoot)
+    }
+    if (!message.nonce.isZero()) {
+      writer.uint32(24).uint64(message.nonce)
+    }
+    if (!message.medianTimestamp.isZero()) {
+      writer.uint32(32).int64(message.medianTimestamp)
+    }
+    return writer
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): BlockDetails {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
+    let end = length === undefined ? reader.len : reader.pos + length
+    const message = createBaseBlockDetails()
+    while (reader.pos < end) {
+      const tag = reader.uint32()
+      switch (tag >>> 3) {
+        case 1:
+          message.version = reader.int32()
+          break
+        case 2:
+          message.merkleRoot = reader.bytes()
+          break
+        case 3:
+          message.nonce = reader.uint64() as Long
+          break
+        case 4:
+          message.medianTimestamp = reader.int64() as Long
+          break
+        default:
+          reader.skipType(tag & 7)
+          break
+      }
+    }
+    return message
+  },
+
+  fromJSON(object: any): BlockDetails {
+    return {
+      version: isSet(object.version) ? Number(object.version) : 0,
+      merkleRoot: isSet(object.merkleRoot)
+        ? bytesFromBase64(object.merkleRoot)
+        : new Uint8Array(),
+      nonce: isSet(object.nonce) ? Long.fromValue(object.nonce) : Long.UZERO,
+      medianTimestamp: isSet(object.medianTimestamp)
+        ? Long.fromValue(object.medianTimestamp)
+        : Long.ZERO,
+    }
+  },
+
+  toJSON(message: BlockDetails): unknown {
+    const obj: any = {}
+    message.version !== undefined && (obj.version = Math.round(message.version))
+    message.merkleRoot !== undefined &&
+      (obj.merkleRoot = base64FromBytes(
+        message.merkleRoot !== undefined
+          ? message.merkleRoot
+          : new Uint8Array(),
+      ))
+    message.nonce !== undefined &&
+      (obj.nonce = (message.nonce || Long.UZERO).toString())
+    message.medianTimestamp !== undefined &&
+      (obj.medianTimestamp = (message.medianTimestamp || Long.ZERO).toString())
+    return obj
+  },
+
+  fromPartial<I extends Exact<DeepPartial<BlockDetails>, I>>(
+    object: I,
+  ): BlockDetails {
+    const message = createBaseBlockDetails()
+    message.version = object.version ?? 0
+    message.merkleRoot = object.merkleRoot ?? new Uint8Array()
+    message.nonce =
+      object.nonce !== undefined && object.nonce !== null
+        ? Long.fromValue(object.nonce)
+        : Long.UZERO
+    message.medianTimestamp =
+      object.medianTimestamp !== undefined && object.medianTimestamp !== null
+        ? Long.fromValue(object.medianTimestamp)
+        : Long.ZERO
+    return message
+  },
+}
+
+function createBaseBlock(): Block {
+  return { blockInfo: undefined, blockDetails: undefined, txs: [] }
+}
 
 export const Block = {
   encode(message: Block, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     if (message.blockInfo !== undefined) {
       BlockInfo.encode(message.blockInfo, writer.uint32(10).fork()).ldelim()
+    }
+    if (message.blockDetails !== undefined) {
+      BlockDetails.encode(
+        message.blockDetails,
+        writer.uint32(26).fork(),
+      ).ldelim()
     }
     for (const v of message.txs) {
       Tx.encode(v!, writer.uint32(18).fork()).ldelim()
@@ -1392,13 +1651,15 @@ export const Block = {
   decode(input: _m0.Reader | Uint8Array, length?: number): Block {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBlock } as Block
-    message.txs = []
+    const message = createBaseBlock()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
         case 1:
           message.blockInfo = BlockInfo.decode(reader, reader.uint32())
+          break
+        case 3:
+          message.blockDetails = BlockDetails.decode(reader, reader.uint32())
           break
         case 2:
           message.txs.push(Tx.decode(reader, reader.uint32()))
@@ -1412,13 +1673,17 @@ export const Block = {
   },
 
   fromJSON(object: any): Block {
-    const message = { ...baseBlock } as Block
-    message.blockInfo =
-      object.blockInfo !== undefined && object.blockInfo !== null
+    return {
+      blockInfo: isSet(object.blockInfo)
         ? BlockInfo.fromJSON(object.blockInfo)
-        : undefined
-    message.txs = (object.txs ?? []).map((e: any) => Tx.fromJSON(e))
-    return message
+        : undefined,
+      blockDetails: isSet(object.blockDetails)
+        ? BlockDetails.fromJSON(object.blockDetails)
+        : undefined,
+      txs: Array.isArray(object?.txs)
+        ? object.txs.map((e: any) => Tx.fromJSON(e))
+        : [],
+    }
   },
 
   toJSON(message: Block): unknown {
@@ -1426,6 +1691,10 @@ export const Block = {
     message.blockInfo !== undefined &&
       (obj.blockInfo = message.blockInfo
         ? BlockInfo.toJSON(message.blockInfo)
+        : undefined)
+    message.blockDetails !== undefined &&
+      (obj.blockDetails = message.blockDetails
+        ? BlockDetails.toJSON(message.blockDetails)
         : undefined)
     if (message.txs) {
       obj.txs = message.txs.map(e => (e ? Tx.toJSON(e) : undefined))
@@ -1436,17 +1705,23 @@ export const Block = {
   },
 
   fromPartial<I extends Exact<DeepPartial<Block>, I>>(object: I): Block {
-    const message = { ...baseBlock } as Block
+    const message = createBaseBlock()
     message.blockInfo =
       object.blockInfo !== undefined && object.blockInfo !== null
         ? BlockInfo.fromPartial(object.blockInfo)
+        : undefined
+    message.blockDetails =
+      object.blockDetails !== undefined && object.blockDetails !== null
+        ? BlockDetails.fromPartial(object.blockDetails)
         : undefined
     message.txs = object.txs?.map(e => Tx.fromPartial(e)) || []
     return message
   },
 }
 
-const baseScriptUtxos: object = {}
+function createBaseScriptUtxos(): ScriptUtxos {
+  return { outputScript: new Uint8Array(), utxos: [] }
+}
 
 export const ScriptUtxos = {
   encode(
@@ -1465,9 +1740,7 @@ export const ScriptUtxos = {
   decode(input: _m0.Reader | Uint8Array, length?: number): ScriptUtxos {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseScriptUtxos } as ScriptUtxos
-    message.utxos = []
-    message.outputScript = new Uint8Array()
+    const message = createBaseScriptUtxos()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1486,13 +1759,14 @@ export const ScriptUtxos = {
   },
 
   fromJSON(object: any): ScriptUtxos {
-    const message = { ...baseScriptUtxos } as ScriptUtxos
-    message.outputScript =
-      object.outputScript !== undefined && object.outputScript !== null
+    return {
+      outputScript: isSet(object.outputScript)
         ? bytesFromBase64(object.outputScript)
-        : new Uint8Array()
-    message.utxos = (object.utxos ?? []).map((e: any) => Utxo.fromJSON(e))
-    return message
+        : new Uint8Array(),
+      utxos: Array.isArray(object?.utxos)
+        ? object.utxos.map((e: any) => Utxo.fromJSON(e))
+        : [],
+    }
   },
 
   toJSON(message: ScriptUtxos): unknown {
@@ -1514,14 +1788,16 @@ export const ScriptUtxos = {
   fromPartial<I extends Exact<DeepPartial<ScriptUtxos>, I>>(
     object: I,
   ): ScriptUtxos {
-    const message = { ...baseScriptUtxos } as ScriptUtxos
+    const message = createBaseScriptUtxos()
     message.outputScript = object.outputScript ?? new Uint8Array()
     message.utxos = object.utxos?.map(e => Utxo.fromPartial(e)) || []
     return message
   },
 }
 
-const baseTxHistoryPage: object = { numPages: 0 }
+function createBaseTxHistoryPage(): TxHistoryPage {
+  return { txs: [], numPages: 0 }
+}
 
 export const TxHistoryPage = {
   encode(
@@ -1540,8 +1816,7 @@ export const TxHistoryPage = {
   decode(input: _m0.Reader | Uint8Array, length?: number): TxHistoryPage {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseTxHistoryPage } as TxHistoryPage
-    message.txs = []
+    const message = createBaseTxHistoryPage()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1560,13 +1835,12 @@ export const TxHistoryPage = {
   },
 
   fromJSON(object: any): TxHistoryPage {
-    const message = { ...baseTxHistoryPage } as TxHistoryPage
-    message.txs = (object.txs ?? []).map((e: any) => Tx.fromJSON(e))
-    message.numPages =
-      object.numPages !== undefined && object.numPages !== null
-        ? Number(object.numPages)
-        : 0
-    return message
+    return {
+      txs: Array.isArray(object?.txs)
+        ? object.txs.map((e: any) => Tx.fromJSON(e))
+        : [],
+      numPages: isSet(object.numPages) ? Number(object.numPages) : 0,
+    }
   },
 
   toJSON(message: TxHistoryPage): unknown {
@@ -1584,14 +1858,16 @@ export const TxHistoryPage = {
   fromPartial<I extends Exact<DeepPartial<TxHistoryPage>, I>>(
     object: I,
   ): TxHistoryPage {
-    const message = { ...baseTxHistoryPage } as TxHistoryPage
+    const message = createBaseTxHistoryPage()
     message.txs = object.txs?.map(e => Tx.fromPartial(e)) || []
     message.numPages = object.numPages ?? 0
     return message
   },
 }
 
-const baseUtxos: object = {}
+function createBaseUtxos(): Utxos {
+  return { scriptUtxos: [] }
+}
 
 export const Utxos = {
   encode(message: Utxos, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
@@ -1604,8 +1880,7 @@ export const Utxos = {
   decode(input: _m0.Reader | Uint8Array, length?: number): Utxos {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseUtxos } as Utxos
-    message.scriptUtxos = []
+    const message = createBaseUtxos()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1621,11 +1896,11 @@ export const Utxos = {
   },
 
   fromJSON(object: any): Utxos {
-    const message = { ...baseUtxos } as Utxos
-    message.scriptUtxos = (object.scriptUtxos ?? []).map((e: any) =>
-      ScriptUtxos.fromJSON(e),
-    )
-    return message
+    return {
+      scriptUtxos: Array.isArray(object?.scriptUtxos)
+        ? object.scriptUtxos.map((e: any) => ScriptUtxos.fromJSON(e))
+        : [],
+    }
   },
 
   toJSON(message: Utxos): unknown {
@@ -1641,14 +1916,16 @@ export const Utxos = {
   },
 
   fromPartial<I extends Exact<DeepPartial<Utxos>, I>>(object: I): Utxos {
-    const message = { ...baseUtxos } as Utxos
+    const message = createBaseUtxos()
     message.scriptUtxos =
       object.scriptUtxos?.map(e => ScriptUtxos.fromPartial(e)) || []
     return message
   },
 }
 
-const baseBlocks: object = {}
+function createBaseBlocks(): Blocks {
+  return { blocks: [] }
+}
 
 export const Blocks = {
   encode(
@@ -1664,8 +1941,7 @@ export const Blocks = {
   decode(input: _m0.Reader | Uint8Array, length?: number): Blocks {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBlocks } as Blocks
-    message.blocks = []
+    const message = createBaseBlocks()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1681,11 +1957,11 @@ export const Blocks = {
   },
 
   fromJSON(object: any): Blocks {
-    const message = { ...baseBlocks } as Blocks
-    message.blocks = (object.blocks ?? []).map((e: any) =>
-      BlockInfo.fromJSON(e),
-    )
-    return message
+    return {
+      blocks: Array.isArray(object?.blocks)
+        ? object.blocks.map((e: any) => BlockInfo.fromJSON(e))
+        : [],
+    }
   },
 
   toJSON(message: Blocks): unknown {
@@ -1701,13 +1977,15 @@ export const Blocks = {
   },
 
   fromPartial<I extends Exact<DeepPartial<Blocks>, I>>(object: I): Blocks {
-    const message = { ...baseBlocks } as Blocks
+    const message = createBaseBlocks()
     message.blocks = object.blocks?.map(e => BlockInfo.fromPartial(e)) || []
     return message
   },
 }
 
-const baseSlpTxData: object = {}
+function createBaseSlpTxData(): SlpTxData {
+  return { slpMeta: undefined, genesisInfo: undefined }
+}
 
 export const SlpTxData = {
   encode(
@@ -1729,7 +2007,7 @@ export const SlpTxData = {
   decode(input: _m0.Reader | Uint8Array, length?: number): SlpTxData {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseSlpTxData } as SlpTxData
+    const message = createBaseSlpTxData()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1748,16 +2026,14 @@ export const SlpTxData = {
   },
 
   fromJSON(object: any): SlpTxData {
-    const message = { ...baseSlpTxData } as SlpTxData
-    message.slpMeta =
-      object.slpMeta !== undefined && object.slpMeta !== null
+    return {
+      slpMeta: isSet(object.slpMeta)
         ? SlpMeta.fromJSON(object.slpMeta)
-        : undefined
-    message.genesisInfo =
-      object.genesisInfo !== undefined && object.genesisInfo !== null
+        : undefined,
+      genesisInfo: isSet(object.genesisInfo)
         ? SlpGenesisInfo.fromJSON(object.genesisInfo)
-        : undefined
-    return message
+        : undefined,
+    }
   },
 
   toJSON(message: SlpTxData): unknown {
@@ -1776,7 +2052,7 @@ export const SlpTxData = {
   fromPartial<I extends Exact<DeepPartial<SlpTxData>, I>>(
     object: I,
   ): SlpTxData {
-    const message = { ...baseSlpTxData } as SlpTxData
+    const message = createBaseSlpTxData()
     message.slpMeta =
       object.slpMeta !== undefined && object.slpMeta !== null
         ? SlpMeta.fromPartial(object.slpMeta)
@@ -1789,7 +2065,14 @@ export const SlpTxData = {
   },
 }
 
-const baseSlpMeta: object = { tokenType: 0, txType: 0 }
+function createBaseSlpMeta(): SlpMeta {
+  return {
+    tokenType: 0,
+    txType: 0,
+    tokenId: new Uint8Array(),
+    groupTokenId: new Uint8Array(),
+  }
+}
 
 export const SlpMeta = {
   encode(
@@ -1814,9 +2097,7 @@ export const SlpMeta = {
   decode(input: _m0.Reader | Uint8Array, length?: number): SlpMeta {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseSlpMeta } as SlpMeta
-    message.tokenId = new Uint8Array()
-    message.groupTokenId = new Uint8Array()
+    const message = createBaseSlpMeta()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1841,24 +2122,18 @@ export const SlpMeta = {
   },
 
   fromJSON(object: any): SlpMeta {
-    const message = { ...baseSlpMeta } as SlpMeta
-    message.tokenType =
-      object.tokenType !== undefined && object.tokenType !== null
+    return {
+      tokenType: isSet(object.tokenType)
         ? slpTokenTypeFromJSON(object.tokenType)
-        : 0
-    message.txType =
-      object.txType !== undefined && object.txType !== null
-        ? slpTxTypeFromJSON(object.txType)
-        : 0
-    message.tokenId =
-      object.tokenId !== undefined && object.tokenId !== null
+        : 0,
+      txType: isSet(object.txType) ? slpTxTypeFromJSON(object.txType) : 0,
+      tokenId: isSet(object.tokenId)
         ? bytesFromBase64(object.tokenId)
-        : new Uint8Array()
-    message.groupTokenId =
-      object.groupTokenId !== undefined && object.groupTokenId !== null
+        : new Uint8Array(),
+      groupTokenId: isSet(object.groupTokenId)
         ? bytesFromBase64(object.groupTokenId)
-        : new Uint8Array()
-    return message
+        : new Uint8Array(),
+    }
   },
 
   toJSON(message: SlpMeta): unknown {
@@ -1881,7 +2156,7 @@ export const SlpMeta = {
   },
 
   fromPartial<I extends Exact<DeepPartial<SlpMeta>, I>>(object: I): SlpMeta {
-    const message = { ...baseSlpMeta } as SlpMeta
+    const message = createBaseSlpMeta()
     message.tokenType = object.tokenType ?? 0
     message.txType = object.txType ?? 0
     message.tokenId = object.tokenId ?? new Uint8Array()
@@ -1890,7 +2165,80 @@ export const SlpMeta = {
   },
 }
 
-const baseTxInput: object = { value: Long.ZERO, sequenceNo: 0 }
+function createBaseTokenStats(): TokenStats {
+  return { totalMinted: "", totalBurned: "" }
+}
+
+export const TokenStats = {
+  encode(
+    message: TokenStats,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    if (message.totalMinted !== "") {
+      writer.uint32(10).string(message.totalMinted)
+    }
+    if (message.totalBurned !== "") {
+      writer.uint32(18).string(message.totalBurned)
+    }
+    return writer
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): TokenStats {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
+    let end = length === undefined ? reader.len : reader.pos + length
+    const message = createBaseTokenStats()
+    while (reader.pos < end) {
+      const tag = reader.uint32()
+      switch (tag >>> 3) {
+        case 1:
+          message.totalMinted = reader.string()
+          break
+        case 2:
+          message.totalBurned = reader.string()
+          break
+        default:
+          reader.skipType(tag & 7)
+          break
+      }
+    }
+    return message
+  },
+
+  fromJSON(object: any): TokenStats {
+    return {
+      totalMinted: isSet(object.totalMinted) ? String(object.totalMinted) : "",
+      totalBurned: isSet(object.totalBurned) ? String(object.totalBurned) : "",
+    }
+  },
+
+  toJSON(message: TokenStats): unknown {
+    const obj: any = {}
+    message.totalMinted !== undefined && (obj.totalMinted = message.totalMinted)
+    message.totalBurned !== undefined && (obj.totalBurned = message.totalBurned)
+    return obj
+  },
+
+  fromPartial<I extends Exact<DeepPartial<TokenStats>, I>>(
+    object: I,
+  ): TokenStats {
+    const message = createBaseTokenStats()
+    message.totalMinted = object.totalMinted ?? ""
+    message.totalBurned = object.totalBurned ?? ""
+    return message
+  },
+}
+
+function createBaseTxInput(): TxInput {
+  return {
+    prevOut: undefined,
+    inputScript: new Uint8Array(),
+    outputScript: new Uint8Array(),
+    value: Long.ZERO,
+    sequenceNo: 0,
+    slpBurn: undefined,
+    slpToken: undefined,
+  }
+}
 
 export const TxInput = {
   encode(
@@ -1924,9 +2272,7 @@ export const TxInput = {
   decode(input: _m0.Reader | Uint8Array, length?: number): TxInput {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseTxInput } as TxInput
-    message.inputScript = new Uint8Array()
-    message.outputScript = new Uint8Array()
+    const message = createBaseTxInput()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -1960,36 +2306,25 @@ export const TxInput = {
   },
 
   fromJSON(object: any): TxInput {
-    const message = { ...baseTxInput } as TxInput
-    message.prevOut =
-      object.prevOut !== undefined && object.prevOut !== null
+    return {
+      prevOut: isSet(object.prevOut)
         ? OutPoint.fromJSON(object.prevOut)
-        : undefined
-    message.inputScript =
-      object.inputScript !== undefined && object.inputScript !== null
+        : undefined,
+      inputScript: isSet(object.inputScript)
         ? bytesFromBase64(object.inputScript)
-        : new Uint8Array()
-    message.outputScript =
-      object.outputScript !== undefined && object.outputScript !== null
+        : new Uint8Array(),
+      outputScript: isSet(object.outputScript)
         ? bytesFromBase64(object.outputScript)
-        : new Uint8Array()
-    message.value =
-      object.value !== undefined && object.value !== null
-        ? Long.fromString(object.value)
-        : Long.ZERO
-    message.sequenceNo =
-      object.sequenceNo !== undefined && object.sequenceNo !== null
-        ? Number(object.sequenceNo)
-        : 0
-    message.slpBurn =
-      object.slpBurn !== undefined && object.slpBurn !== null
+        : new Uint8Array(),
+      value: isSet(object.value) ? Long.fromValue(object.value) : Long.ZERO,
+      sequenceNo: isSet(object.sequenceNo) ? Number(object.sequenceNo) : 0,
+      slpBurn: isSet(object.slpBurn)
         ? SlpBurn.fromJSON(object.slpBurn)
-        : undefined
-    message.slpToken =
-      object.slpToken !== undefined && object.slpToken !== null
+        : undefined,
+      slpToken: isSet(object.slpToken)
         ? SlpToken.fromJSON(object.slpToken)
-        : undefined
-    return message
+        : undefined,
+    }
   },
 
   toJSON(message: TxInput): unknown {
@@ -2026,7 +2361,7 @@ export const TxInput = {
   },
 
   fromPartial<I extends Exact<DeepPartial<TxInput>, I>>(object: I): TxInput {
-    const message = { ...baseTxInput } as TxInput
+    const message = createBaseTxInput()
     message.prevOut =
       object.prevOut !== undefined && object.prevOut !== null
         ? OutPoint.fromPartial(object.prevOut)
@@ -2050,7 +2385,14 @@ export const TxInput = {
   },
 }
 
-const baseTxOutput: object = { value: Long.ZERO }
+function createBaseTxOutput(): TxOutput {
+  return {
+    value: Long.ZERO,
+    outputScript: new Uint8Array(),
+    slpToken: undefined,
+    spentBy: undefined,
+  }
+}
 
 export const TxOutput = {
   encode(
@@ -2075,8 +2417,7 @@ export const TxOutput = {
   decode(input: _m0.Reader | Uint8Array, length?: number): TxOutput {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseTxOutput } as TxOutput
-    message.outputScript = new Uint8Array()
+    const message = createBaseTxOutput()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2101,24 +2442,18 @@ export const TxOutput = {
   },
 
   fromJSON(object: any): TxOutput {
-    const message = { ...baseTxOutput } as TxOutput
-    message.value =
-      object.value !== undefined && object.value !== null
-        ? Long.fromString(object.value)
-        : Long.ZERO
-    message.outputScript =
-      object.outputScript !== undefined && object.outputScript !== null
+    return {
+      value: isSet(object.value) ? Long.fromValue(object.value) : Long.ZERO,
+      outputScript: isSet(object.outputScript)
         ? bytesFromBase64(object.outputScript)
-        : new Uint8Array()
-    message.slpToken =
-      object.slpToken !== undefined && object.slpToken !== null
+        : new Uint8Array(),
+      slpToken: isSet(object.slpToken)
         ? SlpToken.fromJSON(object.slpToken)
-        : undefined
-    message.spentBy =
-      object.spentBy !== undefined && object.spentBy !== null
+        : undefined,
+      spentBy: isSet(object.spentBy)
         ? OutPoint.fromJSON(object.spentBy)
-        : undefined
-    return message
+        : undefined,
+    }
   },
 
   toJSON(message: TxOutput): unknown {
@@ -2143,7 +2478,7 @@ export const TxOutput = {
   },
 
   fromPartial<I extends Exact<DeepPartial<TxOutput>, I>>(object: I): TxOutput {
-    const message = { ...baseTxOutput } as TxOutput
+    const message = createBaseTxOutput()
     message.value =
       object.value !== undefined && object.value !== null
         ? Long.fromValue(object.value)
@@ -2161,7 +2496,9 @@ export const TxOutput = {
   },
 }
 
-const baseBlockMetadata: object = { height: 0, timestamp: Long.ZERO }
+function createBaseBlockMetadata(): BlockMetadata {
+  return { height: 0, hash: new Uint8Array(), timestamp: Long.ZERO }
+}
 
 export const BlockMetadata = {
   encode(
@@ -2183,8 +2520,7 @@ export const BlockMetadata = {
   decode(input: _m0.Reader | Uint8Array, length?: number): BlockMetadata {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBlockMetadata } as BlockMetadata
-    message.hash = new Uint8Array()
+    const message = createBaseBlockMetadata()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2206,20 +2542,15 @@ export const BlockMetadata = {
   },
 
   fromJSON(object: any): BlockMetadata {
-    const message = { ...baseBlockMetadata } as BlockMetadata
-    message.height =
-      object.height !== undefined && object.height !== null
-        ? Number(object.height)
-        : 0
-    message.hash =
-      object.hash !== undefined && object.hash !== null
+    return {
+      height: isSet(object.height) ? Number(object.height) : 0,
+      hash: isSet(object.hash)
         ? bytesFromBase64(object.hash)
-        : new Uint8Array()
-    message.timestamp =
-      object.timestamp !== undefined && object.timestamp !== null
-        ? Long.fromString(object.timestamp)
-        : Long.ZERO
-    return message
+        : new Uint8Array(),
+      timestamp: isSet(object.timestamp)
+        ? Long.fromValue(object.timestamp)
+        : Long.ZERO,
+    }
   },
 
   toJSON(message: BlockMetadata): unknown {
@@ -2237,7 +2568,7 @@ export const BlockMetadata = {
   fromPartial<I extends Exact<DeepPartial<BlockMetadata>, I>>(
     object: I,
   ): BlockMetadata {
-    const message = { ...baseBlockMetadata } as BlockMetadata
+    const message = createBaseBlockMetadata()
     message.height = object.height ?? 0
     message.hash = object.hash ?? new Uint8Array()
     message.timestamp =
@@ -2248,7 +2579,9 @@ export const BlockMetadata = {
   },
 }
 
-const baseOutPoint: object = { outIdx: 0 }
+function createBaseOutPoint(): OutPoint {
+  return { txid: new Uint8Array(), outIdx: 0 }
+}
 
 export const OutPoint = {
   encode(
@@ -2267,8 +2600,7 @@ export const OutPoint = {
   decode(input: _m0.Reader | Uint8Array, length?: number): OutPoint {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseOutPoint } as OutPoint
-    message.txid = new Uint8Array()
+    const message = createBaseOutPoint()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2287,16 +2619,12 @@ export const OutPoint = {
   },
 
   fromJSON(object: any): OutPoint {
-    const message = { ...baseOutPoint } as OutPoint
-    message.txid =
-      object.txid !== undefined && object.txid !== null
+    return {
+      txid: isSet(object.txid)
         ? bytesFromBase64(object.txid)
-        : new Uint8Array()
-    message.outIdx =
-      object.outIdx !== undefined && object.outIdx !== null
-        ? Number(object.outIdx)
-        : 0
-    return message
+        : new Uint8Array(),
+      outIdx: isSet(object.outIdx) ? Number(object.outIdx) : 0,
+    }
   },
 
   toJSON(message: OutPoint): unknown {
@@ -2310,14 +2638,16 @@ export const OutPoint = {
   },
 
   fromPartial<I extends Exact<DeepPartial<OutPoint>, I>>(object: I): OutPoint {
-    const message = { ...baseOutPoint } as OutPoint
+    const message = createBaseOutPoint()
     message.txid = object.txid ?? new Uint8Array()
     message.outIdx = object.outIdx ?? 0
     return message
   },
 }
 
-const baseSlpToken: object = { amount: Long.UZERO, isMintBaton: false }
+function createBaseSlpToken(): SlpToken {
+  return { amount: Long.UZERO, isMintBaton: false }
+}
 
 export const SlpToken = {
   encode(
@@ -2336,7 +2666,7 @@ export const SlpToken = {
   decode(input: _m0.Reader | Uint8Array, length?: number): SlpToken {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseSlpToken } as SlpToken
+    const message = createBaseSlpToken()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2355,16 +2685,12 @@ export const SlpToken = {
   },
 
   fromJSON(object: any): SlpToken {
-    const message = { ...baseSlpToken } as SlpToken
-    message.amount =
-      object.amount !== undefined && object.amount !== null
-        ? Long.fromString(object.amount)
-        : Long.UZERO
-    message.isMintBaton =
-      object.isMintBaton !== undefined && object.isMintBaton !== null
+    return {
+      amount: isSet(object.amount) ? Long.fromValue(object.amount) : Long.UZERO,
+      isMintBaton: isSet(object.isMintBaton)
         ? Boolean(object.isMintBaton)
-        : false
-    return message
+        : false,
+    }
   },
 
   toJSON(message: SlpToken): unknown {
@@ -2376,7 +2702,7 @@ export const SlpToken = {
   },
 
   fromPartial<I extends Exact<DeepPartial<SlpToken>, I>>(object: I): SlpToken {
-    const message = { ...baseSlpToken } as SlpToken
+    const message = createBaseSlpToken()
     message.amount =
       object.amount !== undefined && object.amount !== null
         ? Long.fromValue(object.amount)
@@ -2386,7 +2712,9 @@ export const SlpToken = {
   },
 }
 
-const baseSlpBurn: object = {}
+function createBaseSlpBurn(): SlpBurn {
+  return { token: undefined, tokenId: new Uint8Array() }
+}
 
 export const SlpBurn = {
   encode(
@@ -2405,8 +2733,7 @@ export const SlpBurn = {
   decode(input: _m0.Reader | Uint8Array, length?: number): SlpBurn {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseSlpBurn } as SlpBurn
-    message.tokenId = new Uint8Array()
+    const message = createBaseSlpBurn()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2425,16 +2752,12 @@ export const SlpBurn = {
   },
 
   fromJSON(object: any): SlpBurn {
-    const message = { ...baseSlpBurn } as SlpBurn
-    message.token =
-      object.token !== undefined && object.token !== null
-        ? SlpToken.fromJSON(object.token)
-        : undefined
-    message.tokenId =
-      object.tokenId !== undefined && object.tokenId !== null
+    return {
+      token: isSet(object.token) ? SlpToken.fromJSON(object.token) : undefined,
+      tokenId: isSet(object.tokenId)
         ? bytesFromBase64(object.tokenId)
-        : new Uint8Array()
-    return message
+        : new Uint8Array(),
+    }
   },
 
   toJSON(message: SlpBurn): unknown {
@@ -2449,7 +2772,7 @@ export const SlpBurn = {
   },
 
   fromPartial<I extends Exact<DeepPartial<SlpBurn>, I>>(object: I): SlpBurn {
-    const message = { ...baseSlpBurn } as SlpBurn
+    const message = createBaseSlpBurn()
     message.token =
       object.token !== undefined && object.token !== null
         ? SlpToken.fromPartial(object.token)
@@ -2459,7 +2782,15 @@ export const SlpBurn = {
   },
 }
 
-const baseSlpGenesisInfo: object = { decimals: 0 }
+function createBaseSlpGenesisInfo(): SlpGenesisInfo {
+  return {
+    tokenTicker: new Uint8Array(),
+    tokenName: new Uint8Array(),
+    tokenDocumentUrl: new Uint8Array(),
+    tokenDocumentHash: new Uint8Array(),
+    decimals: 0,
+  }
+}
 
 export const SlpGenesisInfo = {
   encode(
@@ -2487,11 +2818,7 @@ export const SlpGenesisInfo = {
   decode(input: _m0.Reader | Uint8Array, length?: number): SlpGenesisInfo {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseSlpGenesisInfo } as SlpGenesisInfo
-    message.tokenTicker = new Uint8Array()
-    message.tokenName = new Uint8Array()
-    message.tokenDocumentUrl = new Uint8Array()
-    message.tokenDocumentHash = new Uint8Array()
+    const message = createBaseSlpGenesisInfo()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2519,29 +2846,21 @@ export const SlpGenesisInfo = {
   },
 
   fromJSON(object: any): SlpGenesisInfo {
-    const message = { ...baseSlpGenesisInfo } as SlpGenesisInfo
-    message.tokenTicker =
-      object.tokenTicker !== undefined && object.tokenTicker !== null
+    return {
+      tokenTicker: isSet(object.tokenTicker)
         ? bytesFromBase64(object.tokenTicker)
-        : new Uint8Array()
-    message.tokenName =
-      object.tokenName !== undefined && object.tokenName !== null
+        : new Uint8Array(),
+      tokenName: isSet(object.tokenName)
         ? bytesFromBase64(object.tokenName)
-        : new Uint8Array()
-    message.tokenDocumentUrl =
-      object.tokenDocumentUrl !== undefined && object.tokenDocumentUrl !== null
+        : new Uint8Array(),
+      tokenDocumentUrl: isSet(object.tokenDocumentUrl)
         ? bytesFromBase64(object.tokenDocumentUrl)
-        : new Uint8Array()
-    message.tokenDocumentHash =
-      object.tokenDocumentHash !== undefined &&
-      object.tokenDocumentHash !== null
+        : new Uint8Array(),
+      tokenDocumentHash: isSet(object.tokenDocumentHash)
         ? bytesFromBase64(object.tokenDocumentHash)
-        : new Uint8Array()
-    message.decimals =
-      object.decimals !== undefined && object.decimals !== null
-        ? Number(object.decimals)
-        : 0
-    return message
+        : new Uint8Array(),
+      decimals: isSet(object.decimals) ? Number(object.decimals) : 0,
+    }
   },
 
   toJSON(message: SlpGenesisInfo): unknown {
@@ -2576,7 +2895,7 @@ export const SlpGenesisInfo = {
   fromPartial<I extends Exact<DeepPartial<SlpGenesisInfo>, I>>(
     object: I,
   ): SlpGenesisInfo {
-    const message = { ...baseSlpGenesisInfo } as SlpGenesisInfo
+    const message = createBaseSlpGenesisInfo()
     message.tokenTicker = object.tokenTicker ?? new Uint8Array()
     message.tokenName = object.tokenName ?? new Uint8Array()
     message.tokenDocumentUrl = object.tokenDocumentUrl ?? new Uint8Array()
@@ -2586,7 +2905,9 @@ export const SlpGenesisInfo = {
   },
 }
 
-const baseUtxoState: object = { height: 0, isConfirmed: false, state: 0 }
+function createBaseUtxoState(): UtxoState {
+  return { height: 0, isConfirmed: false, state: 0 }
+}
 
 export const UtxoState = {
   encode(
@@ -2608,7 +2929,7 @@ export const UtxoState = {
   decode(input: _m0.Reader | Uint8Array, length?: number): UtxoState {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseUtxoState } as UtxoState
+    const message = createBaseUtxoState()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2630,20 +2951,13 @@ export const UtxoState = {
   },
 
   fromJSON(object: any): UtxoState {
-    const message = { ...baseUtxoState } as UtxoState
-    message.height =
-      object.height !== undefined && object.height !== null
-        ? Number(object.height)
-        : 0
-    message.isConfirmed =
-      object.isConfirmed !== undefined && object.isConfirmed !== null
+    return {
+      height: isSet(object.height) ? Number(object.height) : 0,
+      isConfirmed: isSet(object.isConfirmed)
         ? Boolean(object.isConfirmed)
-        : false
-    message.state =
-      object.state !== undefined && object.state !== null
-        ? utxoStateVariantFromJSON(object.state)
-        : 0
-    return message
+        : false,
+      state: isSet(object.state) ? utxoStateVariantFromJSON(object.state) : 0,
+    }
   },
 
   toJSON(message: UtxoState): unknown {
@@ -2658,7 +2972,7 @@ export const UtxoState = {
   fromPartial<I extends Exact<DeepPartial<UtxoState>, I>>(
     object: I,
   ): UtxoState {
-    const message = { ...baseUtxoState } as UtxoState
+    const message = createBaseUtxoState()
     message.height = object.height ?? 0
     message.isConfirmed = object.isConfirmed ?? false
     message.state = object.state ?? 0
@@ -2666,7 +2980,9 @@ export const UtxoState = {
   },
 }
 
-const baseSubscription: object = { scriptType: "", isSubscribe: false }
+function createBaseSubscription(): Subscription {
+  return { scriptType: "", payload: new Uint8Array(), isSubscribe: false }
+}
 
 export const Subscription = {
   encode(
@@ -2688,8 +3004,7 @@ export const Subscription = {
   decode(input: _m0.Reader | Uint8Array, length?: number): Subscription {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseSubscription } as Subscription
-    message.payload = new Uint8Array()
+    const message = createBaseSubscription()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2711,20 +3026,15 @@ export const Subscription = {
   },
 
   fromJSON(object: any): Subscription {
-    const message = { ...baseSubscription } as Subscription
-    message.scriptType =
-      object.scriptType !== undefined && object.scriptType !== null
-        ? String(object.scriptType)
-        : ""
-    message.payload =
-      object.payload !== undefined && object.payload !== null
+    return {
+      scriptType: isSet(object.scriptType) ? String(object.scriptType) : "",
+      payload: isSet(object.payload)
         ? bytesFromBase64(object.payload)
-        : new Uint8Array()
-    message.isSubscribe =
-      object.isSubscribe !== undefined && object.isSubscribe !== null
+        : new Uint8Array(),
+      isSubscribe: isSet(object.isSubscribe)
         ? Boolean(object.isSubscribe)
-        : false
-    return message
+        : false,
+    }
   },
 
   toJSON(message: Subscription): unknown {
@@ -2741,7 +3051,7 @@ export const Subscription = {
   fromPartial<I extends Exact<DeepPartial<Subscription>, I>>(
     object: I,
   ): Subscription {
-    const message = { ...baseSubscription } as Subscription
+    const message = createBaseSubscription()
     message.scriptType = object.scriptType ?? ""
     message.payload = object.payload ?? new Uint8Array()
     message.isSubscribe = object.isSubscribe ?? false
@@ -2749,7 +3059,17 @@ export const Subscription = {
   },
 }
 
-const baseSubscribeMsg: object = {}
+function createBaseSubscribeMsg(): SubscribeMsg {
+  return {
+    error: undefined,
+    AddedToMempool: undefined,
+    RemovedFromMempool: undefined,
+    Confirmed: undefined,
+    Reorg: undefined,
+    BlockConnected: undefined,
+    BlockDisconnected: undefined,
+  }
+}
 
 export const SubscribeMsg = {
   encode(
@@ -2777,13 +3097,25 @@ export const SubscribeMsg = {
     if (message.Reorg !== undefined) {
       MsgReorg.encode(message.Reorg, writer.uint32(42).fork()).ldelim()
     }
+    if (message.BlockConnected !== undefined) {
+      MsgBlockConnected.encode(
+        message.BlockConnected,
+        writer.uint32(50).fork(),
+      ).ldelim()
+    }
+    if (message.BlockDisconnected !== undefined) {
+      MsgBlockDisconnected.encode(
+        message.BlockDisconnected,
+        writer.uint32(58).fork(),
+      ).ldelim()
+    }
     return writer
   },
 
   decode(input: _m0.Reader | Uint8Array, length?: number): SubscribeMsg {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseSubscribeMsg } as SubscribeMsg
+    const message = createBaseSubscribeMsg()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2808,6 +3140,18 @@ export const SubscribeMsg = {
         case 5:
           message.Reorg = MsgReorg.decode(reader, reader.uint32())
           break
+        case 6:
+          message.BlockConnected = MsgBlockConnected.decode(
+            reader,
+            reader.uint32(),
+          )
+          break
+        case 7:
+          message.BlockDisconnected = MsgBlockDisconnected.decode(
+            reader,
+            reader.uint32(),
+          )
+          break
         default:
           reader.skipType(tag & 7)
           break
@@ -2817,29 +3161,25 @@ export const SubscribeMsg = {
   },
 
   fromJSON(object: any): SubscribeMsg {
-    const message = { ...baseSubscribeMsg } as SubscribeMsg
-    message.error =
-      object.error !== undefined && object.error !== null
-        ? Error.fromJSON(object.error)
-        : undefined
-    message.AddedToMempool =
-      object.AddedToMempool !== undefined && object.AddedToMempool !== null
+    return {
+      error: isSet(object.error) ? Error.fromJSON(object.error) : undefined,
+      AddedToMempool: isSet(object.AddedToMempool)
         ? MsgAddedToMempool.fromJSON(object.AddedToMempool)
-        : undefined
-    message.RemovedFromMempool =
-      object.RemovedFromMempool !== undefined &&
-      object.RemovedFromMempool !== null
+        : undefined,
+      RemovedFromMempool: isSet(object.RemovedFromMempool)
         ? MsgRemovedFromMempool.fromJSON(object.RemovedFromMempool)
-        : undefined
-    message.Confirmed =
-      object.Confirmed !== undefined && object.Confirmed !== null
+        : undefined,
+      Confirmed: isSet(object.Confirmed)
         ? MsgConfirmed.fromJSON(object.Confirmed)
-        : undefined
-    message.Reorg =
-      object.Reorg !== undefined && object.Reorg !== null
-        ? MsgReorg.fromJSON(object.Reorg)
-        : undefined
-    return message
+        : undefined,
+      Reorg: isSet(object.Reorg) ? MsgReorg.fromJSON(object.Reorg) : undefined,
+      BlockConnected: isSet(object.BlockConnected)
+        ? MsgBlockConnected.fromJSON(object.BlockConnected)
+        : undefined,
+      BlockDisconnected: isSet(object.BlockDisconnected)
+        ? MsgBlockDisconnected.fromJSON(object.BlockDisconnected)
+        : undefined,
+    }
   },
 
   toJSON(message: SubscribeMsg): unknown {
@@ -2860,13 +3200,21 @@ export const SubscribeMsg = {
         : undefined)
     message.Reorg !== undefined &&
       (obj.Reorg = message.Reorg ? MsgReorg.toJSON(message.Reorg) : undefined)
+    message.BlockConnected !== undefined &&
+      (obj.BlockConnected = message.BlockConnected
+        ? MsgBlockConnected.toJSON(message.BlockConnected)
+        : undefined)
+    message.BlockDisconnected !== undefined &&
+      (obj.BlockDisconnected = message.BlockDisconnected
+        ? MsgBlockDisconnected.toJSON(message.BlockDisconnected)
+        : undefined)
     return obj
   },
 
   fromPartial<I extends Exact<DeepPartial<SubscribeMsg>, I>>(
     object: I,
   ): SubscribeMsg {
-    const message = { ...baseSubscribeMsg } as SubscribeMsg
+    const message = createBaseSubscribeMsg()
     message.error =
       object.error !== undefined && object.error !== null
         ? Error.fromPartial(object.error)
@@ -2888,11 +3236,22 @@ export const SubscribeMsg = {
       object.Reorg !== undefined && object.Reorg !== null
         ? MsgReorg.fromPartial(object.Reorg)
         : undefined
+    message.BlockConnected =
+      object.BlockConnected !== undefined && object.BlockConnected !== null
+        ? MsgBlockConnected.fromPartial(object.BlockConnected)
+        : undefined
+    message.BlockDisconnected =
+      object.BlockDisconnected !== undefined &&
+      object.BlockDisconnected !== null
+        ? MsgBlockDisconnected.fromPartial(object.BlockDisconnected)
+        : undefined
     return message
   },
 }
 
-const baseMsgAddedToMempool: object = {}
+function createBaseMsgAddedToMempool(): MsgAddedToMempool {
+  return { txid: new Uint8Array() }
+}
 
 export const MsgAddedToMempool = {
   encode(
@@ -2908,8 +3267,7 @@ export const MsgAddedToMempool = {
   decode(input: _m0.Reader | Uint8Array, length?: number): MsgAddedToMempool {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseMsgAddedToMempool } as MsgAddedToMempool
-    message.txid = new Uint8Array()
+    const message = createBaseMsgAddedToMempool()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2925,12 +3283,11 @@ export const MsgAddedToMempool = {
   },
 
   fromJSON(object: any): MsgAddedToMempool {
-    const message = { ...baseMsgAddedToMempool } as MsgAddedToMempool
-    message.txid =
-      object.txid !== undefined && object.txid !== null
+    return {
+      txid: isSet(object.txid)
         ? bytesFromBase64(object.txid)
-        : new Uint8Array()
-    return message
+        : new Uint8Array(),
+    }
   },
 
   toJSON(message: MsgAddedToMempool): unknown {
@@ -2945,13 +3302,15 @@ export const MsgAddedToMempool = {
   fromPartial<I extends Exact<DeepPartial<MsgAddedToMempool>, I>>(
     object: I,
   ): MsgAddedToMempool {
-    const message = { ...baseMsgAddedToMempool } as MsgAddedToMempool
+    const message = createBaseMsgAddedToMempool()
     message.txid = object.txid ?? new Uint8Array()
     return message
   },
 }
 
-const baseMsgRemovedFromMempool: object = {}
+function createBaseMsgRemovedFromMempool(): MsgRemovedFromMempool {
+  return { txid: new Uint8Array() }
+}
 
 export const MsgRemovedFromMempool = {
   encode(
@@ -2970,8 +3329,7 @@ export const MsgRemovedFromMempool = {
   ): MsgRemovedFromMempool {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseMsgRemovedFromMempool } as MsgRemovedFromMempool
-    message.txid = new Uint8Array()
+    const message = createBaseMsgRemovedFromMempool()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -2987,12 +3345,11 @@ export const MsgRemovedFromMempool = {
   },
 
   fromJSON(object: any): MsgRemovedFromMempool {
-    const message = { ...baseMsgRemovedFromMempool } as MsgRemovedFromMempool
-    message.txid =
-      object.txid !== undefined && object.txid !== null
+    return {
+      txid: isSet(object.txid)
         ? bytesFromBase64(object.txid)
-        : new Uint8Array()
-    return message
+        : new Uint8Array(),
+    }
   },
 
   toJSON(message: MsgRemovedFromMempool): unknown {
@@ -3007,13 +3364,15 @@ export const MsgRemovedFromMempool = {
   fromPartial<I extends Exact<DeepPartial<MsgRemovedFromMempool>, I>>(
     object: I,
   ): MsgRemovedFromMempool {
-    const message = { ...baseMsgRemovedFromMempool } as MsgRemovedFromMempool
+    const message = createBaseMsgRemovedFromMempool()
     message.txid = object.txid ?? new Uint8Array()
     return message
   },
 }
 
-const baseMsgConfirmed: object = {}
+function createBaseMsgConfirmed(): MsgConfirmed {
+  return { txid: new Uint8Array() }
+}
 
 export const MsgConfirmed = {
   encode(
@@ -3029,8 +3388,7 @@ export const MsgConfirmed = {
   decode(input: _m0.Reader | Uint8Array, length?: number): MsgConfirmed {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseMsgConfirmed } as MsgConfirmed
-    message.txid = new Uint8Array()
+    const message = createBaseMsgConfirmed()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -3046,12 +3404,11 @@ export const MsgConfirmed = {
   },
 
   fromJSON(object: any): MsgConfirmed {
-    const message = { ...baseMsgConfirmed } as MsgConfirmed
-    message.txid =
-      object.txid !== undefined && object.txid !== null
+    return {
+      txid: isSet(object.txid)
         ? bytesFromBase64(object.txid)
-        : new Uint8Array()
-    return message
+        : new Uint8Array(),
+    }
   },
 
   toJSON(message: MsgConfirmed): unknown {
@@ -3066,13 +3423,15 @@ export const MsgConfirmed = {
   fromPartial<I extends Exact<DeepPartial<MsgConfirmed>, I>>(
     object: I,
   ): MsgConfirmed {
-    const message = { ...baseMsgConfirmed } as MsgConfirmed
+    const message = createBaseMsgConfirmed()
     message.txid = object.txid ?? new Uint8Array()
     return message
   },
 }
 
-const baseMsgReorg: object = {}
+function createBaseMsgReorg(): MsgReorg {
+  return { txid: new Uint8Array() }
+}
 
 export const MsgReorg = {
   encode(
@@ -3088,8 +3447,7 @@ export const MsgReorg = {
   decode(input: _m0.Reader | Uint8Array, length?: number): MsgReorg {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseMsgReorg } as MsgReorg
-    message.txid = new Uint8Array()
+    const message = createBaseMsgReorg()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -3105,12 +3463,11 @@ export const MsgReorg = {
   },
 
   fromJSON(object: any): MsgReorg {
-    const message = { ...baseMsgReorg } as MsgReorg
-    message.txid =
-      object.txid !== undefined && object.txid !== null
+    return {
+      txid: isSet(object.txid)
         ? bytesFromBase64(object.txid)
-        : new Uint8Array()
-    return message
+        : new Uint8Array(),
+    }
   },
 
   toJSON(message: MsgReorg): unknown {
@@ -3123,13 +3480,136 @@ export const MsgReorg = {
   },
 
   fromPartial<I extends Exact<DeepPartial<MsgReorg>, I>>(object: I): MsgReorg {
-    const message = { ...baseMsgReorg } as MsgReorg
+    const message = createBaseMsgReorg()
     message.txid = object.txid ?? new Uint8Array()
     return message
   },
 }
 
-const baseError: object = { errorCode: "", msg: "", isUserError: false }
+function createBaseMsgBlockConnected(): MsgBlockConnected {
+  return { blockHash: new Uint8Array() }
+}
+
+export const MsgBlockConnected = {
+  encode(
+    message: MsgBlockConnected,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    if (message.blockHash.length !== 0) {
+      writer.uint32(10).bytes(message.blockHash)
+    }
+    return writer
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): MsgBlockConnected {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
+    let end = length === undefined ? reader.len : reader.pos + length
+    const message = createBaseMsgBlockConnected()
+    while (reader.pos < end) {
+      const tag = reader.uint32()
+      switch (tag >>> 3) {
+        case 1:
+          message.blockHash = reader.bytes()
+          break
+        default:
+          reader.skipType(tag & 7)
+          break
+      }
+    }
+    return message
+  },
+
+  fromJSON(object: any): MsgBlockConnected {
+    return {
+      blockHash: isSet(object.blockHash)
+        ? bytesFromBase64(object.blockHash)
+        : new Uint8Array(),
+    }
+  },
+
+  toJSON(message: MsgBlockConnected): unknown {
+    const obj: any = {}
+    message.blockHash !== undefined &&
+      (obj.blockHash = base64FromBytes(
+        message.blockHash !== undefined ? message.blockHash : new Uint8Array(),
+      ))
+    return obj
+  },
+
+  fromPartial<I extends Exact<DeepPartial<MsgBlockConnected>, I>>(
+    object: I,
+  ): MsgBlockConnected {
+    const message = createBaseMsgBlockConnected()
+    message.blockHash = object.blockHash ?? new Uint8Array()
+    return message
+  },
+}
+
+function createBaseMsgBlockDisconnected(): MsgBlockDisconnected {
+  return { blockHash: new Uint8Array() }
+}
+
+export const MsgBlockDisconnected = {
+  encode(
+    message: MsgBlockDisconnected,
+    writer: _m0.Writer = _m0.Writer.create(),
+  ): _m0.Writer {
+    if (message.blockHash.length !== 0) {
+      writer.uint32(10).bytes(message.blockHash)
+    }
+    return writer
+  },
+
+  decode(
+    input: _m0.Reader | Uint8Array,
+    length?: number,
+  ): MsgBlockDisconnected {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
+    let end = length === undefined ? reader.len : reader.pos + length
+    const message = createBaseMsgBlockDisconnected()
+    while (reader.pos < end) {
+      const tag = reader.uint32()
+      switch (tag >>> 3) {
+        case 1:
+          message.blockHash = reader.bytes()
+          break
+        default:
+          reader.skipType(tag & 7)
+          break
+      }
+    }
+    return message
+  },
+
+  fromJSON(object: any): MsgBlockDisconnected {
+    return {
+      blockHash: isSet(object.blockHash)
+        ? bytesFromBase64(object.blockHash)
+        : new Uint8Array(),
+    }
+  },
+
+  toJSON(message: MsgBlockDisconnected): unknown {
+    const obj: any = {}
+    message.blockHash !== undefined &&
+      (obj.blockHash = base64FromBytes(
+        message.blockHash !== undefined ? message.blockHash : new Uint8Array(),
+      ))
+    return obj
+  },
+
+  fromPartial<I extends Exact<DeepPartial<MsgBlockDisconnected>, I>>(
+    object: I,
+  ): MsgBlockDisconnected {
+    const message = createBaseMsgBlockDisconnected()
+    message.blockHash = object.blockHash ?? new Uint8Array()
+    return message
+  },
+}
+
+function createBaseError(): Error {
+  return { errorCode: "", msg: "", isUserError: false }
+}
 
 export const Error = {
   encode(message: Error, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
@@ -3148,7 +3628,7 @@ export const Error = {
   decode(input: _m0.Reader | Uint8Array, length?: number): Error {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input)
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseError } as Error
+    const message = createBaseError()
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -3170,18 +3650,13 @@ export const Error = {
   },
 
   fromJSON(object: any): Error {
-    const message = { ...baseError } as Error
-    message.errorCode =
-      object.errorCode !== undefined && object.errorCode !== null
-        ? String(object.errorCode)
-        : ""
-    message.msg =
-      object.msg !== undefined && object.msg !== null ? String(object.msg) : ""
-    message.isUserError =
-      object.isUserError !== undefined && object.isUserError !== null
+    return {
+      errorCode: isSet(object.errorCode) ? String(object.errorCode) : "",
+      msg: isSet(object.msg) ? String(object.msg) : "",
+      isUserError: isSet(object.isUserError)
         ? Boolean(object.isUserError)
-        : false
-    return message
+        : false,
+    }
   },
 
   toJSON(message: Error): unknown {
@@ -3193,7 +3668,7 @@ export const Error = {
   },
 
   fromPartial<I extends Exact<DeepPartial<Error>, I>>(object: I): Error {
-    const message = { ...baseError } as Error
+    const message = createBaseError()
     message.errorCode = object.errorCode ?? ""
     message.msg = object.msg ?? ""
     message.isUserError = object.isUserError ?? false
@@ -3229,9 +3704,9 @@ const btoa: (bin: string) => string =
   (bin => globalThis.Buffer.from(bin, "binary").toString("base64"))
 function base64FromBytes(arr: Uint8Array): string {
   const bin: string[] = []
-  for (const byte of arr) {
+  arr.forEach(byte => {
     bin.push(String.fromCharCode(byte))
-  }
+  })
   return btoa(bin.join(""))
 }
 
@@ -3267,4 +3742,8 @@ export type Exact<P, I extends P> = P extends Builtin
 if (_m0.util.Long !== Long) {
   _m0.util.Long = Long as any
   _m0.configure()
+}
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined
 }
