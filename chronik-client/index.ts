@@ -75,6 +75,13 @@ export class ChronikClient {
     }
   }
 
+  /** Fetch current info of the blockchain, such as tip hash and height. */
+  public async blockchainInfo(): Promise<BlockchainInfo> {
+    const data = await _get(this._url, `/blockchain-info`)
+    const blockchainInfo = proto.BlockchainInfo.decode(data)
+    return convertToBlockchainInfo(blockchainInfo)
+  }
+
   /** Fetch the block given hash or height. */
   public async block(hashOrHeight: string | number): Promise<Block> {
     const data = await _get(this._url, `/block/${hashOrHeight}`)
@@ -98,6 +105,13 @@ export class ChronikClient {
     const data = await _get(this._url, `/tx/${txid}`)
     const tx = proto.Tx.decode(data)
     return convertToTx(tx)
+  }
+
+  /** Fetch token info and stats given the tokenId. */
+  public async token(tokenId: string): Promise<Token> {
+    const data = await _get(this._url, `/token/${tokenId}`)
+    const token = proto.Token.decode(data)
+    return convertToToken(token)
   }
 
   /** Validate the given outpoints: whether they are unspent, spent or
@@ -402,12 +416,25 @@ function ensureResponseErrorThrown(response: AxiosResponse, path: string) {
   }
 }
 
+function convertToBlockchainInfo(
+  blockchainInfo: proto.BlockchainInfo,
+): BlockchainInfo {
+  return {
+    tipHash: toHexRev(blockchainInfo.tipHash),
+    tipHeight: blockchainInfo.tipHeight,
+  }
+}
+
 function convertToBlock(block: proto.Block): Block {
   if (block.blockInfo === undefined) {
     throw new Error("Block has no blockInfo")
   }
+  if (block.blockDetails === undefined) {
+    throw new Error("Block has no blockDetails")
+  }
   return {
     blockInfo: convertToBlockInfo(block.blockInfo),
+    blockDetails: convertToBlockDetails(block.blockDetails),
     txs: block.txs.map(convertToTx),
   }
 }
@@ -446,6 +473,19 @@ function convertToUtxo(utxo: proto.Utxo): Utxo {
         ? convertToSlpToken(utxo.slpToken)
         : undefined,
     network: convertToNetwork(utxo.network),
+  }
+}
+
+function convertToToken(token: proto.Token): Token {
+  if (token.slpTxData === undefined) {
+    throw new Error("Invalid proto, no slpTxData")
+  }
+  if (token.tokenStats === undefined) {
+    throw new Error("Invalid proto, no tokenStats")
+  }
+  return {
+    slpTxData: convertToSlpTokenTxData(token.slpTxData),
+    tokenStats: token.tokenStats,
   }
 }
 
@@ -500,6 +540,19 @@ function convertToSlpTxData(slpTxData: proto.SlpTxData): SlpTxData {
       slpTxData.genesisInfo !== undefined
         ? convertToSlpGenesisInfo(slpTxData.genesisInfo)
         : undefined,
+  }
+}
+
+function convertToSlpTokenTxData(slpTxData: proto.SlpTxData): SlpTokenTxData {
+  if (slpTxData.slpMeta === undefined) {
+    throw new Error("Invalid slpTxData: slpMeta is undefined")
+  }
+  if (slpTxData.genesisInfo === undefined) {
+    throw new Error("Invalid slpTxData: genesisInfo is undefined")
+  }
+  return {
+    slpMeta: convertToSlpMeta(slpTxData.slpMeta),
+    genesisInfo: convertToSlpGenesisInfo(slpTxData.genesisInfo),
   }
 }
 
@@ -576,6 +629,13 @@ function convertToBlockInfo(block: proto.BlockInfo): BlockInfo {
   }
 }
 
+function convertToBlockDetails(blockDetails: proto.BlockDetails): BlockDetails {
+  return {
+    ...blockDetails,
+    merkleRoot: toHexRev(blockDetails.merkleRoot),
+  }
+}
+
 function convertToSlpBurn(burn: proto.SlpBurn): SlpBurn {
   if (burn.token === undefined) {
     throw new Error("Invalid burn: token is undefined")
@@ -623,6 +683,14 @@ function convertToUtxoStateVariant(
     default:
       throw new Error(`Unknown UtxoStateVariant: ${variant}`)
   }
+}
+
+/** Current state of the blockchain. */
+export interface BlockchainInfo {
+  /** Block hash of the current blockchain tip */
+  tipHash: string
+  /** Current height of the blockchain */
+  tipHeight: number
 }
 
 /** A transaction on the blockchain or in the mempool. */
@@ -674,6 +742,14 @@ export interface Utxo {
   network: Network
 }
 
+/** Data and stats about an SLP token. */
+export interface Token {
+  /** SLP data of the GENESIS transaction. */
+  slpTxData: SlpTokenTxData
+  /** Current stats about this token, e.g. minted and burned amount. */
+  tokenStats: TokenStats
+}
+
 /** Block info about a block */
 export interface BlockInfo {
   /** Block hash of the block, in 'human-readable' (big-endian) hex encoding. */
@@ -706,10 +782,23 @@ export interface BlockInfo {
   sumBurnedSats: Long
 }
 
+/** Additional details about a block. */
+export interface BlockDetails {
+  /** nVersion field of the block. */
+  version: number
+  /** Merkle root of the block. */
+  merkleRoot: string
+  /** Nonce of the block (32-bit on XEC, 64-bit on XPI). */
+  nonce: Long
+  /** Median-time-past (MTP) of the last 11 blocks. */
+  medianTimestamp: Long
+}
+
 /** Block on the blockchain. */
 export interface Block {
   /** Info about the block. */
   blockInfo: BlockInfo
+  blockDetails: BlockDetails
   /** Txs in this block, in canonical order
    * (at least on all supported chains). */
   txs: Tx[]
@@ -740,6 +829,14 @@ export interface SlpTxData {
   genesisInfo: SlpGenesisInfo | undefined
 }
 
+/** SLP data about an SLP transaction. */
+export interface SlpTokenTxData {
+  /** SLP metadata. */
+  slpMeta: SlpMeta
+  /** Genesis info of the token. */
+  genesisInfo: SlpGenesisInfo
+}
+
 /** Metadata about an SLP tx or UTXO. */
 export interface SlpMeta {
   /** Whether this token is a normal fungible token, or an NFT or unknown. */
@@ -753,6 +850,19 @@ export interface SlpMeta {
    * This is the token ID of the token that went into the GENESIS of this token
    * as first input. */
   groupTokenId: string | undefined
+}
+
+/**
+ * Stats about a token.
+ *
+ * `totalMinted` and `totalBurned` don't fit in a 64-bit integer, therefore we
+ * use a string with the decimal representation.
+ */
+export interface TokenStats {
+  /** Total number of tokens minted (including GENESIS). */
+  totalMinted: string
+  /** Total number of tokens burned. */
+  totalBurned: string
 }
 
 /** Input of a tx, spends an output of a previous tx. */
