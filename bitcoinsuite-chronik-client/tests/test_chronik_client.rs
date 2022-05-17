@@ -239,6 +239,7 @@ pub async fn test_tx() -> Result<()> {
         }),
         time_first_seen: 0,
         size: 225,
+        is_coinbase: false,
         network: proto::Network::Xpi as i32,
     };
     assert_eq!(actual_tx, expected_tx);
