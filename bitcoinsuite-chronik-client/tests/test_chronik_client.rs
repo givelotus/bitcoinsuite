@@ -213,6 +213,7 @@ pub async fn test_tx() -> Result<()> {
             timestamp: 1_624_249_618,
         }),
         time_first_seen: 0,
+        size: 225,
         network: proto::Network::Xpi as i32,
     };
     assert_eq!(actual_tx, expected_tx);
