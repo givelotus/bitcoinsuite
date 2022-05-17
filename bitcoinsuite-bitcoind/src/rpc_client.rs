@@ -67,8 +67,7 @@ impl BitcoindRpcClient {
         cmd: &str,
         args: &[json::JsonValue],
     ) -> Result<reqwest::Response> {
-        Ok(self
-            .client
+        self.client
             .post(&self.conf.url)
             .basic_auth(&self.conf.rpc_user, Some(&self.conf.rpc_pass))
             .header(reqwest::header::CONTENT_TYPE, "text/plain")
@@ -83,7 +82,7 @@ impl BitcoindRpcClient {
             )
             .send()
             .await
-            .wrap_err(BitcoindError::Client)?)
+            .wrap_err(BitcoindError::Client)
     }
 
     pub(crate) async fn cmd_handle_error(response: reqwest::Response) -> Result<json::JsonValue> {

@@ -43,6 +43,7 @@ message Tx {
     string slp_error_msg = 7;
     BlockMetadata block = 8;
     int64 time_first_seen = 9;
+    uint32 size = 11;
     Network network = 10;
 }
 
@@ -95,6 +96,7 @@ message BlockDetails {
 message Block {
     BlockInfo block_info = 1;
     BlockDetails block_details = 3;
+    bytes raw_header = 4;
     repeated Tx txs = 2;
 }
 
