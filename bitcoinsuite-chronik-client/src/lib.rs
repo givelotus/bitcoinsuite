@@ -5,7 +5,7 @@ pub mod proto {
 
 use std::fmt::Display;
 
-use bitcoinsuite_core::Sha256d;
+use bitcoinsuite_core::{Bytes, Sha256d};
 use bitcoinsuite_error::{ErrorMeta, Result, WrapErr};
 use reqwest::{header::CONTENT_TYPE, StatusCode};
 use thiserror::Error;
@@ -147,6 +147,30 @@ impl ChronikClient {
 
     pub async fn tx(&self, txid: &Sha256d) -> Result<proto::Tx> {
         self._get(&format!("/tx/{}", txid)).await
+    }
+
+    pub async fn raw_tx(&self, txid: &Sha256d) -> Result<Bytes> {
+        use prost::Message as _;
+        let response = self
+            .client
+            .get(format!("{}/raw-tx/{}", self.http_url, txid))
+            .send()
+            .await
+            .wrap_err(HttpRequestError)?;
+        let status_code = response.status();
+        if status_code != StatusCode::OK {
+            let data = response.bytes().await?;
+            let error = proto::Error::decode(data.as_ref())
+                .wrap_err_with(|| InvalidProtobuf(hex::encode(&data)))?;
+            return Err(ChronikError {
+                status_code,
+                error_msg: error.msg.clone(),
+                error,
+            }
+            .into());
+        }
+        let bytes = response.bytes().await.wrap_err(HttpRequestError)?;
+        Ok(Bytes::from_bytes(bytes))
     }
 
     pub async fn token(&self, token_id: &Sha256d) -> Result<proto::Token> {
