@@ -146,6 +146,31 @@ pub async fn test_tx_missing() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+pub async fn test_raw_tx_missing() -> Result<()> {
+    let client = ChronikClient::new(CHRONIK_URL.to_string())?;
+    let err = client
+        .raw_tx(&Sha256d::new([0; 32]))
+        .await
+        .unwrap_err()
+        .downcast::<ChronikClientError>()?;
+    let error_msg =
+        "Txid not found: 0000000000000000000000000000000000000000000000000000000000000000";
+    assert_eq!(
+        err,
+        ChronikClientError::ChronikError {
+            status_code: StatusCode::NOT_FOUND,
+            error_msg: error_msg.to_string(),
+            error: proto::Error {
+                error_code: "tx-not-found".to_string(),
+                msg: error_msg.to_string(),
+                is_user_error: true,
+            },
+        },
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn test_tx() -> Result<()> {
     let client = ChronikClient::new(CHRONIK_URL.to_string())?;
     let block_hash =
@@ -217,6 +242,23 @@ pub async fn test_tx() -> Result<()> {
         network: proto::Network::Xpi as i32,
     };
     assert_eq!(actual_tx, expected_tx);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+pub async fn test_raw_tx() -> Result<()> {
+    let client = ChronikClient::new(CHRONIK_URL.to_string())?;
+    let txid =
+        Sha256d::from_hex_be("11a47493b3eac2762ad0e937ed8a2c4183f48248e5a78cffd0fadd58d21ac659")?;
+    let actual_raw_tx = client.raw_tx(&txid).await?;
+    let expected_raw_tx =
+        "02000000017478301e6cbae2f5a3fe99aa05030ef07d622c647cc02909cb01e4e4887c0acf010000006a4730\
+         4402204c79304e40bd49748e88c5f42d6d731857cd34c90e8de4e55dafe4215c7941e5022029b8ea0578f64f\
+         195101a38067f96904b42e7df2d17dad98922cf0c9149645f04121029bd3f4a509a586da48750b4164463f60\
+         2bbe4e278ed602825f63f25f73cfc363feffffff022bd7cc01000000001976a914c9efa1f37f0105c1cdb5e9\
+         5672dc3d3d9405f04388ac00e1f505000000001976a9141e81a0e8c5e4f8c7dd40db10b84e3a3b4c568c0788\
+         ac6f000000";
+    assert_eq!(actual_raw_tx.hex(), expected_raw_tx);
     Ok(())
 }
 
