@@ -1,6 +1,5 @@
 import * as chai from "chai"
 import chaiAsPromised from "chai-as-promised"
-import Long from "long"
 import {
   BlockDetails,
   BlockInfo,
@@ -18,14 +17,6 @@ chai.use(chaiAsPromised)
 
 const TEST_URL = "https://chronik.be.cash/xec"
 
-function i64(num: number): Long {
-  return Long.fromInt(num, false)
-}
-
-function u64(num: number): Long {
-  return Long.fromInt(num, true)
-}
-
 const GENESIS_PK =
   "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc" +
   "3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"
@@ -34,22 +25,22 @@ const GENESIS_BLOCK_INFO: BlockInfo = {
   prevHash: "0000000000000000000000000000000000000000000000000000000000000000",
   height: 0,
   nBits: 0x1d00ffff,
-  timestamp: i64(1231006505),
-  blockSize: u64(285),
-  numTxs: u64(1),
-  numInputs: u64(1),
-  numOutputs: u64(1),
-  sumInputSats: i64(0),
-  sumCoinbaseOutputSats: Long.fromString("5000000000"),
-  sumNormalOutputSats: i64(0),
-  sumBurnedSats: i64(0),
+  timestamp: "1231006505",
+  blockSize: "285",
+  numTxs: "1",
+  numInputs: "1",
+  numOutputs: "1",
+  sumInputSats: "0",
+  sumCoinbaseOutputSats: "5000000000",
+  sumNormalOutputSats: "0",
+  sumBurnedSats: "0",
 }
 const GENESIS_BLOCK_DETAILS: BlockDetails = {
   version: 1,
   merkleRoot:
     "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
-  nonce: u64(2083236893),
-  medianTimestamp: i64(1231006505),
+  nonce: "2083236893",
+  medianTimestamp: "1231006505",
 }
 const GENESIS_TX: Tx = {
   txid: "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
@@ -65,7 +56,7 @@ const GENESIS_TX: Tx = {
         "63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420" +
         "666f722062616e6b73",
       outputScript: undefined,
-      value: i64(0),
+      value: "0",
       sequenceNo: 0xffffffff,
       slpBurn: undefined,
       slpToken: undefined,
@@ -73,7 +64,7 @@ const GENESIS_TX: Tx = {
   ],
   outputs: [
     {
-      value: Long.fromString("5000000000"),
+      value: "5000000000",
       outputScript: "41" + GENESIS_PK + "ac",
       slpToken: undefined,
       spentBy: undefined,
@@ -85,16 +76,18 @@ const GENESIS_TX: Tx = {
   block: {
     hash: "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
     height: 0,
-    timestamp: i64(1231006505),
+    timestamp: "1231006505",
   },
-  timeFirstSeen: i64(0),
+  size: 204,
+  isCoinbase: true,
+  timeFirstSeen: "0",
   network: "XEC",
 }
 const GENESIS_UTXO: Utxo = {
   outpoint: { txid: GENESIS_TX.txid, outIdx: 0 },
   blockHeight: 0,
   isCoinbase: true,
-  value: Long.fromString("5000000000"),
+  value: "5000000000",
   slpMeta: undefined,
   slpToken: undefined,
   network: "XEC",
@@ -166,8 +159,8 @@ describe("/blocks/:start/:end", () => {
       hash: "00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048",
       prevHash: block0.hash,
       height: 1,
-      timestamp: i64(1231469665),
-      blockSize: u64(215),
+      timestamp: "1231469665",
+      blockSize: "215",
     }
     expect(blocks[1]).to.eql(block1)
     const block2: BlockInfo = {
@@ -175,7 +168,7 @@ describe("/blocks/:start/:end", () => {
       hash: "000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd",
       prevHash: block1.hash,
       height: 2,
-      timestamp: i64(1231469744),
+      timestamp: "1231469744",
     }
     expect(blocks[2]).to.eql(block2)
     const block3: BlockInfo = {
@@ -183,7 +176,7 @@ describe("/blocks/:start/:end", () => {
       hash: "0000000082b5015589a3fdf2d4baff403e6f0be035a5d9742c1cae6295464449",
       prevHash: block2.hash,
       height: 3,
-      timestamp: i64(1231470173),
+      timestamp: "1231470173",
     }
     expect(blocks[3]).to.eql(block3)
   })
@@ -226,10 +219,10 @@ describe("/tx/:txid", () => {
         sequenceNo: 4294967295,
         slpBurn: undefined,
         slpToken: {
-          amount: u64(50000000),
+          amount: "50000000",
           isMintBaton: false,
         },
-        value: i64(546),
+        value: "546",
       },
       {
         inputScript:
@@ -245,7 +238,7 @@ describe("/tx/:txid", () => {
         sequenceNo: 4294967295,
         slpBurn: undefined,
         slpToken: undefined,
-        value: i64(100000),
+        value: "100000",
       },
     ])
     expect(tx.outputs).to.eql([
@@ -255,31 +248,31 @@ describe("/tx/:txid", () => {
           "f1fdcf3543703e64e75a4a90730800000000004c4b40080000000002aea540",
         slpToken: undefined,
         spentBy: undefined,
-        value: i64(0),
+        value: "0",
       },
       {
         outputScript: "76a9149c371def7e7cf89b30a62d658147937e679a965388ac",
         slpToken: {
-          amount: u64(5000000),
+          amount: "5000000",
           isMintBaton: false,
         },
         spentBy: {
           txid: "49f169bed257f9c6dfae441a7de3af2ecf2ba9e9fbdf29c1066da3b19dce2a96",
           outIdx: 0,
         },
-        value: i64(546),
+        value: "546",
       },
       {
         outputScript: "76a914e7b4f63ec550ada1aed74960ddc4e0e107cd6cd188ac",
         slpToken: {
-          amount: u64(45000000),
+          amount: "45000000",
           isMintBaton: false,
         },
         spentBy: {
           txid: "f8f62d4df98001ff8d9936d046debbf30dce87d82901812739b4c549425ece11",
           outIdx: 0,
         },
-        value: i64(546),
+        value: "546",
       },
       {
         outputScript: "76a914d15b9793d6af77663f8acf7e2c884f114ef901da88ac",
@@ -288,7 +281,7 @@ describe("/tx/:txid", () => {
           txid: "f8f62d4df98001ff8d9936d046debbf30dce87d82901812739b4c549425ece11",
           outIdx: 1,
         },
-        value: i64(98938),
+        value: "98938",
       },
     ])
     expect(tx.lockTime).to.eql(0)
@@ -306,9 +299,9 @@ describe("/tx/:txid", () => {
     expect(tx.block).to.eql({
       hash: "0000000000000000452f19532a6297ea194eaacac6d3bbcbf7c08a74cad84b44",
       height: 697728,
-      timestamp: i64(1627790415),
+      timestamp: "1627790415",
     })
-    expect(tx.timeFirstSeen).to.eql(i64(0))
+    expect(tx.timeFirstSeen).to.eql("0")
     expect(tx.network).to.eql("XEC")
   })
 })

@@ -1,6 +1,5 @@
 import axios, { AxiosResponse } from "axios"
 import WebSocket from "isomorphic-ws"
-import Long from "long"
 import * as ws from "ws"
 import * as proto from "./chronik"
 import { fromHex, fromHexRev, toHex, toHexRev } from "./hex"
@@ -435,6 +434,7 @@ function convertToBlock(block: proto.Block): Block {
   return {
     blockInfo: convertToBlockInfo(block.blockInfo),
     blockDetails: convertToBlockDetails(block.blockDetails),
+    rawHeader: toHex(block.rawHeader),
     txs: block.txs.map(convertToTx),
   }
 }
@@ -450,6 +450,8 @@ function convertToTx(tx: proto.Tx): Tx {
     slpErrorMsg: tx.slpErrorMsg.length !== 0 ? tx.slpErrorMsg : undefined,
     block: tx.block !== undefined ? convertToBlockMeta(tx.block) : undefined,
     timeFirstSeen: tx.timeFirstSeen,
+    size: tx.size,
+    isCoinbase: tx.isCoinbase,
     network: convertToNetwork(tx.network),
   }
 }
@@ -718,7 +720,11 @@ export interface Tx {
   /** UNIX timestamp when this tx has first been seen in the mempool.
    * 0 if unknown -> make sure to check.
    */
-  timeFirstSeen: Long
+  timeFirstSeen: string
+  /** Serialized size of the tx. */
+  size: number
+  /** Whether this tx is a coinbase tx. */
+  isCoinbase: boolean
   /** Which network this tx is on. */
   network: Network
 }
@@ -733,7 +739,7 @@ export interface Utxo {
    * (make sure it's buried 100 blocks before spending!) */
   isCoinbase: boolean
   /** Value of the UTXO in satoshis. */
-  value: Long
+  value: string
   /** SLP data in this UTXO. */
   slpMeta: SlpMeta | undefined
   /** SLP token of this UTXO (i.e. SLP amount + whether it's a mint baton). */
@@ -763,23 +769,23 @@ export interface BlockInfo {
   nBits: number
   /** Timestamp of the block. Filled in by the miner, so might not be 100%
    * precise. */
-  timestamp: Long
+  timestamp: string
   /** Block size of this block in bytes (including headers etc.). */
-  blockSize: Long
+  blockSize: string
   /** Number of txs in this block. */
-  numTxs: Long
+  numTxs: string
   /** Total number of tx inputs in block (including coinbase). */
-  numInputs: Long
+  numInputs: string
   /** Total number of tx output in block (including coinbase). */
-  numOutputs: Long
+  numOutputs: string
   /** Total number of satoshis spent by tx inputs. */
-  sumInputSats: Long
+  sumInputSats: string
   /** Total block reward for this block. */
-  sumCoinbaseOutputSats: Long
+  sumCoinbaseOutputSats: string
   /** Total number of satoshis in non-coinbase tx outputs. */
-  sumNormalOutputSats: Long
+  sumNormalOutputSats: string
   /** Total number of satoshis burned using OP_RETURN. */
-  sumBurnedSats: Long
+  sumBurnedSats: string
 }
 
 /** Additional details about a block. */
@@ -789,16 +795,19 @@ export interface BlockDetails {
   /** Merkle root of the block. */
   merkleRoot: string
   /** Nonce of the block (32-bit on XEC, 64-bit on XPI). */
-  nonce: Long
+  nonce: string
   /** Median-time-past (MTP) of the last 11 blocks. */
-  medianTimestamp: Long
+  medianTimestamp: string
 }
 
 /** Block on the blockchain. */
 export interface Block {
   /** Info about the block. */
   blockInfo: BlockInfo
+  /** Details about the block. */
   blockDetails: BlockDetails
+  /** Header encoded as hex. */
+  rawHeader: string
   /** Txs in this block, in canonical order
    * (at least on all supported chains). */
   txs: Tx[]
@@ -876,7 +885,7 @@ export interface TxInput {
    * Aka. `scriptPubKey` in bitcoind parlance. */
   outputScript: string | undefined
   /** Value of the output spent by this input, in satoshis. */
-  value: Long
+  value: string
   /** `sequence` field of the input; can be used for relative time locking. */
   sequenceNo: number
   /** SLP tokens burned by this input, or `undefined` if no burn occured. */
@@ -889,7 +898,7 @@ export interface TxInput {
 /** Output of a tx, creates new UTXOs. */
 export interface TxOutput {
   /** Value of the output, in satoshis. */
-  value: Long
+  value: string
   /** Script of this output, locking the coins.
    * Aka. `scriptPubKey` in bitcoind parlance. */
   outputScript: string
@@ -909,7 +918,7 @@ export interface BlockMetadata {
   hash: string
   /** Timestamp of the block; useful if `timeFirstSeen` of a transaction is
    * unknown. */
-  timestamp: Long
+  timestamp: string
 }
 
 /** Outpoint referencing an output on the blockchain (or input for field
@@ -925,7 +934,7 @@ export interface OutPoint {
 /** SLP amount or whether this is a mint baton, for inputs and outputs. */
 export interface SlpToken {
   /** SLP amount of the input or output, in base units. */
-  amount: Long
+  amount: string
   /** Whether this input/output is a mint baton. */
   isMintBaton: boolean
 }

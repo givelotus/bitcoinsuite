@@ -220,7 +220,9 @@ export interface Tx {
   slpTxData: SlpTxData | undefined
   slpErrorMsg: string
   block: BlockMetadata | undefined
-  timeFirstSeen: Long
+  timeFirstSeen: string
+  size: number
+  isCoinbase: boolean
   network: Network
 }
 
@@ -228,7 +230,7 @@ export interface Utxo {
   outpoint: OutPoint | undefined
   blockHeight: number
   isCoinbase: boolean
-  value: Long
+  value: string
   slpMeta: SlpMeta | undefined
   slpToken: SlpToken | undefined
   network: Network
@@ -244,35 +246,36 @@ export interface BlockInfo {
   prevHash: Uint8Array
   height: number
   nBits: number
-  timestamp: Long
+  timestamp: string
   /** Block size of this block in bytes (including headers etc.) */
-  blockSize: Long
+  blockSize: string
   /** Number of txs in this block */
-  numTxs: Long
+  numTxs: string
   /** Total number of tx inputs in block (including coinbase) */
-  numInputs: Long
+  numInputs: string
   /** Total number of tx output in block (including coinbase) */
-  numOutputs: Long
+  numOutputs: string
   /** Total number of satoshis spent by tx inputs */
-  sumInputSats: Long
+  sumInputSats: string
   /** Block reward for this block */
-  sumCoinbaseOutputSats: Long
+  sumCoinbaseOutputSats: string
   /** Total number of satoshis in non-coinbase tx outputs */
-  sumNormalOutputSats: Long
+  sumNormalOutputSats: string
   /** Total number of satoshis burned using OP_RETURN */
-  sumBurnedSats: Long
+  sumBurnedSats: string
 }
 
 export interface BlockDetails {
   version: number
   merkleRoot: Uint8Array
-  nonce: Long
-  medianTimestamp: Long
+  nonce: string
+  medianTimestamp: string
 }
 
 export interface Block {
   blockInfo: BlockInfo | undefined
   blockDetails: BlockDetails | undefined
+  rawHeader: Uint8Array
   txs: Tx[]
 }
 
@@ -320,14 +323,14 @@ export interface TxInput {
   prevOut: OutPoint | undefined
   inputScript: Uint8Array
   outputScript: Uint8Array
-  value: Long
+  value: string
   sequenceNo: number
   slpBurn: SlpBurn | undefined
   slpToken: SlpToken | undefined
 }
 
 export interface TxOutput {
-  value: Long
+  value: string
   outputScript: Uint8Array
   slpToken: SlpToken | undefined
   spentBy: OutPoint | undefined
@@ -336,7 +339,7 @@ export interface TxOutput {
 export interface BlockMetadata {
   height: number
   hash: Uint8Array
-  timestamp: Long
+  timestamp: string
 }
 
 export interface OutPoint {
@@ -345,7 +348,7 @@ export interface OutPoint {
 }
 
 export interface SlpToken {
-  amount: Long
+  amount: string
   isMintBaton: boolean
 }
 
@@ -891,7 +894,9 @@ function createBaseTx(): Tx {
     slpTxData: undefined,
     slpErrorMsg: "",
     block: undefined,
-    timeFirstSeen: Long.ZERO,
+    timeFirstSeen: "0",
+    size: 0,
+    isCoinbase: false,
     network: 0,
   }
 }
@@ -922,8 +927,14 @@ export const Tx = {
     if (message.block !== undefined) {
       BlockMetadata.encode(message.block, writer.uint32(66).fork()).ldelim()
     }
-    if (!message.timeFirstSeen.isZero()) {
+    if (message.timeFirstSeen !== "0") {
       writer.uint32(72).int64(message.timeFirstSeen)
+    }
+    if (message.size !== 0) {
+      writer.uint32(88).uint32(message.size)
+    }
+    if (message.isCoinbase === true) {
+      writer.uint32(96).bool(message.isCoinbase)
     }
     if (message.network !== 0) {
       writer.uint32(80).int32(message.network)
@@ -963,7 +974,13 @@ export const Tx = {
           message.block = BlockMetadata.decode(reader, reader.uint32())
           break
         case 9:
-          message.timeFirstSeen = reader.int64() as Long
+          message.timeFirstSeen = longToString(reader.int64() as Long)
+          break
+        case 11:
+          message.size = reader.uint32()
+          break
+        case 12:
+          message.isCoinbase = reader.bool()
           break
         case 10:
           message.network = reader.int32() as any
@@ -997,8 +1014,10 @@ export const Tx = {
         ? BlockMetadata.fromJSON(object.block)
         : undefined,
       timeFirstSeen: isSet(object.timeFirstSeen)
-        ? Long.fromValue(object.timeFirstSeen)
-        : Long.ZERO,
+        ? String(object.timeFirstSeen)
+        : "0",
+      size: isSet(object.size) ? Number(object.size) : 0,
+      isCoinbase: isSet(object.isCoinbase) ? Boolean(object.isCoinbase) : false,
       network: isSet(object.network) ? networkFromJSON(object.network) : 0,
     }
   },
@@ -1034,7 +1053,9 @@ export const Tx = {
         ? BlockMetadata.toJSON(message.block)
         : undefined)
     message.timeFirstSeen !== undefined &&
-      (obj.timeFirstSeen = (message.timeFirstSeen || Long.ZERO).toString())
+      (obj.timeFirstSeen = message.timeFirstSeen)
+    message.size !== undefined && (obj.size = Math.round(message.size))
+    message.isCoinbase !== undefined && (obj.isCoinbase = message.isCoinbase)
     message.network !== undefined &&
       (obj.network = networkToJSON(message.network))
     return obj
@@ -1056,10 +1077,9 @@ export const Tx = {
       object.block !== undefined && object.block !== null
         ? BlockMetadata.fromPartial(object.block)
         : undefined
-    message.timeFirstSeen =
-      object.timeFirstSeen !== undefined && object.timeFirstSeen !== null
-        ? Long.fromValue(object.timeFirstSeen)
-        : Long.ZERO
+    message.timeFirstSeen = object.timeFirstSeen ?? "0"
+    message.size = object.size ?? 0
+    message.isCoinbase = object.isCoinbase ?? false
     message.network = object.network ?? 0
     return message
   },
@@ -1070,7 +1090,7 @@ function createBaseUtxo(): Utxo {
     outpoint: undefined,
     blockHeight: 0,
     isCoinbase: false,
-    value: Long.ZERO,
+    value: "0",
     slpMeta: undefined,
     slpToken: undefined,
     network: 0,
@@ -1088,7 +1108,7 @@ export const Utxo = {
     if (message.isCoinbase === true) {
       writer.uint32(24).bool(message.isCoinbase)
     }
-    if (!message.value.isZero()) {
+    if (message.value !== "0") {
       writer.uint32(40).int64(message.value)
     }
     if (message.slpMeta !== undefined) {
@@ -1120,7 +1140,7 @@ export const Utxo = {
           message.isCoinbase = reader.bool()
           break
         case 5:
-          message.value = reader.int64() as Long
+          message.value = longToString(reader.int64() as Long)
           break
         case 6:
           message.slpMeta = SlpMeta.decode(reader, reader.uint32())
@@ -1146,7 +1166,7 @@ export const Utxo = {
         : undefined,
       blockHeight: isSet(object.blockHeight) ? Number(object.blockHeight) : 0,
       isCoinbase: isSet(object.isCoinbase) ? Boolean(object.isCoinbase) : false,
-      value: isSet(object.value) ? Long.fromValue(object.value) : Long.ZERO,
+      value: isSet(object.value) ? String(object.value) : "0",
       slpMeta: isSet(object.slpMeta)
         ? SlpMeta.fromJSON(object.slpMeta)
         : undefined,
@@ -1166,8 +1186,7 @@ export const Utxo = {
     message.blockHeight !== undefined &&
       (obj.blockHeight = Math.round(message.blockHeight))
     message.isCoinbase !== undefined && (obj.isCoinbase = message.isCoinbase)
-    message.value !== undefined &&
-      (obj.value = (message.value || Long.ZERO).toString())
+    message.value !== undefined && (obj.value = message.value)
     message.slpMeta !== undefined &&
       (obj.slpMeta = message.slpMeta
         ? SlpMeta.toJSON(message.slpMeta)
@@ -1189,10 +1208,7 @@ export const Utxo = {
         : undefined
     message.blockHeight = object.blockHeight ?? 0
     message.isCoinbase = object.isCoinbase ?? false
-    message.value =
-      object.value !== undefined && object.value !== null
-        ? Long.fromValue(object.value)
-        : Long.ZERO
+    message.value = object.value ?? "0"
     message.slpMeta =
       object.slpMeta !== undefined && object.slpMeta !== null
         ? SlpMeta.fromPartial(object.slpMeta)
@@ -1286,15 +1302,15 @@ function createBaseBlockInfo(): BlockInfo {
     prevHash: new Uint8Array(),
     height: 0,
     nBits: 0,
-    timestamp: Long.ZERO,
-    blockSize: Long.UZERO,
-    numTxs: Long.UZERO,
-    numInputs: Long.UZERO,
-    numOutputs: Long.UZERO,
-    sumInputSats: Long.ZERO,
-    sumCoinbaseOutputSats: Long.ZERO,
-    sumNormalOutputSats: Long.ZERO,
-    sumBurnedSats: Long.ZERO,
+    timestamp: "0",
+    blockSize: "0",
+    numTxs: "0",
+    numInputs: "0",
+    numOutputs: "0",
+    sumInputSats: "0",
+    sumCoinbaseOutputSats: "0",
+    sumNormalOutputSats: "0",
+    sumBurnedSats: "0",
   }
 }
 
@@ -1315,31 +1331,31 @@ export const BlockInfo = {
     if (message.nBits !== 0) {
       writer.uint32(32).uint32(message.nBits)
     }
-    if (!message.timestamp.isZero()) {
+    if (message.timestamp !== "0") {
       writer.uint32(40).int64(message.timestamp)
     }
-    if (!message.blockSize.isZero()) {
+    if (message.blockSize !== "0") {
       writer.uint32(48).uint64(message.blockSize)
     }
-    if (!message.numTxs.isZero()) {
+    if (message.numTxs !== "0") {
       writer.uint32(56).uint64(message.numTxs)
     }
-    if (!message.numInputs.isZero()) {
+    if (message.numInputs !== "0") {
       writer.uint32(64).uint64(message.numInputs)
     }
-    if (!message.numOutputs.isZero()) {
+    if (message.numOutputs !== "0") {
       writer.uint32(72).uint64(message.numOutputs)
     }
-    if (!message.sumInputSats.isZero()) {
+    if (message.sumInputSats !== "0") {
       writer.uint32(80).int64(message.sumInputSats)
     }
-    if (!message.sumCoinbaseOutputSats.isZero()) {
+    if (message.sumCoinbaseOutputSats !== "0") {
       writer.uint32(88).int64(message.sumCoinbaseOutputSats)
     }
-    if (!message.sumNormalOutputSats.isZero()) {
+    if (message.sumNormalOutputSats !== "0") {
       writer.uint32(96).int64(message.sumNormalOutputSats)
     }
-    if (!message.sumBurnedSats.isZero()) {
+    if (message.sumBurnedSats !== "0") {
       writer.uint32(104).int64(message.sumBurnedSats)
     }
     return writer
@@ -1365,31 +1381,31 @@ export const BlockInfo = {
           message.nBits = reader.uint32()
           break
         case 5:
-          message.timestamp = reader.int64() as Long
+          message.timestamp = longToString(reader.int64() as Long)
           break
         case 6:
-          message.blockSize = reader.uint64() as Long
+          message.blockSize = longToString(reader.uint64() as Long)
           break
         case 7:
-          message.numTxs = reader.uint64() as Long
+          message.numTxs = longToString(reader.uint64() as Long)
           break
         case 8:
-          message.numInputs = reader.uint64() as Long
+          message.numInputs = longToString(reader.uint64() as Long)
           break
         case 9:
-          message.numOutputs = reader.uint64() as Long
+          message.numOutputs = longToString(reader.uint64() as Long)
           break
         case 10:
-          message.sumInputSats = reader.int64() as Long
+          message.sumInputSats = longToString(reader.int64() as Long)
           break
         case 11:
-          message.sumCoinbaseOutputSats = reader.int64() as Long
+          message.sumCoinbaseOutputSats = longToString(reader.int64() as Long)
           break
         case 12:
-          message.sumNormalOutputSats = reader.int64() as Long
+          message.sumNormalOutputSats = longToString(reader.int64() as Long)
           break
         case 13:
-          message.sumBurnedSats = reader.int64() as Long
+          message.sumBurnedSats = longToString(reader.int64() as Long)
           break
         default:
           reader.skipType(tag & 7)
@@ -1409,31 +1425,23 @@ export const BlockInfo = {
         : new Uint8Array(),
       height: isSet(object.height) ? Number(object.height) : 0,
       nBits: isSet(object.nBits) ? Number(object.nBits) : 0,
-      timestamp: isSet(object.timestamp)
-        ? Long.fromValue(object.timestamp)
-        : Long.ZERO,
-      blockSize: isSet(object.blockSize)
-        ? Long.fromValue(object.blockSize)
-        : Long.UZERO,
-      numTxs: isSet(object.numTxs) ? Long.fromValue(object.numTxs) : Long.UZERO,
-      numInputs: isSet(object.numInputs)
-        ? Long.fromValue(object.numInputs)
-        : Long.UZERO,
-      numOutputs: isSet(object.numOutputs)
-        ? Long.fromValue(object.numOutputs)
-        : Long.UZERO,
+      timestamp: isSet(object.timestamp) ? String(object.timestamp) : "0",
+      blockSize: isSet(object.blockSize) ? String(object.blockSize) : "0",
+      numTxs: isSet(object.numTxs) ? String(object.numTxs) : "0",
+      numInputs: isSet(object.numInputs) ? String(object.numInputs) : "0",
+      numOutputs: isSet(object.numOutputs) ? String(object.numOutputs) : "0",
       sumInputSats: isSet(object.sumInputSats)
-        ? Long.fromValue(object.sumInputSats)
-        : Long.ZERO,
+        ? String(object.sumInputSats)
+        : "0",
       sumCoinbaseOutputSats: isSet(object.sumCoinbaseOutputSats)
-        ? Long.fromValue(object.sumCoinbaseOutputSats)
-        : Long.ZERO,
+        ? String(object.sumCoinbaseOutputSats)
+        : "0",
       sumNormalOutputSats: isSet(object.sumNormalOutputSats)
-        ? Long.fromValue(object.sumNormalOutputSats)
-        : Long.ZERO,
+        ? String(object.sumNormalOutputSats)
+        : "0",
       sumBurnedSats: isSet(object.sumBurnedSats)
-        ? Long.fromValue(object.sumBurnedSats)
-        : Long.ZERO,
+        ? String(object.sumBurnedSats)
+        : "0",
     }
   },
 
@@ -1449,28 +1457,19 @@ export const BlockInfo = {
       ))
     message.height !== undefined && (obj.height = Math.round(message.height))
     message.nBits !== undefined && (obj.nBits = Math.round(message.nBits))
-    message.timestamp !== undefined &&
-      (obj.timestamp = (message.timestamp || Long.ZERO).toString())
-    message.blockSize !== undefined &&
-      (obj.blockSize = (message.blockSize || Long.UZERO).toString())
-    message.numTxs !== undefined &&
-      (obj.numTxs = (message.numTxs || Long.UZERO).toString())
-    message.numInputs !== undefined &&
-      (obj.numInputs = (message.numInputs || Long.UZERO).toString())
-    message.numOutputs !== undefined &&
-      (obj.numOutputs = (message.numOutputs || Long.UZERO).toString())
+    message.timestamp !== undefined && (obj.timestamp = message.timestamp)
+    message.blockSize !== undefined && (obj.blockSize = message.blockSize)
+    message.numTxs !== undefined && (obj.numTxs = message.numTxs)
+    message.numInputs !== undefined && (obj.numInputs = message.numInputs)
+    message.numOutputs !== undefined && (obj.numOutputs = message.numOutputs)
     message.sumInputSats !== undefined &&
-      (obj.sumInputSats = (message.sumInputSats || Long.ZERO).toString())
+      (obj.sumInputSats = message.sumInputSats)
     message.sumCoinbaseOutputSats !== undefined &&
-      (obj.sumCoinbaseOutputSats = (
-        message.sumCoinbaseOutputSats || Long.ZERO
-      ).toString())
+      (obj.sumCoinbaseOutputSats = message.sumCoinbaseOutputSats)
     message.sumNormalOutputSats !== undefined &&
-      (obj.sumNormalOutputSats = (
-        message.sumNormalOutputSats || Long.ZERO
-      ).toString())
+      (obj.sumNormalOutputSats = message.sumNormalOutputSats)
     message.sumBurnedSats !== undefined &&
-      (obj.sumBurnedSats = (message.sumBurnedSats || Long.ZERO).toString())
+      (obj.sumBurnedSats = message.sumBurnedSats)
     return obj
   },
 
@@ -1482,44 +1481,15 @@ export const BlockInfo = {
     message.prevHash = object.prevHash ?? new Uint8Array()
     message.height = object.height ?? 0
     message.nBits = object.nBits ?? 0
-    message.timestamp =
-      object.timestamp !== undefined && object.timestamp !== null
-        ? Long.fromValue(object.timestamp)
-        : Long.ZERO
-    message.blockSize =
-      object.blockSize !== undefined && object.blockSize !== null
-        ? Long.fromValue(object.blockSize)
-        : Long.UZERO
-    message.numTxs =
-      object.numTxs !== undefined && object.numTxs !== null
-        ? Long.fromValue(object.numTxs)
-        : Long.UZERO
-    message.numInputs =
-      object.numInputs !== undefined && object.numInputs !== null
-        ? Long.fromValue(object.numInputs)
-        : Long.UZERO
-    message.numOutputs =
-      object.numOutputs !== undefined && object.numOutputs !== null
-        ? Long.fromValue(object.numOutputs)
-        : Long.UZERO
-    message.sumInputSats =
-      object.sumInputSats !== undefined && object.sumInputSats !== null
-        ? Long.fromValue(object.sumInputSats)
-        : Long.ZERO
-    message.sumCoinbaseOutputSats =
-      object.sumCoinbaseOutputSats !== undefined &&
-      object.sumCoinbaseOutputSats !== null
-        ? Long.fromValue(object.sumCoinbaseOutputSats)
-        : Long.ZERO
-    message.sumNormalOutputSats =
-      object.sumNormalOutputSats !== undefined &&
-      object.sumNormalOutputSats !== null
-        ? Long.fromValue(object.sumNormalOutputSats)
-        : Long.ZERO
-    message.sumBurnedSats =
-      object.sumBurnedSats !== undefined && object.sumBurnedSats !== null
-        ? Long.fromValue(object.sumBurnedSats)
-        : Long.ZERO
+    message.timestamp = object.timestamp ?? "0"
+    message.blockSize = object.blockSize ?? "0"
+    message.numTxs = object.numTxs ?? "0"
+    message.numInputs = object.numInputs ?? "0"
+    message.numOutputs = object.numOutputs ?? "0"
+    message.sumInputSats = object.sumInputSats ?? "0"
+    message.sumCoinbaseOutputSats = object.sumCoinbaseOutputSats ?? "0"
+    message.sumNormalOutputSats = object.sumNormalOutputSats ?? "0"
+    message.sumBurnedSats = object.sumBurnedSats ?? "0"
     return message
   },
 }
@@ -1528,8 +1498,8 @@ function createBaseBlockDetails(): BlockDetails {
   return {
     version: 0,
     merkleRoot: new Uint8Array(),
-    nonce: Long.UZERO,
-    medianTimestamp: Long.ZERO,
+    nonce: "0",
+    medianTimestamp: "0",
   }
 }
 
@@ -1544,10 +1514,10 @@ export const BlockDetails = {
     if (message.merkleRoot.length !== 0) {
       writer.uint32(18).bytes(message.merkleRoot)
     }
-    if (!message.nonce.isZero()) {
+    if (message.nonce !== "0") {
       writer.uint32(24).uint64(message.nonce)
     }
-    if (!message.medianTimestamp.isZero()) {
+    if (message.medianTimestamp !== "0") {
       writer.uint32(32).int64(message.medianTimestamp)
     }
     return writer
@@ -1567,10 +1537,10 @@ export const BlockDetails = {
           message.merkleRoot = reader.bytes()
           break
         case 3:
-          message.nonce = reader.uint64() as Long
+          message.nonce = longToString(reader.uint64() as Long)
           break
         case 4:
-          message.medianTimestamp = reader.int64() as Long
+          message.medianTimestamp = longToString(reader.int64() as Long)
           break
         default:
           reader.skipType(tag & 7)
@@ -1586,10 +1556,10 @@ export const BlockDetails = {
       merkleRoot: isSet(object.merkleRoot)
         ? bytesFromBase64(object.merkleRoot)
         : new Uint8Array(),
-      nonce: isSet(object.nonce) ? Long.fromValue(object.nonce) : Long.UZERO,
+      nonce: isSet(object.nonce) ? String(object.nonce) : "0",
       medianTimestamp: isSet(object.medianTimestamp)
-        ? Long.fromValue(object.medianTimestamp)
-        : Long.ZERO,
+        ? String(object.medianTimestamp)
+        : "0",
     }
   },
 
@@ -1602,10 +1572,9 @@ export const BlockDetails = {
           ? message.merkleRoot
           : new Uint8Array(),
       ))
-    message.nonce !== undefined &&
-      (obj.nonce = (message.nonce || Long.UZERO).toString())
+    message.nonce !== undefined && (obj.nonce = message.nonce)
     message.medianTimestamp !== undefined &&
-      (obj.medianTimestamp = (message.medianTimestamp || Long.ZERO).toString())
+      (obj.medianTimestamp = message.medianTimestamp)
     return obj
   },
 
@@ -1615,20 +1584,19 @@ export const BlockDetails = {
     const message = createBaseBlockDetails()
     message.version = object.version ?? 0
     message.merkleRoot = object.merkleRoot ?? new Uint8Array()
-    message.nonce =
-      object.nonce !== undefined && object.nonce !== null
-        ? Long.fromValue(object.nonce)
-        : Long.UZERO
-    message.medianTimestamp =
-      object.medianTimestamp !== undefined && object.medianTimestamp !== null
-        ? Long.fromValue(object.medianTimestamp)
-        : Long.ZERO
+    message.nonce = object.nonce ?? "0"
+    message.medianTimestamp = object.medianTimestamp ?? "0"
     return message
   },
 }
 
 function createBaseBlock(): Block {
-  return { blockInfo: undefined, blockDetails: undefined, txs: [] }
+  return {
+    blockInfo: undefined,
+    blockDetails: undefined,
+    rawHeader: new Uint8Array(),
+    txs: [],
+  }
 }
 
 export const Block = {
@@ -1641,6 +1609,9 @@ export const Block = {
         message.blockDetails,
         writer.uint32(26).fork(),
       ).ldelim()
+    }
+    if (message.rawHeader.length !== 0) {
+      writer.uint32(34).bytes(message.rawHeader)
     }
     for (const v of message.txs) {
       Tx.encode(v!, writer.uint32(18).fork()).ldelim()
@@ -1661,6 +1632,9 @@ export const Block = {
         case 3:
           message.blockDetails = BlockDetails.decode(reader, reader.uint32())
           break
+        case 4:
+          message.rawHeader = reader.bytes()
+          break
         case 2:
           message.txs.push(Tx.decode(reader, reader.uint32()))
           break
@@ -1680,6 +1654,9 @@ export const Block = {
       blockDetails: isSet(object.blockDetails)
         ? BlockDetails.fromJSON(object.blockDetails)
         : undefined,
+      rawHeader: isSet(object.rawHeader)
+        ? bytesFromBase64(object.rawHeader)
+        : new Uint8Array(),
       txs: Array.isArray(object?.txs)
         ? object.txs.map((e: any) => Tx.fromJSON(e))
         : [],
@@ -1696,6 +1673,10 @@ export const Block = {
       (obj.blockDetails = message.blockDetails
         ? BlockDetails.toJSON(message.blockDetails)
         : undefined)
+    message.rawHeader !== undefined &&
+      (obj.rawHeader = base64FromBytes(
+        message.rawHeader !== undefined ? message.rawHeader : new Uint8Array(),
+      ))
     if (message.txs) {
       obj.txs = message.txs.map(e => (e ? Tx.toJSON(e) : undefined))
     } else {
@@ -1714,6 +1695,7 @@ export const Block = {
       object.blockDetails !== undefined && object.blockDetails !== null
         ? BlockDetails.fromPartial(object.blockDetails)
         : undefined
+    message.rawHeader = object.rawHeader ?? new Uint8Array()
     message.txs = object.txs?.map(e => Tx.fromPartial(e)) || []
     return message
   },
@@ -2233,7 +2215,7 @@ function createBaseTxInput(): TxInput {
     prevOut: undefined,
     inputScript: new Uint8Array(),
     outputScript: new Uint8Array(),
-    value: Long.ZERO,
+    value: "0",
     sequenceNo: 0,
     slpBurn: undefined,
     slpToken: undefined,
@@ -2254,7 +2236,7 @@ export const TxInput = {
     if (message.outputScript.length !== 0) {
       writer.uint32(26).bytes(message.outputScript)
     }
-    if (!message.value.isZero()) {
+    if (message.value !== "0") {
       writer.uint32(32).int64(message.value)
     }
     if (message.sequenceNo !== 0) {
@@ -2286,7 +2268,7 @@ export const TxInput = {
           message.outputScript = reader.bytes()
           break
         case 4:
-          message.value = reader.int64() as Long
+          message.value = longToString(reader.int64() as Long)
           break
         case 5:
           message.sequenceNo = reader.uint32()
@@ -2316,7 +2298,7 @@ export const TxInput = {
       outputScript: isSet(object.outputScript)
         ? bytesFromBase64(object.outputScript)
         : new Uint8Array(),
-      value: isSet(object.value) ? Long.fromValue(object.value) : Long.ZERO,
+      value: isSet(object.value) ? String(object.value) : "0",
       sequenceNo: isSet(object.sequenceNo) ? Number(object.sequenceNo) : 0,
       slpBurn: isSet(object.slpBurn)
         ? SlpBurn.fromJSON(object.slpBurn)
@@ -2345,8 +2327,7 @@ export const TxInput = {
           ? message.outputScript
           : new Uint8Array(),
       ))
-    message.value !== undefined &&
-      (obj.value = (message.value || Long.ZERO).toString())
+    message.value !== undefined && (obj.value = message.value)
     message.sequenceNo !== undefined &&
       (obj.sequenceNo = Math.round(message.sequenceNo))
     message.slpBurn !== undefined &&
@@ -2368,10 +2349,7 @@ export const TxInput = {
         : undefined
     message.inputScript = object.inputScript ?? new Uint8Array()
     message.outputScript = object.outputScript ?? new Uint8Array()
-    message.value =
-      object.value !== undefined && object.value !== null
-        ? Long.fromValue(object.value)
-        : Long.ZERO
+    message.value = object.value ?? "0"
     message.sequenceNo = object.sequenceNo ?? 0
     message.slpBurn =
       object.slpBurn !== undefined && object.slpBurn !== null
@@ -2387,7 +2365,7 @@ export const TxInput = {
 
 function createBaseTxOutput(): TxOutput {
   return {
-    value: Long.ZERO,
+    value: "0",
     outputScript: new Uint8Array(),
     slpToken: undefined,
     spentBy: undefined,
@@ -2399,7 +2377,7 @@ export const TxOutput = {
     message: TxOutput,
     writer: _m0.Writer = _m0.Writer.create(),
   ): _m0.Writer {
-    if (!message.value.isZero()) {
+    if (message.value !== "0") {
       writer.uint32(8).int64(message.value)
     }
     if (message.outputScript.length !== 0) {
@@ -2422,7 +2400,7 @@ export const TxOutput = {
       const tag = reader.uint32()
       switch (tag >>> 3) {
         case 1:
-          message.value = reader.int64() as Long
+          message.value = longToString(reader.int64() as Long)
           break
         case 2:
           message.outputScript = reader.bytes()
@@ -2443,7 +2421,7 @@ export const TxOutput = {
 
   fromJSON(object: any): TxOutput {
     return {
-      value: isSet(object.value) ? Long.fromValue(object.value) : Long.ZERO,
+      value: isSet(object.value) ? String(object.value) : "0",
       outputScript: isSet(object.outputScript)
         ? bytesFromBase64(object.outputScript)
         : new Uint8Array(),
@@ -2458,8 +2436,7 @@ export const TxOutput = {
 
   toJSON(message: TxOutput): unknown {
     const obj: any = {}
-    message.value !== undefined &&
-      (obj.value = (message.value || Long.ZERO).toString())
+    message.value !== undefined && (obj.value = message.value)
     message.outputScript !== undefined &&
       (obj.outputScript = base64FromBytes(
         message.outputScript !== undefined
@@ -2479,10 +2456,7 @@ export const TxOutput = {
 
   fromPartial<I extends Exact<DeepPartial<TxOutput>, I>>(object: I): TxOutput {
     const message = createBaseTxOutput()
-    message.value =
-      object.value !== undefined && object.value !== null
-        ? Long.fromValue(object.value)
-        : Long.ZERO
+    message.value = object.value ?? "0"
     message.outputScript = object.outputScript ?? new Uint8Array()
     message.slpToken =
       object.slpToken !== undefined && object.slpToken !== null
@@ -2497,7 +2471,7 @@ export const TxOutput = {
 }
 
 function createBaseBlockMetadata(): BlockMetadata {
-  return { height: 0, hash: new Uint8Array(), timestamp: Long.ZERO }
+  return { height: 0, hash: new Uint8Array(), timestamp: "0" }
 }
 
 export const BlockMetadata = {
@@ -2511,7 +2485,7 @@ export const BlockMetadata = {
     if (message.hash.length !== 0) {
       writer.uint32(18).bytes(message.hash)
     }
-    if (!message.timestamp.isZero()) {
+    if (message.timestamp !== "0") {
       writer.uint32(24).int64(message.timestamp)
     }
     return writer
@@ -2531,7 +2505,7 @@ export const BlockMetadata = {
           message.hash = reader.bytes()
           break
         case 3:
-          message.timestamp = reader.int64() as Long
+          message.timestamp = longToString(reader.int64() as Long)
           break
         default:
           reader.skipType(tag & 7)
@@ -2547,9 +2521,7 @@ export const BlockMetadata = {
       hash: isSet(object.hash)
         ? bytesFromBase64(object.hash)
         : new Uint8Array(),
-      timestamp: isSet(object.timestamp)
-        ? Long.fromValue(object.timestamp)
-        : Long.ZERO,
+      timestamp: isSet(object.timestamp) ? String(object.timestamp) : "0",
     }
   },
 
@@ -2560,8 +2532,7 @@ export const BlockMetadata = {
       (obj.hash = base64FromBytes(
         message.hash !== undefined ? message.hash : new Uint8Array(),
       ))
-    message.timestamp !== undefined &&
-      (obj.timestamp = (message.timestamp || Long.ZERO).toString())
+    message.timestamp !== undefined && (obj.timestamp = message.timestamp)
     return obj
   },
 
@@ -2571,10 +2542,7 @@ export const BlockMetadata = {
     const message = createBaseBlockMetadata()
     message.height = object.height ?? 0
     message.hash = object.hash ?? new Uint8Array()
-    message.timestamp =
-      object.timestamp !== undefined && object.timestamp !== null
-        ? Long.fromValue(object.timestamp)
-        : Long.ZERO
+    message.timestamp = object.timestamp ?? "0"
     return message
   },
 }
@@ -2646,7 +2614,7 @@ export const OutPoint = {
 }
 
 function createBaseSlpToken(): SlpToken {
-  return { amount: Long.UZERO, isMintBaton: false }
+  return { amount: "0", isMintBaton: false }
 }
 
 export const SlpToken = {
@@ -2654,7 +2622,7 @@ export const SlpToken = {
     message: SlpToken,
     writer: _m0.Writer = _m0.Writer.create(),
   ): _m0.Writer {
-    if (!message.amount.isZero()) {
+    if (message.amount !== "0") {
       writer.uint32(8).uint64(message.amount)
     }
     if (message.isMintBaton === true) {
@@ -2671,7 +2639,7 @@ export const SlpToken = {
       const tag = reader.uint32()
       switch (tag >>> 3) {
         case 1:
-          message.amount = reader.uint64() as Long
+          message.amount = longToString(reader.uint64() as Long)
           break
         case 2:
           message.isMintBaton = reader.bool()
@@ -2686,7 +2654,7 @@ export const SlpToken = {
 
   fromJSON(object: any): SlpToken {
     return {
-      amount: isSet(object.amount) ? Long.fromValue(object.amount) : Long.UZERO,
+      amount: isSet(object.amount) ? String(object.amount) : "0",
       isMintBaton: isSet(object.isMintBaton)
         ? Boolean(object.isMintBaton)
         : false,
@@ -2695,18 +2663,14 @@ export const SlpToken = {
 
   toJSON(message: SlpToken): unknown {
     const obj: any = {}
-    message.amount !== undefined &&
-      (obj.amount = (message.amount || Long.UZERO).toString())
+    message.amount !== undefined && (obj.amount = message.amount)
     message.isMintBaton !== undefined && (obj.isMintBaton = message.isMintBaton)
     return obj
   },
 
   fromPartial<I extends Exact<DeepPartial<SlpToken>, I>>(object: I): SlpToken {
     const message = createBaseSlpToken()
-    message.amount =
-      object.amount !== undefined && object.amount !== null
-        ? Long.fromValue(object.amount)
-        : Long.UZERO
+    message.amount = object.amount ?? "0"
     message.isMintBaton = object.isMintBaton ?? false
     return message
   },
@@ -3721,8 +3685,6 @@ type Builtin =
 
 export type DeepPartial<T> = T extends Builtin
   ? T
-  : T extends Long
-  ? string | number | Long
   : T extends Array<infer U>
   ? Array<DeepPartial<U>>
   : T extends ReadonlyArray<infer U>
@@ -3738,6 +3700,10 @@ export type Exact<P, I extends P> = P extends Builtin
         Exclude<keyof I, KeysOfUnion<P>>,
         never
       >
+
+function longToString(long: Long) {
+  return long.toString()
+}
 
 if (_m0.util.Long !== Long) {
   _m0.util.Long = Long as any
