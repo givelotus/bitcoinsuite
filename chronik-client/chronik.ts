@@ -239,6 +239,11 @@ export interface Utxo {
 export interface Token {
   slpTxData: SlpTxData | undefined
   tokenStats: TokenStats | undefined
+  block: BlockMetadata | undefined
+  timeFirstSeen: string
+  initialTokenQuantity: string
+  containsBaton: boolean
+  network: Network
 }
 
 export interface BlockInfo {
@@ -1223,7 +1228,15 @@ export const Utxo = {
 }
 
 function createBaseToken(): Token {
-  return { slpTxData: undefined, tokenStats: undefined }
+  return {
+    slpTxData: undefined,
+    tokenStats: undefined,
+    block: undefined,
+    timeFirstSeen: "0",
+    initialTokenQuantity: "0",
+    containsBaton: false,
+    network: 0,
+  }
 }
 
 export const Token = {
@@ -1233,6 +1246,21 @@ export const Token = {
     }
     if (message.tokenStats !== undefined) {
       TokenStats.encode(message.tokenStats, writer.uint32(18).fork()).ldelim()
+    }
+    if (message.block !== undefined) {
+      BlockMetadata.encode(message.block, writer.uint32(26).fork()).ldelim()
+    }
+    if (message.timeFirstSeen !== "0") {
+      writer.uint32(32).int64(message.timeFirstSeen)
+    }
+    if (message.initialTokenQuantity !== "0") {
+      writer.uint32(40).uint64(message.initialTokenQuantity)
+    }
+    if (message.containsBaton === true) {
+      writer.uint32(48).bool(message.containsBaton)
+    }
+    if (message.network !== 0) {
+      writer.uint32(56).int32(message.network)
     }
     return writer
   },
@@ -1250,6 +1278,21 @@ export const Token = {
         case 2:
           message.tokenStats = TokenStats.decode(reader, reader.uint32())
           break
+        case 3:
+          message.block = BlockMetadata.decode(reader, reader.uint32())
+          break
+        case 4:
+          message.timeFirstSeen = longToString(reader.int64() as Long)
+          break
+        case 5:
+          message.initialTokenQuantity = longToString(reader.uint64() as Long)
+          break
+        case 6:
+          message.containsBaton = reader.bool()
+          break
+        case 7:
+          message.network = reader.int32() as any
+          break
         default:
           reader.skipType(tag & 7)
           break
@@ -1266,6 +1309,19 @@ export const Token = {
       tokenStats: isSet(object.tokenStats)
         ? TokenStats.fromJSON(object.tokenStats)
         : undefined,
+      block: isSet(object.block)
+        ? BlockMetadata.fromJSON(object.block)
+        : undefined,
+      timeFirstSeen: isSet(object.timeFirstSeen)
+        ? String(object.timeFirstSeen)
+        : "0",
+      initialTokenQuantity: isSet(object.initialTokenQuantity)
+        ? String(object.initialTokenQuantity)
+        : "0",
+      containsBaton: isSet(object.containsBaton)
+        ? Boolean(object.containsBaton)
+        : false,
+      network: isSet(object.network) ? networkFromJSON(object.network) : 0,
     }
   },
 
@@ -1279,6 +1335,18 @@ export const Token = {
       (obj.tokenStats = message.tokenStats
         ? TokenStats.toJSON(message.tokenStats)
         : undefined)
+    message.block !== undefined &&
+      (obj.block = message.block
+        ? BlockMetadata.toJSON(message.block)
+        : undefined)
+    message.timeFirstSeen !== undefined &&
+      (obj.timeFirstSeen = message.timeFirstSeen)
+    message.initialTokenQuantity !== undefined &&
+      (obj.initialTokenQuantity = message.initialTokenQuantity)
+    message.containsBaton !== undefined &&
+      (obj.containsBaton = message.containsBaton)
+    message.network !== undefined &&
+      (obj.network = networkToJSON(message.network))
     return obj
   },
 
@@ -1292,6 +1360,14 @@ export const Token = {
       object.tokenStats !== undefined && object.tokenStats !== null
         ? TokenStats.fromPartial(object.tokenStats)
         : undefined
+    message.block =
+      object.block !== undefined && object.block !== null
+        ? BlockMetadata.fromPartial(object.block)
+        : undefined
+    message.timeFirstSeen = object.timeFirstSeen ?? "0"
+    message.initialTokenQuantity = object.initialTokenQuantity ?? "0"
+    message.containsBaton = object.containsBaton ?? false
+    message.network = object.network ?? 0
     return message
   },
 }

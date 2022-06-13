@@ -488,6 +488,12 @@ function convertToToken(token: proto.Token): Token {
   return {
     slpTxData: convertToSlpTokenTxData(token.slpTxData),
     tokenStats: token.tokenStats,
+    block:
+      token.block !== undefined ? convertToBlockMeta(token.block) : undefined,
+    timeFirstSeen: token.timeFirstSeen,
+    initialTokenQuantity: token.initialTokenQuantity,
+    containsBaton: token.containsBaton,
+    network: convertToNetwork(token.network),
   }
 }
 
@@ -754,6 +760,18 @@ export interface Token {
   slpTxData: SlpTokenTxData
   /** Current stats about this token, e.g. minted and burned amount. */
   tokenStats: TokenStats
+  /** Block the GENESIS transaction has been mined in, or undefined if not mined yet. */
+  block: BlockMetadata | undefined
+  /** UNIX timestamp when the GENESIS transaction has first been seen in the mempool.
+   * 0 if unknown. */
+  timeFirstSeen: string
+  /** How many tokens have been mined in the GENESIS transaction. */
+  initialTokenQuantity: string
+  /** Whether the GENESIS transaction created a mint baton.
+   * Note: This doesn't indicate whether the mint baton is still alive. */
+  containsBaton: boolean
+  /** Which network this token is on. */
+  network: Network
 }
 
 /** Block info about a block */

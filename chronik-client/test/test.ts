@@ -344,6 +344,15 @@ describe("/token/:tokenId", () => {
         txType: "GENESIS",
       },
     } as SlpTokenTxData)
+    expect(token.block).to.eql({
+      hash: "00000000000000002686aa5ffa8401c7ed67338fb9475561b2fa9817d6571da8",
+      height: 697721,
+      timestamp: "1627783243",
+    })
+    expect(token.timeFirstSeen).to.eql("0")
+    expect(token.initialTokenQuantity).to.eql("0")
+    expect(token.containsBaton).to.eql(true)
+    expect(token.network).to.eql("XEC")
   })
 })
 
