@@ -290,6 +290,20 @@ pub async fn test_token() -> Result<()> {
     let token_stats = token.token_stats.unwrap();
     assert!(!token_stats.total_minted.is_empty());
     assert!(!token_stats.total_burned.is_empty());
+    let block_hash =
+        Sha256d::from_hex_be("00000000000000002686aa5ffa8401c7ed67338fb9475561b2fa9817d6571da8")?;
+    assert_eq!(
+        token.block,
+        Some(proto::BlockMetadata {
+            hash: block_hash.as_slice().to_vec(),
+            height: 697721,
+            timestamp: 1627783243,
+        }),
+    );
+    assert_eq!(token.time_first_seen, 0);
+    assert_eq!(token.initial_token_quantity, 0);
+    assert_eq!(token.contains_baton, true);
+    assert_eq!(token.network, proto::Network::Xec.into());
     Ok(())
 }
 
