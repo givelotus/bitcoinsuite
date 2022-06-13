@@ -174,13 +174,13 @@ macro_rules! hash_algo {
 }
 
 hash_algo!(Sha1, 20, sha1::Sha1::digest);
-hash_algo!(Ripemd160, 20, ripemd160::Ripemd160::digest);
+hash_algo!(Ripemd160, 20, ripemd::Ripemd160::digest);
 hash_algo!(Sha256, 32, sha2::Sha256::digest);
 fn sha256d(data: &[u8]) -> [u8; 32] {
     sha2::Sha256::digest(&sha2::Sha256::digest(data)).into()
 }
 hash_algo!(Sha256d, 32, sha256d);
 fn sha_rmd160(data: &[u8]) -> [u8; 20] {
-    ripemd160::Ripemd160::digest(&sha2::Sha256::digest(data)).into()
+    ripemd::Ripemd160::digest(&sha2::Sha256::digest(data)).into()
 }
 hash_algo!(ShaRmd160, 20, sha_rmd160);
