@@ -8,7 +8,7 @@ use bitcoinsuite_test_utils_blockchain::{build_tx, setup_xec_chain};
 
 async fn test_txs() -> Result<(), Box<dyn std::error::Error>> {
     let redeem_script = Script::from_static_slice(&[0x51]);
-    let (bitcoind, _, mut utxos) = setup_xec_chain(13, &redeem_script).await?;
+    let (bitcoind, mut utxos) = setup_xec_chain(13, &redeem_script).await?;
 
     let ecc = EccSecp256k1::default();
     let seckey = ecc.seckey_from_array([1; 32])?;

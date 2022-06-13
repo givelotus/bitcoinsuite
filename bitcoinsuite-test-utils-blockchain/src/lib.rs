@@ -1,9 +1,5 @@
-use std::{ffi::OsString, str::FromStr, time::Duration};
+use std::{ffi::OsString, str::FromStr};
 
-use bitcoinsuite_bchd_grpc::{
-    bchd_grpc::GetBlockchainInfoRequest,
-    test_instance::{BchdTestConf, BchdTestInstance},
-};
 use bitcoinsuite_bitcoind::{
     cli::BitcoinCli,
     instance::{BitcoindChain, BitcoindConf, BitcoindInstance},
@@ -18,7 +14,7 @@ use bitcoinsuite_test_utils::bin_folder;
 pub async fn setup_xec_chain(
     num_generated_utxos: i32,
     redeem_script: &Script,
-) -> Result<(BitcoindInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
+) -> Result<(BitcoindInstance, Vec<(OutPoint, i64)>)> {
     let xec_args = vec![
         OsString::from_str("-uaclientname=Bitcoin NOT ABC").unwrap(),
         OsString::from_str("-ecash").unwrap(),
@@ -30,7 +26,7 @@ pub async fn setup_xec_chain(
 pub async fn setup_bch_chain(
     num_generated_utxos: i32,
     redeem_script: &Script,
-) -> Result<(BitcoindInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
+) -> Result<(BitcoindInstance, Vec<(OutPoint, i64)>)> {
     let bch_conf = BitcoindConf::from_chain_regtest(bin_folder(), BitcoindChain::BCH, vec![])?;
     setup_chain(Network::BCH, bch_conf, num_generated_utxos, redeem_script).await
 }
@@ -74,11 +70,9 @@ pub async fn setup_chain(
     bitcoind_conf: BitcoindConf,
     num_generated_utxos: i32,
     redeem_script: &Script,
-) -> Result<(BitcoindInstance, BchdTestInstance, Vec<(OutPoint, i64)>)> {
+) -> Result<(BitcoindInstance, Vec<(OutPoint, i64)>)> {
     let mut bitcoind = BitcoindInstance::setup(bitcoind_conf)?;
     bitcoind.wait_for_ready()?;
-    let bchd_conf = BchdTestConf::from_env(bitcoind.p2p_port(), vec![])?;
-    let mut bchd = BchdTestInstance::setup(bchd_conf).await?;
     let script_hash = redeem_script.to_p2sh();
     let address = bitcoind.cmd_json("decodescript", &[&redeem_script.hex()])?;
     let address = address["p2sh"].as_str().unwrap();
@@ -89,21 +83,7 @@ pub async fn setup_chain(
         address,
         &script_hash.hex(),
     )?;
-    for attempt in 0..100 {
-        if attempt == 100 {
-            panic!("Timeout waiting for blocks");
-        }
-        let blockchain_info = bchd
-            .client()
-            .get_blockchain_info(GetBlockchainInfoRequest::default())
-            .await?
-            .into_inner();
-        if blockchain_info.best_height == 100 + num_generated_utxos {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    Ok((bitcoind, bchd, utxos))
+    Ok((bitcoind, utxos))
 }
 
 pub fn build_tx(outpoint: OutPoint, redeem_script: &Script, outputs: Vec<TxOutput>) -> UnhashedTx {

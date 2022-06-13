@@ -1,8 +1,0 @@
-[tasks.build]
-dependencies = [
-    "ensure-bchd",
-]
-
-# make sure bchd executables are downloaded and built
-[tasks.ensure-bchd]
-script = { file = "ensure-bchd.sh" }
