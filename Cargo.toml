@@ -3,8 +3,6 @@
 members = [
     # Downloads latest BCH and XEC versions
     "bitcoinsuite-bitcoind",
-    # Downloads and builds bchd executables
-    "bitcoinsuite-bchd-grpc",
     # Builds flatbuffers
     "bitcoinsuite-bitcoind-nng",
 
