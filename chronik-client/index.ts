@@ -375,8 +375,18 @@ export class WsEndpoint {
         type: "Reorg",
         txid: toHexRev(msg.Reorg.txid),
       })
+    } else if (msg.BlockConnected) {
+      this.onMessage({
+        type: "BlockConnected",
+        blockHash: toHexRev(msg.BlockConnected.blockHash),
+      })
+    } else if (msg.BlockDisconnected) {
+      this.onMessage({
+        type: "BlockDisconnected",
+        blockHash: toHexRev(msg.BlockDisconnected.blockHash),
+      })
     } else {
-      throw new Error(`Unknown message: ${msg}`)
+      console.log("Silently ignored unknown Chronik message:", msg)
     }
   }
 }
@@ -1001,6 +1011,8 @@ export type SubscribeMsg =
   | MsgRemovedFromMempool
   | MsgConfirmed
   | MsgReorg
+  | MsgBlockConnected
+  | MsgBlockDisconnected
 
 /** A transaction has been added to the mempool. */
 export interface MsgAddedToMempool {
@@ -1033,6 +1045,20 @@ export interface MsgReorg {
   type: "Reorg"
   /** txid of the transaction, in 'human-readable' (big-endian) hex encoding. */
   txid: string
+}
+
+/** A new block has been added to the chain. Sent regardless of subscriptions. */
+export interface MsgBlockConnected {
+  type: "BlockConnected"
+  /** block hash of the block, in 'human-readable' (big-endian) hex encoding. */
+  blockHash: string
+}
+
+/** A block has been removed from the chain. Sent regardless of subscriptions. */
+export interface MsgBlockDisconnected {
+  type: "BlockDisconnected"
+  /** block hash of the block, in 'human-readable' (big-endian) hex encoding. */
+  blockHash: string
 }
 
 /** Reports an error, e.g. when a subscription is malformed. */
