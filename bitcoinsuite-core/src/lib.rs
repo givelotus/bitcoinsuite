@@ -13,6 +13,7 @@ mod hash;
 mod merkle;
 mod network;
 mod op;
+pub mod opcode;
 mod script;
 mod sequence;
 mod sighashtype;
