@@ -26,9 +26,15 @@ pub fn ser_script_num(value: i32) -> Bytes {
 pub fn build_bitcoin_coinbase(height: i32, script: Script) -> UnhashedTx {
     let value = 50_000_000_00i64 >> (height / 150);
     let script_sig = match height {
-        0 => Script::from_slice(&[0]),
-        1..=16 => Script::new([[0x6a].as_ref(), &[height as u8 + 0x50]].concat().into()),
-        _ => Script::opreturn(&[&ser_script_num(height)]),
+        // These heights are never checked anyway, we can put junk in here
+        0..=127 => Script::new([0xff, height as u8].into()),
+        _ => {
+            let mut script = BytesMut::new();
+            let num = ser_script_num(height);
+            script.put_slice(&[num.len() as u8]);
+            script.put_bytes(num);
+            Script::new(script.freeze())
+        }
     };
     UnhashedTx {
         version: 1,

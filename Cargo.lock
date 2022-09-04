@@ -140,7 +140,9 @@ name = "bitcoinsuite-core"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "bitcoinsuite-bitcoind",
  "bitcoinsuite-ecc-secp256k1",
+ "bitcoinsuite-test-utils",
  "bitcoinsuite-test-utils-blockchain",
  "bs58",
  "bytes",
