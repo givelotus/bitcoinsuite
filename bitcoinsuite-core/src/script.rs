@@ -200,7 +200,7 @@ impl Script {
 
     pub fn is_opreturn(&self) -> bool {
         self.bytecode
-            .get(0)
+            .first()
             .map(|&opcode| opcode == 0x6a)
             .unwrap_or_default()
     }

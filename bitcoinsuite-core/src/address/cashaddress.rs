@@ -21,7 +21,7 @@ pub struct CashAddress<'a> {
     prefix: Cow<'a, str>,
 }
 
-#[derive(Error, Clone, Copy, Debug, PartialEq)]
+#[derive(Error, Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CashAddressError {
     #[error("Invalid checksum")]
     InvalidChecksum,
