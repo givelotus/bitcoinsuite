@@ -1,4 +1,4 @@
-use crate::{BitcoinSuiteError, Bytes, BytesError, BytesMut, Result};
+use crate::{opcode::*, BitcoinSuiteError, Bytes, BytesError, BytesMut, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Op {
@@ -11,15 +11,15 @@ impl Op {
         let opcode = data.split_to(1)?[0];
         Ok(match opcode {
             0x01..=0x4b => Op::Push(opcode, data.split_to(opcode as usize)?),
-            0x4c => {
+            OP_PUSHDATA1 => {
                 let size = data.split_to(1)?[0] as usize;
                 Op::Push(opcode, data.split_to(size)?)
             }
-            0x4d => {
+            OP_PUSHDATA2 => {
                 let size = u16::from_le_bytes(data.split_to_array::<2>()?.array());
                 Op::Push(opcode, data.split_to(size as usize)?)
             }
-            0x4e => {
+            OP_PUSHDATA4 => {
                 let size = u32::from_le_bytes(data.split_to_array::<4>()?.array());
                 Op::Push(opcode, data.split_to(size as usize)?)
             }
@@ -34,9 +34,9 @@ impl Op {
                 data.put_slice(&[opcode]);
                 match opcode {
                     0x01..=0x4b => {}
-                    0x4c => data.put_slice(&[bytes.len() as u8]),
-                    0x4d => data.put_slice(&(bytes.len() as u16).to_le_bytes()),
-                    0x4e => data.put_slice(&(bytes.len() as u32).to_le_bytes()),
+                    OP_PUSHDATA1 => data.put_slice(&[bytes.len() as u8]),
+                    OP_PUSHDATA2 => data.put_slice(&(bytes.len() as u16).to_le_bytes()),
+                    OP_PUSHDATA4 => data.put_slice(&(bytes.len() as u32).to_le_bytes()),
                     _ => return Err(BitcoinSuiteError::InconsistentOpPush(opcode)),
                 };
                 data.put_slice(bytes);

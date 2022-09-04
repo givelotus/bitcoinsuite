@@ -1,6 +1,7 @@
 use crate::{
     bytes::Bytes,
     ecc::{PubKey, PUBKEY_LENGTH},
+    opcode::*,
     BitcoinCode, BitcoinSuiteError, BytesError, BytesMut, Hashed, Op, Result, ShaRmd160,
 };
 
@@ -59,15 +60,15 @@ impl Script {
 
     pub fn opreturn(data: &[&[u8]]) -> Self {
         let mut bytes = BytesMut::new();
-        bytes.put_slice(&[0x6a]);
+        bytes.put_slice(&[OP_RETURN as u8]);
         for &item in data {
             if item.is_empty() {
-                bytes.put_slice(&[0x4c, 0]);
-            } else if item.len() < 0x4c {
+                bytes.put_slice(&[OP_PUSHDATA1, 0]);
+            } else if item.len() < OP_PUSHDATA1 as usize {
                 bytes.put_slice(&[item.len() as u8]);
                 bytes.put_slice(item);
             } else {
-                bytes.put_slice(&[0x4c]);
+                bytes.put_slice(&[OP_PUSHDATA1]);
                 bytes.put_slice(&[item.len() as u8]);
                 bytes.put_slice(item);
             }
@@ -81,7 +82,7 @@ impl Script {
         let mut bytes = BytesMut::new();
         bytes.put_slice(&[0x21]);
         bytes.put_slice(pubkey.as_slice());
-        bytes.put_slice(&[0xac]);
+        bytes.put_slice(&[OP_CHECKSIG]);
         Script {
             bytecode: bytes.freeze(),
         }
@@ -91,7 +92,7 @@ impl Script {
         let mut bytes = BytesMut::new();
         bytes.put_slice(&[0x41]);
         bytes.put_slice(&pubkey);
-        bytes.put_slice(&[0xac]);
+        bytes.put_slice(&[OP_CHECKSIG]);
         Script {
             bytecode: bytes.freeze(),
         }
@@ -99,9 +100,9 @@ impl Script {
 
     pub fn p2pkh(hash: &ShaRmd160) -> Self {
         let mut bytes = BytesMut::new();
-        bytes.put_slice(&[0x76, 0xa9, 0x14]);
+        bytes.put_slice(&[OP_DUP, OP_HASH160, 0x14]);
         bytes.put_byte_array(hash.byte_array().clone());
-        bytes.put_slice(&[0x88, 0xac]);
+        bytes.put_slice(&[OP_EQUALVERIFY, OP_CHECKSIG]);
         Script {
             bytecode: bytes.freeze(),
         }
@@ -120,9 +121,9 @@ impl Script {
 
     pub fn p2sh(hash: &ShaRmd160) -> Self {
         let mut bytes = BytesMut::new();
-        bytes.put_slice(&[0xa9, 0x14]);
+        bytes.put_slice(&[OP_HASH160, 0x14]);
         bytes.put_byte_array(hash.byte_array().clone());
-        bytes.put_slice(&[0x87]);
+        bytes.put_slice(&[OP_EQUAL]);
         Script {
             bytecode: bytes.freeze(),
         }
@@ -141,7 +142,7 @@ impl Script {
         }
         assert!(num_keys != 0);
         assert!(num_keys <= 16);
-        bytes.put_slice(&[0x50 + num_keys as u8, 0xae]);
+        bytes.put_slice(&[0x50 + num_keys as u8, OP_CHECKMULTISIG]);
         Script {
             bytecode: bytes.freeze(),
         }
@@ -149,7 +150,7 @@ impl Script {
 
     pub fn p2tr(commitment: &PubKey, state: Option<[u8; 32]>) -> Self {
         let mut bytes = BytesMut::new();
-        bytes.put_slice(&[0x62, 0x51, 0x21]);
+        bytes.put_slice(&[OP_SCRIPTTYPE, OP_1, 0x21]);
         bytes.put_slice(commitment.as_slice());
         if let Some(state) = state {
             bytes.put_slice(&[0x20]);
@@ -185,23 +186,17 @@ impl Script {
     }
 
     pub fn to_p2sh(&self) -> Self {
-        let mut bytes = BytesMut::new();
-        bytes.put_slice(&[0xa9, 0x14]);
-        bytes.put_slice(ShaRmd160::digest(self.bytecode.clone()).as_slice());
-        bytes.put_slice(&[0x87]);
-        Script {
-            bytecode: bytes.freeze(),
-        }
+        Script::p2sh(&ShaRmd160::digest(self.bytecode.clone()))
     }
 
     pub fn is_p2sh(&self) -> bool {
-        matches!(self.bytecode.as_ref(), [0xa9, 0x14, hash @ .., 0x87] if hash.len() == 20)
+        matches!(self.bytecode.as_ref(), [OP_HASH160, 0x14, hash @ .., OP_EQUAL] if hash.len() == 20)
     }
 
     pub fn is_opreturn(&self) -> bool {
         self.bytecode
             .first()
-            .map(|&opcode| opcode == 0x6a)
+            .map(|&opcode| opcode == OP_RETURN)
             .unwrap_or_default()
     }
 
@@ -210,7 +205,7 @@ impl Script {
             let mut n_codeseps_found = 0;
             let mut ops = self.ops();
             while let Some(op) = ops.next() {
-                if let Op::Code(0xab) = op? {
+                if let Op::Code(OP_CODESEPARATOR) = op? {
                     if n_codesep == n_codeseps_found {
                         return Ok(Script::new(ops.remaining_bytecode));
                     }
@@ -224,19 +219,21 @@ impl Script {
 
     pub fn parse_variant(&self) -> ScriptVariant {
         match self.bytecode.as_ref() {
-            [0x21, pubkey @ .., 0xac] if pubkey.len() == PUBKEY_LENGTH => {
+            [0x21, pubkey @ .., OP_CHECKSIG] if pubkey.len() == PUBKEY_LENGTH => {
                 ScriptVariant::P2PK(PubKey::new_unchecked(pubkey.try_into().unwrap()))
             }
-            [0x41, pubkey @ .., 0xac] if pubkey.len() == 65 => {
+            [0x41, pubkey @ .., OP_CHECKSIG] if pubkey.len() == 65 => {
                 ScriptVariant::P2PKLegacy(pubkey.try_into().unwrap())
             }
-            [0x76, 0xa9, 0x14, hash @ .., 0x88, 0xac] if hash.len() == 20 => {
+            [OP_DUP, OP_HASH160, 0x14, hash @ .., OP_EQUALVERIFY, OP_CHECKSIG]
+                if hash.len() == 20 =>
+            {
                 ScriptVariant::P2PKH(ShaRmd160::from_slice(hash).unwrap())
             }
-            [0xa9, 0x14, hash @ .., 0x87] if hash.len() == 20 => {
+            [OP_HASH160, 0x14, hash @ .., OP_EQUAL] if hash.len() == 20 => {
                 ScriptVariant::P2SH(ShaRmd160::from_slice(hash).unwrap())
             }
-            [0x62, 0x51, 0x21, rest @ ..] if rest.len() >= PUBKEY_LENGTH => {
+            [OP_SCRIPTTYPE, OP_1, 0x21, rest @ ..] if rest.len() >= PUBKEY_LENGTH => {
                 let commitment = &rest[..PUBKEY_LENGTH];
                 let state = match &rest[PUBKEY_LENGTH..] {
                     [] => None,
@@ -281,11 +278,13 @@ impl Iterator for ScriptOpIter {
 mod tests {
     use hex_literal::hex;
 
-    use crate::{ecc::PubKey, BitcoinSuiteError, Hashed, Script, ScriptVariant, ShaRmd160};
+    use crate::{
+        ecc::PubKey, opcode::*, BitcoinSuiteError, Hashed, Script, ScriptVariant, ShaRmd160,
+    };
 
     #[test]
     fn test_cut_out_codesep_without() -> Result<(), Box<dyn std::error::Error>> {
-        let script = Script::from_slice(&[0x51, 0x52, 0x93, 0x53, 0x87]);
+        let script = Script::from_slice(&[OP_1, OP_2, OP_ADD, OP_3, OP_EQUAL]);
         assert_eq!(script.cut_out_codesep(None)?, script);
         for i in 0..100 {
             match script.cut_out_codesep(Some(i)) {
@@ -298,24 +297,50 @@ mod tests {
 
     #[test]
     fn test_cut_out_codesep() -> Result<(), Box<dyn std::error::Error>> {
-        let script =
-            Script::from_slice(&[0x51, 0xab, 0x52, 0xab, 0xab, 0x93, 0x53, 0xab, 0x87, 0xab]);
+        let script = Script::from_slice(&[
+            OP_1,
+            OP_CODESEPARATOR,
+            OP_2,
+            OP_CODESEPARATOR,
+            OP_CODESEPARATOR,
+            OP_ADD,
+            OP_3,
+            OP_CODESEPARATOR,
+            OP_EQUAL,
+            OP_CODESEPARATOR,
+        ]);
         assert_eq!(script.cut_out_codesep(None)?, script);
         assert_eq!(
             script.cut_out_codesep(Some(0))?,
-            Script::from_slice(&[0x52, 0xab, 0xab, 0x93, 0x53, 0xab, 0x87, 0xab])
+            Script::from_slice(&[
+                OP_2,
+                OP_CODESEPARATOR,
+                OP_CODESEPARATOR,
+                OP_ADD,
+                OP_3,
+                OP_CODESEPARATOR,
+                OP_EQUAL,
+                OP_CODESEPARATOR
+            ])
         );
         assert_eq!(
             script.cut_out_codesep(Some(1))?,
-            Script::from_slice(&[0xab, 0x93, 0x53, 0xab, 0x87, 0xab])
+            Script::from_slice(&[
+                OP_CODESEPARATOR,
+                OP_ADD,
+                OP_3,
+                OP_CODESEPARATOR,
+                OP_EQUAL,
+                OP_CODESEPARATOR
+            ])
         );
         assert_eq!(
             script.cut_out_codesep(Some(2))?,
-            Script::from_slice(&[0x93, 0x53, 0xab, 0x87, 0xab])
+            Script::from_slice(&[OP_ADD, OP_3, OP_CODESEPARATOR, OP_EQUAL, OP_CODESEPARATOR])
         );
         assert_eq!(
             script.cut_out_codesep(Some(3))?,
-            Script::from_slice(&[0x87, 0xab])
+            Script::from_slice(&[OP_EQUAL, OP_CODESEPARATOR])
         );
         assert_eq!(script.cut_out_codesep(Some(4))?, Script::from_slice(&[]));
         match script.cut_out_codesep(Some(5)) {

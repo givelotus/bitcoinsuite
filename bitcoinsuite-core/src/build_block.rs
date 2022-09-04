@@ -1,5 +1,5 @@
 use crate::{
-    lotus_txid, BitcoinBlock, BitcoinHeader, Bytes, BytesMut, LotusBlock, LotusHeader,
+    lotus_txid, opcode::*, BitcoinBlock, BitcoinHeader, Bytes, BytesMut, LotusBlock, LotusHeader,
     LotusMetadataField, OutPoint, Script, SequenceNo, Sha256d, Tx, TxInput, TxOutput, UnhashedTx,
 };
 
@@ -63,7 +63,7 @@ pub fn build_lotus_coinbase(height: i32, script: Script) -> UnhashedTx {
     let opreturn = match height {
         0 => Script::from_static_slice(b"\x05logos\0"),
         1..=16 => Script::new(
-            [[0x6a].as_ref(), b"\x05logos", &[height as u8 + 0x50]]
+            [[OP_RETURN].as_ref(), b"\x05logos", &[height as u8 + 0x50]]
                 .concat()
                 .into(),
         ),

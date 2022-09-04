@@ -1,4 +1,4 @@
-use bitcoinsuite_core::{ByteArray, Bytes, Op, Sha256d, UnhashedTx};
+use bitcoinsuite_core::{opcode::*, ByteArray, Bytes, Op, Sha256d, UnhashedTx};
 
 use crate::{
     consts::{
@@ -97,7 +97,7 @@ fn parse_opreturn_ops(ops: impl Iterator<Item = Op>) -> Result<Vec<Bytes>, SlpEr
     for (op_idx, op) in ops.into_iter().enumerate() {
         // first opcode must be OP_RETURN
         match (op_idx, &op) {
-            (0, Op::Code(0x6a)) => continue,
+            (0, Op::Code(OP_RETURN)) => continue,
             (0, &Op::Code(opcode)) | (0, &Op::Push(opcode, _)) => {
                 return Err(SlpError::MissingOpReturn { opcode })
             }
@@ -105,13 +105,13 @@ fn parse_opreturn_ops(ops: impl Iterator<Item = Op>) -> Result<Vec<Bytes>, SlpEr
         }
         match op {
             Op::Code(opcode) => {
-                if opcode == 0 || (0x4f..=0x60).contains(&opcode) {
+                if opcode == 0 || (OP_1NEGATE..=OP_16).contains(&opcode) {
                     return Err(SlpError::DisallowedPush { op_idx, opcode });
                 }
                 return Err(SlpError::NonPushOp { op_idx, opcode });
             }
             Op::Push(opcode, push) => {
-                if opcode == 0 || opcode > 0x4e {
+                if opcode == OP_0 || opcode > OP_PUSHDATA4 {
                     return Err(SlpError::DisallowedPush { op_idx, opcode });
                 }
                 pushes.push(push);
@@ -124,7 +124,7 @@ fn parse_opreturn_ops(ops: impl Iterator<Item = Op>) -> Result<Vec<Bytes>, SlpEr
 fn parse_lokad_id(ops: &[Op]) -> Result<(), SlpError> {
     match ops.get(0) {
         Some(op) => match op {
-            Op::Code(0x6a) => {}
+            Op::Code(OP_RETURN) => {}
             &Op::Code(opcode) | &Op::Push(opcode, _) => {
                 return Err(SlpError::MissingOpReturn { opcode });
             }
