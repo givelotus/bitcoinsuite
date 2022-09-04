@@ -255,7 +255,7 @@ fn parse_genesis_data(
         })),
         outputs: ParsedOutputs::MintTokens {
             baton_out_idx: mint_baton_out_idx
-                .get(0)
+                .first()
                 .map(|&mint_baton_out_idx| mint_baton_out_idx as usize),
             mint_quantity: initial_quantity,
         },
@@ -308,7 +308,7 @@ fn parse_mint_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpError
         slp_tx_type: SlpTxType::Mint,
         outputs: ParsedOutputs::MintTokens {
             baton_out_idx: mint_baton_out_idx
-                .get(0)
+                .first()
                 .map(|&mint_baton_out_idx| mint_baton_out_idx as usize),
             mint_quantity: additional_quantity,
         },

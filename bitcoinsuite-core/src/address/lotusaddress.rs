@@ -19,7 +19,7 @@ pub enum LotusAddressType {
     OutputScript = 0,
 }
 
-#[derive(Error, Clone, Debug, PartialEq)]
+#[derive(Error, Clone, Debug, Eq, PartialEq)]
 pub enum LotusAddressError {
     #[error("Missing prefix")]
     MissingPrefix,
@@ -123,7 +123,7 @@ impl FromStr for LotusAddress {
         let data_b58 = &s[prefix.len() + 1..];
         let data = bs58::decode(&data_b58).into_vec().map_err(InvalidBase58)?;
         // First byte indicates payload type. Currently only "0" is supported
-        let payload_type = *data.get(0).ok_or(MissingBase58)?;
+        let payload_type = *data.first().ok_or(MissingBase58)?;
         if payload_type != 0 {
             return Err(InvalidPayloadType(payload_type));
         }

@@ -11,7 +11,7 @@ pub fn read_compact_size(bytes: &mut Bytes) -> Result<u64, BytesError> {
 }
 
 pub fn read_compact_size_slice(slice: &[u8]) -> Option<(usize, u64)> {
-    let first_byte = *slice.get(0)?;
+    let first_byte = *slice.first()?;
     match first_byte {
         0..=0xfc => Some((1, first_byte as u64)),
         0xfd => Some((
