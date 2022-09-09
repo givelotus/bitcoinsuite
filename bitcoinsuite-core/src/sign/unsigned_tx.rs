@@ -17,6 +17,13 @@ pub struct UnsignedTxInput<'tx> {
     unsigned_tx: &'tx mut UnsignedTx,
 }
 
+#[derive(Debug, Clone)]
+pub struct SighashPreimage {
+    pub bytes: Bytes,
+    pub script_code: Script,
+    pub redeem_script: Script,
+}
+
 impl UnsignedTx {
     pub fn new(tx: UnhashedTx) -> Self {
         UnsignedTx {
@@ -73,7 +80,7 @@ impl<'tx> UnsignedTxInput<'tx> {
         &self,
         sig_hash_type: SigHashType,
         codesep_idx: Option<usize>,
-    ) -> Result<Bytes> {
+    ) -> Result<SighashPreimage> {
         if sig_hash_type.variant != SigHashTypeVariant::Bip143 {
             return Err(SignError::InvalidSigHashType(sig_hash_type));
         }
@@ -83,8 +90,8 @@ impl<'tx> UnsignedTxInput<'tx> {
             Some(sign_data) => sign_data,
             None => return Err(SignError::NoSignData),
         };
-        let script_code = sign_data
-            .find_script_code()?
+        let redeem_script = sign_data.find_script_code()?;
+        let script_code = redeem_script
             .cut_out_codesep(codesep_idx)
             .map_err(|err| match err {
                 BitcoinSuiteError::Bytes(_) => SignError::InvalidScriptEncoding,
@@ -122,7 +129,11 @@ impl<'tx> UnsignedTxInput<'tx> {
         });
         preimage.put_bytes(tx.lock_time.ser());
         preimage.put_bytes(sig_hash_type.to_u32().ser());
-        Ok(preimage.freeze())
+        Ok(SighashPreimage {
+            bytes: preimage.freeze(),
+            script_code,
+            redeem_script,
+        })
     }
 }
 
@@ -217,7 +228,7 @@ mod tests {
         let mut unsigned_tx = UnsignedTx::new(tx);
         let input = unsigned_tx.input_at(0);
         {
-            let preimage = input.sighash_preimage(SigHashType::ALL_BIP143, None)?;
+            let preimage = input.sighash_preimage(SigHashType::ALL_BIP143, None)?.bytes;
             assert_eq!(
                 preimage.hex(),
                 "01000000\
@@ -233,7 +244,9 @@ mod tests {
             );
         }
         {
-            let preimage = input.sighash_preimage(SigHashType::NONE_BIP143, None)?;
+            let preimage = input
+                .sighash_preimage(SigHashType::NONE_BIP143, None)?
+                .bytes;
             println!("{}", preimage.hex());
             assert_eq!(
                 preimage.hex(),
@@ -250,7 +263,9 @@ mod tests {
             );
         }
         {
-            let preimage = input.sighash_preimage(SigHashType::SINGLE_BIP143, None)?;
+            let preimage = input
+                .sighash_preimage(SigHashType::SINGLE_BIP143, None)?
+                .bytes;
             println!("{}", preimage.hex());
             assert_eq!(
                 preimage.hex(),
@@ -267,7 +282,9 @@ mod tests {
             );
         }
         {
-            let preimage = input.sighash_preimage(SigHashType::ALL_BIP143_ANYONECANPAY, None)?;
+            let preimage = input
+                .sighash_preimage(SigHashType::ALL_BIP143_ANYONECANPAY, None)?
+                .bytes;
             assert_eq!(
                 preimage.hex(),
                 "01000000\
@@ -283,7 +300,9 @@ mod tests {
             );
         }
         {
-            let preimage = input.sighash_preimage(SigHashType::NONE_BIP143_ANYONECANPAY, None)?;
+            let preimage = input
+                .sighash_preimage(SigHashType::NONE_BIP143_ANYONECANPAY, None)?
+                .bytes;
             println!("{}", preimage.hex());
             assert_eq!(
                 preimage.hex(),
@@ -300,7 +319,9 @@ mod tests {
             );
         }
         {
-            let preimage = input.sighash_preimage(SigHashType::SINGLE_BIP143_ANYONECANPAY, None)?;
+            let preimage = input
+                .sighash_preimage(SigHashType::SINGLE_BIP143_ANYONECANPAY, None)?
+                .bytes;
             println!("{}", preimage.hex());
             assert_eq!(
                 preimage.hex(),
@@ -342,7 +363,7 @@ mod tests {
         let mut unsigned_tx = UnsignedTx::new(tx);
         let input = unsigned_tx.input_at(0);
         {
-            let preimage = input.sighash_preimage(SigHashType::ALL_BIP143, None)?;
+            let preimage = input.sighash_preimage(SigHashType::ALL_BIP143, None)?.bytes;
             assert_eq!(
                 preimage.hex(),
                 "01000000\
@@ -358,7 +379,9 @@ mod tests {
             );
         }
         {
-            let preimage = input.sighash_preimage(SigHashType::ALL_BIP143, Some(0))?;
+            let preimage = input
+                .sighash_preimage(SigHashType::ALL_BIP143, Some(0))?
+                .bytes;
             assert_eq!(
                 preimage.hex(),
                 "01000000\
@@ -374,7 +397,9 @@ mod tests {
             );
         }
         {
-            let preimage = input.sighash_preimage(SigHashType::ALL_BIP143, Some(1))?;
+            let preimage = input
+                .sighash_preimage(SigHashType::ALL_BIP143, Some(1))?
+                .bytes;
             assert_eq!(
                 preimage.hex(),
                 "01000000\
