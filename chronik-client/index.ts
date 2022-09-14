@@ -541,7 +541,7 @@ function convertToTxOutput(output: proto.TxOutput): TxOutput {
     spentBy:
       output.spentBy !== undefined
         ? {
-            txid: toHex(output.spentBy.txid),
+            txid: toHexRev(output.spentBy.txid),
             outIdx: output.spentBy.outIdx,
           }
         : undefined,
