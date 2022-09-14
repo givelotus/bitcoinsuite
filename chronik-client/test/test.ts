@@ -257,7 +257,7 @@ describe("/tx/:txid", () => {
           isMintBaton: false,
         },
         spentBy: {
-          txid: "49f169bed257f9c6dfae441a7de3af2ecf2ba9e9fbdf29c1066da3b19dce2a96",
+          txid: "962ace9db1a36d06c129dffbe9a92bcf2eafe37d1a44aedfc6f957d2be69f149",
           outIdx: 0,
         },
         value: "546",
@@ -269,7 +269,7 @@ describe("/tx/:txid", () => {
           isMintBaton: false,
         },
         spentBy: {
-          txid: "f8f62d4df98001ff8d9936d046debbf30dce87d82901812739b4c549425ece11",
+          txid: "11ce5e4249c5b43927810129d887ce0df3bbde46d036998dff0180f94d2df6f8",
           outIdx: 0,
         },
         value: "546",
@@ -278,7 +278,7 @@ describe("/tx/:txid", () => {
         outputScript: "76a914d15b9793d6af77663f8acf7e2c884f114ef901da88ac",
         slpToken: undefined,
         spentBy: {
-          txid: "f8f62d4df98001ff8d9936d046debbf30dce87d82901812739b4c549425ece11",
+          txid: "11ce5e4249c5b43927810129d887ce0df3bbde46d036998dff0180f94d2df6f8",
           outIdx: 1,
         },
         value: "98938",
