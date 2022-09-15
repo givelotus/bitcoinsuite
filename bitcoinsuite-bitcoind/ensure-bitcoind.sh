@@ -67,34 +67,12 @@ osxabc() {
 
 linuxbch() {
     # Download Linux BCH
-    linuxBCH=$(
-        curl -s "https://github.com/bitcoin-cash-node/bitcoin-cash-node/releases" |\
-            sed -n -E '
-                /<a href="\/bitcoin-cash/{
-                    /x86_64-linux-gnu.tar/{
-                        s/[[:space:]]*<a href="([^"]*)".*/\1/
-                        p
-                        q
-                    }
-                }'
-    )
-    
-    filename=${linuxBCH##*/}
 
-    read oldfilename < "$dloc/bchversion"
-
-    if [ "$oldfilename" = "$filename" ]
-    then
-        echo "bitcoin cash node already latest version"
-    else
-        wget -q --show-progress -P "$dloc/bitcoin-cash-node/" "https://github.com$linuxBCH"
-        tar xvf $dloc/bitcoin-cash-node/*tar.gz -C $dloc/bitcoin-cash-node
-        mv $dloc/bitcoin-cash-node/*/* $dloc/bitcoin-cash-node/
-        find $dloc/bitcoin-cash-node/ -empty -type d -delete
-        rm $dloc/bitcoin-cash-node/*tar.gz
-    fi
-
-    echo "$filename" > "$dloc/bchversion"
+    wget -q -P "$dloc/bitcoin-cash-node/" "https://github.com/bitcoin-cash-node/bitcoin-cash-node/releases/download/v24.0.0/bitcoin-cash-node-24.0.0-x86_64-linux-gnu.tar.gz"
+    tar xvf $dloc/bitcoin-cash-node/*tar.gz -C $dloc/bitcoin-cash-node
+    mv $dloc/bitcoin-cash-node/*/* $dloc/bitcoin-cash-node/
+    find $dloc/bitcoin-cash-node/ -empty -type d -delete
+    rm $dloc/bitcoin-cash-node/*tar.gz
 }
 
 linuxabc() {
