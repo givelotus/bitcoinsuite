@@ -16,6 +16,9 @@ bitcoinsuite-error = { path = "../bitcoinsuite-error" }
 bitcoinsuite-core = { path = "../bitcoinsuite-core" }
 bitcoinsuite-bitcoind = { path = "../bitcoinsuite-bitcoind" }
 
+# Async runtime
+tokio = { version = "1.14", features = ["full"] }
+
 [dev-dependencies]
 hex = "0.4"
 json = "0.12"
