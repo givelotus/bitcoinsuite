@@ -13,7 +13,7 @@ use thiserror::Error;
 #[derive(Debug, Clone)]
 pub struct ChronikClient {
     http_url: String,
-    _ws_url: String,
+    ws_url: String,
     client: reqwest::Client,
 }
 
@@ -82,9 +82,13 @@ impl ChronikClient {
         let ws_url = ws_url + "/ws";
         Ok(ChronikClient {
             http_url: url,
-            _ws_url: ws_url,
+            ws_url,
             client: reqwest::Client::new(),
         })
+    }
+
+    pub fn ws_url(&self) -> &str {
+        &self.ws_url
     }
 
     pub async fn broadcast_tx(&self, raw_tx: Vec<u8>) -> Result<proto::BroadcastTxResponse> {
