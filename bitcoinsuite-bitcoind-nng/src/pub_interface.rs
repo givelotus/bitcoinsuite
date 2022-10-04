@@ -8,6 +8,7 @@ use nng::{
     Protocol, Socket,
 };
 use thiserror::Error;
+use tokio::sync::mpsc;
 
 use crate::{
     nng_interface_generated::nng_interface::{
@@ -28,6 +29,10 @@ pub enum PubInterfaceError {
     #[bug()]
     #[error("Invalid pub message: {0:?}")]
     InvalidPubMessage(nng::Message),
+
+    #[bug()]
+    #[error("No message received by NNG")]
+    NoMessageReceived,
 }
 
 use self::PubInterfaceError::*;
@@ -56,9 +61,27 @@ impl PubInterface {
         Ok(())
     }
 
+    pub async fn recv_async(&self) -> Result<structs::Message> {
+        let (sender, mut receiver) = mpsc::unbounded_channel::<nng::AioResult>();
+        let aio = nng::Aio::new(move |_, result| {
+            sender.send(result).unwrap();
+        })?;
+        self.sock.recv_async(&aio)?;
+        let result = receiver.recv().await.ok_or(NoMessageReceived)?;
+        let msg = match result {
+            nng::AioResult::Recv(msg) => msg?,
+            _ => unreachable!(),
+        };
+        self.parse_msg(msg)
+    }
+
     pub fn recv(&self) -> Result<structs::Message> {
-        const PREFIX_LEN: usize = 12;
         let msg = self.sock.recv()?;
+        self.parse_msg(msg)
+    }
+
+    fn parse_msg(&self, msg: nng::Message) -> Result<structs::Message> {
+        const PREFIX_LEN: usize = 12;
         if msg.len() < PREFIX_LEN {
             eprintln!("Message has invalid length: {}", msg.len());
             return Err(InvalidPubMessage(msg).into());
@@ -122,8 +145,8 @@ mod tests {
 
     use crate::{Message, PubInterface};
 
-    #[test]
-    fn test_pub() -> Result<()> {
+    #[tokio::test]
+    async fn test_pub() -> Result<()> {
         bitcoinsuite_error::install()?;
         let ipc_dir = TempDir::new("ipc_pub_dir")?;
         let pub_url = format!(
@@ -141,24 +164,36 @@ mod tests {
         let mut instance = BitcoindInstance::setup(conf)?;
         instance.wait_for_ready()?;
         let pub_interface = PubInterface::open(&pub_url)?;
-        test_update_block_tip(&mut instance, &pub_interface)?;
+        test_update_block_tip(&mut instance, &pub_interface).await?;
         instance.cleanup()?;
         Ok(())
     }
 
-    fn test_update_block_tip(
+    async fn test_update_block_tip(
         instance: &mut BitcoindInstance,
         pub_interface: &PubInterface,
     ) -> Result<()> {
         pub_interface.subscribe("updateblktip")?;
         let address = CashAddress::from_hash(BCHREG, AddressType::P2SH, ShaRmd160::new([0; 20]));
-        let hashes = instance.cmd_json("generatetoaddress", &["1", address.as_str()])?;
-        let msg = pub_interface.recv()?;
-        match msg {
-            Message::UpdatedBlockTip(msg) => {
-                assert_eq!(&msg.block_hash.to_hex_be(), hashes[0].as_str().unwrap());
+        {
+            let hashes = instance.cmd_json("generatetoaddress", &["1", address.as_str()])?;
+            let msg = pub_interface.recv()?;
+            match msg {
+                Message::UpdatedBlockTip(msg) => {
+                    assert_eq!(&msg.block_hash.to_hex_be(), hashes[0].as_str().unwrap());
+                }
+                _ => panic!("Invalid message received"),
             }
-            _ => panic!("Invalid message received"),
+        }
+        {
+            let hashes = instance.cmd_json("generatetoaddress", &["1", address.as_str()])?;
+            let msg = pub_interface.recv_async().await?;
+            match msg {
+                Message::UpdatedBlockTip(msg) => {
+                    assert_eq!(&msg.block_hash.to_hex_be(), hashes[0].as_str().unwrap());
+                }
+                _ => panic!("Invalid message received"),
+            }
         }
         Ok(())
     }
