@@ -61,6 +61,34 @@ impl SigHashType {
     pub fn to_u32(&self) -> u32 {
         self.input_type.to_u32() | self.output_type.to_u32() | self.variant.to_u32()
     }
+
+    pub fn from_u32(flags: u32) -> Option<SigHashType> {
+        if flags & 0xffff_ff00 != 0 {
+            return None;
+        }
+        let variant = match flags & 0x7c {
+            0 => SigHashTypeVariant::Legacy,
+            0x40 => SigHashTypeVariant::Bip143,
+            _ => return None,
+        };
+        let input_type = match flags & 0x80 {
+            0 => SigHashTypeInputs::Fixed,
+            0x80 => SigHashTypeInputs::AnyoneCanPay,
+            _ => unreachable!(),
+        };
+        let output_type = match flags & 0x03 {
+            0 => return None,
+            1 => SigHashTypeOutputs::All,
+            2 => SigHashTypeOutputs::None,
+            3 => SigHashTypeOutputs::Single,
+            _ => unreachable!(),
+        };
+        Some(SigHashType {
+            variant,
+            input_type,
+            output_type,
+        })
+    }
 }
 
 impl SigHashTypeInputs {
@@ -110,7 +138,7 @@ impl Display for SigHashType {
 
 #[cfg(test)]
 mod tests {
-    use crate::SigHashType;
+    use crate::{SigHashType, SigHashTypeInputs, SigHashTypeOutputs, SigHashTypeVariant};
 
     #[test]
     fn test_sighash_display() {
@@ -139,5 +167,53 @@ mod tests {
         assert_eq!(SigHashType::ALL_BIP143_ANYONECANPAY.to_u32(), 0xc1);
         assert_eq!(SigHashType::NONE_BIP143_ANYONECANPAY.to_u32(), 0xc2);
         assert_eq!(SigHashType::SINGLE_BIP143_ANYONECANPAY.to_u32(), 0xc3);
+    }
+
+    #[test]
+    fn test_sighash_from_u32() {
+        assert_eq!(SigHashType::from_u32(0xdead0041), None);
+        assert_eq!(SigHashType::from_u32(0x21), None);
+        assert_eq!(SigHashType::from_u32(0x11), None);
+        assert_eq!(SigHashType::from_u32(0x00), None);
+        assert_eq!(SigHashType::from_u32(0x40), None);
+        assert_eq!(SigHashType::from_u32(0x41), Some(SigHashType::ALL_BIP143));
+        assert_eq!(SigHashType::from_u32(0x42), Some(SigHashType::NONE_BIP143));
+        assert_eq!(
+            SigHashType::from_u32(0x43),
+            Some(SigHashType::SINGLE_BIP143),
+        );
+        assert_eq!(
+            SigHashType::from_u32(0xc1),
+            Some(SigHashType::ALL_BIP143_ANYONECANPAY),
+        );
+        assert_eq!(
+            SigHashType::from_u32(0xc2),
+            Some(SigHashType::NONE_BIP143_ANYONECANPAY),
+        );
+        assert_eq!(
+            SigHashType::from_u32(0xc3),
+            Some(SigHashType::SINGLE_BIP143_ANYONECANPAY),
+        );
+        {
+            use SigHashTypeInputs::*;
+            use SigHashTypeOutputs::*;
+            for (sighash, input_type, output_type) in [
+                (0x01, Fixed, All),
+                (0x02, Fixed, None),
+                (0x03, Fixed, Single),
+                (0x81, AnyoneCanPay, All),
+                (0x82, AnyoneCanPay, None),
+                (0x83, AnyoneCanPay, Single),
+            ] {
+                assert_eq!(
+                    SigHashType::from_u32(sighash),
+                    Some(SigHashType {
+                        variant: SigHashTypeVariant::Legacy,
+                        input_type,
+                        output_type,
+                    }),
+                );
+            }
+        }
     }
 }
