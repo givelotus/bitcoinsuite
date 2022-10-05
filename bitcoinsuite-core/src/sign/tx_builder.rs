@@ -90,15 +90,6 @@ impl TxBuilder {
             .map(|input| (input.input, input.signatory))
             .unzip();
         let (fixed_output_sum, leftover_idx, mut outputs) = Self::prepare_outputs(self.outputs)?;
-        if let Some(input_sum) = input_sum {
-            if fixed_output_sum > input_sum {
-                return Err(SignError::OutputsExceedInputs {
-                    input_sum,
-                    output_sum: fixed_output_sum,
-                }
-                .into());
-            }
-        }
         // If we have a leftover output, we need to measure the tx size and adjust the outputs
         if let Some(leftover_idx) = leftover_idx {
             let input_sum = match input_sum {
@@ -309,20 +300,6 @@ mod tests {
                 .push(TxBuilderOutput::Leftover(leftover_script));
             match tx_builder.sign(&DummyEcc, 1000, 546) {
                 Err(BitcoinSuiteError::Sign(SignError::MissingValue)) => {}
-                result => panic!("Unexpected: {:?}", result),
-            }
-        }
-        {
-            // Error: outputs exceed inputs
-            let mut tx = tx.clone();
-            tx.inputs[0].sign_data = Some(SignData::new(vec![SignField::Value(1000)]));
-            tx.outputs[0].value = 1001;
-            let tx_builder = TxBuilder::from_tx(tx);
-            match tx_builder.sign(&DummyEcc, 1000, 546) {
-                Err(BitcoinSuiteError::Sign(SignError::OutputsExceedInputs {
-                    input_sum: 1000,
-                    output_sum: 1001,
-                })) => {}
                 result => panic!("Unexpected: {:?}", result),
             }
         }
