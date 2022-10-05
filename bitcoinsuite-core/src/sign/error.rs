@@ -24,8 +24,6 @@ pub enum SignError {
     InvalidScriptEncoding,
     #[error("Multiple leftover outputs not supported")]
     MultipleLeftover,
-    #[error("Outputs ({output_sum}) exceed inputs ({input_sum})")]
-    OutputsExceedInputs { output_sum: i64, input_sum: i64 },
     #[error("Inputs ({input_sum}) can only pay for {max_fee} fees, but {required_fee} required")]
     InsufficientInputsForFee {
         input_sum: i64,
