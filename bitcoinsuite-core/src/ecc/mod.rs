@@ -11,7 +11,7 @@ use thiserror::Error;
 pub const MAX_ECDSA_SIGNATURE_SIZE: usize = 71;
 pub const SCHNORR_SIGNATURE_SIZE: usize = 64;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum VerifySignatureError {
     #[error("Invalid signature format")]
     InvalidFormat,

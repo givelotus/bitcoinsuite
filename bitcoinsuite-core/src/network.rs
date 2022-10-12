@@ -34,6 +34,13 @@ impl Network {
             Network::BCH | Network::XRG => 8,
         }
     }
+
+    pub fn block_spacing(&self) -> u32 {
+        match self {
+            Network::XEC | Network::BCH | Network::XRG => 600,
+            Network::XPI => 120,
+        }
+    }
 }
 
 impl Display for Network {

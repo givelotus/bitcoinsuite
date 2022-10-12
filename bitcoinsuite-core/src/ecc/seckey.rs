@@ -23,6 +23,12 @@ impl Debug for SecKey {
     }
 }
 
+impl Default for SecKey {
+    fn default() -> Self {
+        SecKey(Secret::new([0; SECKEY_LENGTH]))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::SecKey;
