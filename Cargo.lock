@@ -177,7 +177,6 @@ dependencies = [
  "eyre",
  "lazy_static",
  "stable-eyre",
- "thiserror",
 ]
 
 [[package]]
