@@ -16,8 +16,8 @@ Met with some errors? :confounded: Try this: :sunglasses:
 3. Next `tar xf '/{insert downloads folder here} /flatbuffers-2.0.8.tar.gz' `
 4. Install cmake `sudo apt install cmake`
 5. Install build-essential `sudo apt install build-essential`
-6. Next `cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release`
-7. Next `sudo make install`
+6. Next `sudo make install`
+7. Next `cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release`
 8. Check if flatbuffers is installed `flatc --version`
 9. Now go back a directory, `cd ..`
 10. Install protobuf compiler `sudo apt install -y protobuf-compiler`
