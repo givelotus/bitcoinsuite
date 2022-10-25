@@ -12,7 +12,7 @@ Dont be alarmed if you get an error, this README is here to help!
 3. Met with some errors? :confounded: Try this: :sunglasses:
 
 1. `sudo apt-get install libssl-dev` 
-2. Download (flatbuffers 2.0) [`https://github.com/google/flatbuffers/releases/tag/v2.0.8`]
+2. Download (flatbuffers 2.0) [https://github.com/google/flatbuffers/releases/tag/v2.0.8]
 3. `tar xf '/{insert downloads file here} /flatbuffers-2.0.8.tar.gz' `
 4. Install cmake `sudo apt install cmake`
 5. Install build-essential `sudo apt install build-essential`
