@@ -4,15 +4,15 @@ This is a collection of libraries, packages and tools to interact with Bitcoin-l
 
 # Run suite
 
-Some configuration is required before running the suite. \
-Dont be alarmed if you get an error, this README is here to help! \
+Some configuration is required before running the suite. 
+Dont be alarmed if you get an error, this README is here to help! 
 
 Install `cargo make` using `cargo install --force cargo-make`\
 Run `cargo make` to build the project and run all the tests\
 Met with some errors? :confounded: Try this: :sunglasses:
 
 1. First `sudo apt-get install libssl-dev` 
-2. Download [flatbuffers 2.0](https://github.com/google/flatbuffers/releases/tag/v2.0.8)\
+2. Download [flatbuffers 2.0](https://github.com/google/flatbuffers/releases/tag/v2.0.8)
 3. Next `tar xf '/{insert downloads file here} /flatbuffers-2.0.8.tar.gz' `
 4. Install cmake `sudo apt install cmake`
 5. Install build-essential `sudo apt install build-essential`
