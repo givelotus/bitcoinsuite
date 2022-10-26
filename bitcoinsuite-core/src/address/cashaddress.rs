@@ -64,7 +64,7 @@ impl<'a> CashAddress<'a> {
         CashAddress::from_hash(
             prefix,
             AddressType::P2SH,
-            ShaRmd160::digest(redeem_script.bytecode().clone()),
+            ShaRmd160::digest(&redeem_script.bytecode().clone()),
         )
     }
 
