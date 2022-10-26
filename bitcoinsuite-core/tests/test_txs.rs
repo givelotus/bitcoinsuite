@@ -1,5 +1,3 @@
-//please git work work work 
-
 use bitcoinsuite_core::{
     ecc::Ecc, BitcoinCode, Hashed, OutPoint, P2PKHSignatory, Script, SequenceNo, Sha256d,
     ShaRmd160, SigHashType, SignData, SignField, TxBuilder, TxBuilderInput, TxBuilderOutput,
