@@ -14,7 +14,7 @@ quote = "1.0"
 proc-macro2 = "1.0"
 
 # Convert enum variant to error code and severity to enum variant
-convert_case = "0.5"
+convert_case = "0.6"
 
 [dev-dependencies]
 bitcoinsuite-error = { path = "../bitcoinsuite-error" }
