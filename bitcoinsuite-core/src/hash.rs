@@ -63,14 +63,8 @@ pub trait Hashed: Display + Debug + Eq + PartialEq + AsRef<[u8]> + Hash + Sized 
     fn to_hex_be(&self) -> String {
         hex::encode(&self.to_vec_be())
     }
-
-    fn to_hex(&self) -> String{
-        hex::encode(self.as_slice())
-    }
-
 }
 
-#[macro_export]
 macro_rules! hash_algo {
     ($NAME: ident, $SIZE: literal, $DIGEST_FN: path) => {
         #[derive(Clone, Eq, PartialEq, Default, Hash)]
@@ -86,6 +80,7 @@ macro_rules! hash_algo {
             fn from_array(array: Self::Array) -> Self {
                 $NAME(array)
             }
+            
             /// Takes in a `&[u8]` and returns the same type it was called from.
             /// ```
             /// let Sha256d_Struct = Sha256d::new(hex!("19c6197e2140b9d034fb20b9ac7bb753a41233caf1e1dafda7316a99cef41416"));
