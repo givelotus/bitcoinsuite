@@ -51,11 +51,14 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
         b"GENESIS" => parse_genesis_data(opreturn_data, slp_token_type)?,
         b"MINT" => parse_mint_data(opreturn_data)?,
         b"SEND" => parse_send_data(opreturn_data)?,
+        b"BURN" => parse_burn_data(opreturn_data)?,
         _ => return Err(SlpError::InvalidTxType(opreturn_data[2].clone())),
     };
     let token_id = match (&parsed_opreturn.slp_tx_type, parsed_opreturn.token_id) {
         (SlpTxType::Genesis(_), None) => TokenId::new(txid.clone()),
-        (SlpTxType::Mint | SlpTxType::Send, Some(expected_token_id)) => expected_token_id,
+        (SlpTxType::Mint | SlpTxType::Send | SlpTxType::Burn(_), Some(expected_token_id)) => {
+            expected_token_id
+        }
         _ => unreachable!(),
     };
     let mut output_tokens = tx
@@ -83,6 +86,7 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
                 output_token.amount = amount;
             }
         }
+        ParsedOutputs::Burn => {}
     }
     Ok(SlpParseData {
         output_tokens,
@@ -169,6 +173,7 @@ enum ParsedOutputs {
         mint_quantity: SlpAmount,
     },
     Send(Vec<SlpAmount>),
+    Burn,
 }
 
 fn parse_genesis_data(
@@ -351,6 +356,40 @@ fn parse_send_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpError
     Ok(ParsedOpReturn {
         slp_tx_type: SlpTxType::Send,
         outputs: ParsedOutputs::Send(output_quantities),
+        token_id: Some(TokenId::from_slice_be(&token_id).unwrap()),
+    })
+}
+
+fn parse_burn_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpError> {
+    if opreturn_data.len() < 5 {
+        return Err(SlpError::TooFewPushesExact {
+            expected: 5,
+            actual: opreturn_data.len(),
+        });
+    }
+    if opreturn_data.len() > 5 {
+        return Err(SlpError::SuperfluousPushes {
+            expected: 5,
+            actual: opreturn_data.len(),
+        });
+    }
+    let mut data_iter = opreturn_data.into_iter();
+    let _lokad_id = data_iter.next().unwrap();
+    let _token_type = data_iter.next().unwrap();
+    let _tx_type = data_iter.next().unwrap();
+    let token_id = data_iter.next().unwrap();
+    let token_burn_quantity = data_iter.next().unwrap();
+    if token_id.len() != 32 {
+        return Err(SlpError::InvalidFieldSize {
+            field_name: "token_id",
+            expected: &[32],
+            actual: token_id.len(),
+        });
+    }
+    let token_burn_quantity = SlpAmount::from_u64_be(&token_burn_quantity, "token_burn_quantity")?;
+    Ok(ParsedOpReturn {
+        slp_tx_type: SlpTxType::Burn(token_burn_quantity.base_amount().try_into().unwrap()),
+        outputs: ParsedOutputs::Burn,
         token_id: Some(TokenId::from_slice_be(&token_id).unwrap()),
     })
 }
@@ -1108,6 +1147,111 @@ mod tests {
                     );
                 }
             }
+        }
+        // Invalid burn
+        check_script(
+            &[
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
+                &[0x01, 1],
+                &[0x04],
+                b"BURN",
+            ]
+            .concat(),
+            SlpError::TooFewPushesExact {
+                expected: 5,
+                actual: 3,
+            },
+        );
+        check_script(
+            &[
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
+                &[0x01, 1],
+                &[0x04],
+                b"BURN",
+                &[0x01, 0x00, 0x01, 0x00, 0x01, 0x00],
+            ]
+            .concat(),
+            SlpError::SuperfluousPushes {
+                expected: 5,
+                actual: 6,
+            },
+        );
+        check_script(
+            &[
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
+                &[0x01, 1],
+                &[0x04],
+                b"BURN",
+                &[0x01, 0x00, 0x01, 0x00],
+            ]
+            .concat(),
+            SlpError::InvalidFieldSize {
+                field_name: "token_id",
+                actual: 1,
+                expected: &[32],
+            },
+        );
+        check_script(
+            &[
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
+                &[0x01, 1],
+                &[0x04],
+                b"BURN",
+                &[0x20],
+                &[0x44; 32],
+                &[0x01, 0x00],
+            ]
+            .concat(),
+            SlpError::InvalidFieldSize {
+                field_name: "token_burn_quantity",
+                actual: 1,
+                expected: &[8],
+            },
+        );
+        // Valid burn
+        for (type_byte, token_type) in [
+            (1, SlpTokenType::Fungible),
+            (0x41, SlpTokenType::Nft1Child),
+            (0x81, SlpTokenType::Nft1Group),
+        ] {
+            assert_eq!(
+                parse_slp_tx(
+                    &Sha256d::new([3; 32]),
+                    &UnhashedTx {
+                        outputs: vec![
+                            TxOutput {
+                                value: 0,
+                                script: Script::from_slice(
+                                    &[
+                                        [0x6a, 0x04].as_ref(),
+                                        b"SLP\0",
+                                        &[0x01, type_byte],
+                                        &[0x04],
+                                        b"BURN",
+                                        &[0x20],
+                                        &[0x44; 32],
+                                        &[0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 231],
+                                    ]
+                                    .concat()
+                                ),
+                            },
+                            TxOutput::default(),
+                            TxOutput::default(),
+                        ],
+                        ..Default::default()
+                    }
+                ),
+                Ok(SlpParseData {
+                    output_tokens: vec![SlpToken::EMPTY; 3],
+                    slp_token_type: token_type,
+                    slp_tx_type: SlpTxType::Burn(231),
+                    token_id: TokenId::new(Sha256d::new([0x44; 32])),
+                }),
+            );
         }
         Ok(())
     }
