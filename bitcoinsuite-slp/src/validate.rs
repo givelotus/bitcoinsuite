@@ -158,6 +158,31 @@ pub fn validate_slp_tx(
                 }
             }
         }
+        &SlpTxType::Burn(expected_burn) => {
+            let expected = SlpAmount::new(expected_burn.into());
+            let mut actual = SlpAmount::ZERO;
+            for burn in spent_outputs.iter() {
+                slp_burns.push(None);
+                let burn = match burn {
+                    Some(burn) => burn,
+                    None => continue,
+                };
+                if burn.token == SlpToken::EMPTY {
+                    continue;
+                }
+                if burn.token_id != parse_data.token_id {
+                    return Err(SlpError::WrongBurnTokenId);
+                }
+                if burn.token.is_mint_baton {
+                    return Err(SlpError::WrongBurnMintBaton);
+                }
+                actual += burn.token.amount;
+                input_tokens.push(burn.token);
+            }
+            if expected != actual {
+                return Err(SlpError::WrongBurnInvalidAmount { expected, actual });
+            }
+        }
     }
     Ok(SlpValidTxData {
         slp_tx_data: SlpTxData {
@@ -1333,6 +1358,101 @@ mod tests {
                     None,
                     None,
                 ],
+            }),
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_validate_slp_tx_burn_failure() -> Result<()> {
+        // Invalid BURN: wrong token ID
+        assert_eq!(
+            validate_slp_tx(
+                SlpParseData {
+                    output_tokens: vec![],
+                    slp_token_type: SlpTokenType::Fungible,
+                    slp_tx_type: SlpTxType::Burn(10),
+                    token_id: TokenId::new(Sha256d::new([1; 32])),
+                },
+                &[Some(&SlpSpentOutput {
+                    token_id: TokenId::new(Sha256d::new([2; 32])),
+                    token_type: SlpTokenType::Fungible,
+                    token: SlpToken::amount(10),
+                    group_token_id: None,
+                })],
+            ),
+            Err(SlpError::WrongBurnTokenId),
+        );
+        // Invalid BURN: can't use to burn MINT baton
+        assert_eq!(
+            validate_slp_tx(
+                SlpParseData {
+                    output_tokens: vec![],
+                    slp_token_type: SlpTokenType::Fungible,
+                    slp_tx_type: SlpTxType::Burn(10),
+                    token_id: TokenId::new(Sha256d::new([1; 32])),
+                },
+                &[Some(&SlpSpentOutput {
+                    token_id: TokenId::new(Sha256d::new([1; 32])),
+                    token_type: SlpTokenType::Fungible,
+                    token: SlpToken::MINT_BATON,
+                    group_token_id: None,
+                })],
+            ),
+            Err(SlpError::WrongBurnMintBaton),
+        );
+        // Invalid BURN: selling less tokens than claimed
+        assert_eq!(
+            validate_slp_tx(
+                SlpParseData {
+                    output_tokens: vec![],
+                    slp_token_type: SlpTokenType::Fungible,
+                    slp_tx_type: SlpTxType::Burn(10),
+                    token_id: TokenId::new(Sha256d::new([1; 32])),
+                },
+                &[Some(&SlpSpentOutput {
+                    token_id: TokenId::new(Sha256d::new([1; 32])),
+                    token_type: SlpTokenType::Fungible,
+                    token: SlpToken::amount(9),
+                    group_token_id: None,
+                })],
+            ),
+            Err(SlpError::WrongBurnInvalidAmount {
+                expected: SlpAmount::new(10),
+                actual: SlpAmount::new(9),
+            }),
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_validate_slp_tx_burn_success() -> Result<()> {
+        // Valid BURN: burning 10 tokens
+        assert_eq!(
+            validate_slp_tx(
+                SlpParseData {
+                    output_tokens: vec![],
+                    slp_token_type: SlpTokenType::Fungible,
+                    slp_tx_type: SlpTxType::Burn(10),
+                    token_id: TokenId::new(Sha256d::new([1; 32])),
+                },
+                &[Some(&SlpSpentOutput {
+                    token_id: TokenId::new(Sha256d::new([1; 32])),
+                    token_type: SlpTokenType::Fungible,
+                    token: SlpToken::amount(10),
+                    group_token_id: None,
+                })],
+            ),
+            Ok(SlpValidTxData {
+                slp_tx_data: SlpTxData {
+                    input_tokens: vec![SlpToken::amount(10)],
+                    output_tokens: vec![],
+                    slp_token_type: SlpTokenType::Fungible,
+                    slp_tx_type: SlpTxType::Burn(10),
+                    token_id: TokenId::new(Sha256d::new([1; 32])),
+                    group_token_id: None,
+                },
+                slp_burns: vec![None],
             }),
         );
         Ok(())

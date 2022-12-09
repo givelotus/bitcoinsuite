@@ -55,6 +55,17 @@ pub enum SlpError {
     HasNoNft1Group,
     #[error("Invalid MINT: No baton")]
     HasNoMintBaton,
+    #[error("Invalid BURN: Burning the wrong token_id")]
+    WrongBurnTokenId,
+    #[error("Invalid BURN: Burning MINT baton")]
+    WrongBurnMintBaton,
+    #[error(
+        "Invalid BURN: Burning invalid amount, expected {expected} but got {actual} base tokens"
+    )]
+    WrongBurnInvalidAmount {
+        expected: SlpAmount,
+        actual: SlpAmount,
+    },
     #[error("Found orphan txs")]
     FoundOrphanTx,
     #[error("Bytes error: {0}")]

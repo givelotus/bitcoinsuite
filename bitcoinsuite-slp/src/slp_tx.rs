@@ -34,6 +34,7 @@ pub enum SlpTxType {
     Genesis(Box<SlpGenesisInfo>),
     Send,
     Mint,
+    Burn(u64),
     Unknown,
 }
 
@@ -42,6 +43,7 @@ pub enum SlpTxTypeVariant {
     Genesis,
     Send,
     Mint,
+    Burn,
     Unknown,
 }
 
@@ -89,8 +91,9 @@ impl SlpTxType {
         match self {
             SlpTxType::Genesis(_) => "GENESIS",
             SlpTxType::Mint => "MINT",
-            Self::Send => "SEND",
-            Self::Unknown => "UNKNOWN",
+            SlpTxType::Send => "SEND",
+            SlpTxType::Burn(_) => "BURN",
+            SlpTxType::Unknown => "UNKNOWN",
         }
     }
 }
@@ -179,6 +182,7 @@ impl SlpTxType {
             SlpTxType::Genesis(_) => SlpTxTypeVariant::Genesis,
             SlpTxType::Send => SlpTxTypeVariant::Send,
             SlpTxType::Mint => SlpTxTypeVariant::Mint,
+            SlpTxType::Burn(_) => SlpTxTypeVariant::Burn,
             SlpTxType::Unknown => SlpTxTypeVariant::Unknown,
         }
     }
