@@ -5,4 +5,4 @@ dependencies = [
 
 # make sure bitcoind executables are downloaded
 [tasks.ensure-bitcoind]
-script = { file = "ensure-bitcoind.sh" }
+script = "bash ensure-bitcoind.sh"
