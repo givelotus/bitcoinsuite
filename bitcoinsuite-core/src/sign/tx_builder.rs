@@ -166,6 +166,14 @@ impl TxBuilderInput {
     pub fn signatory_mut(&mut self) -> &mut Option<Box<dyn Signatory>> {
         &mut self.signatory
     }
+
+    pub fn input(&self) -> &TxInput {
+        &self.input
+    }
+
+    pub fn input_mut(&mut self) -> &mut TxInput {
+        &mut self.input
+    }
 }
 
 #[cfg(test)]
