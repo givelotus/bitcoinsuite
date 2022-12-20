@@ -80,3 +80,18 @@ pub fn send_opreturn(
     pushes.extend(send_amounts.iter().map(|slice| slice.as_ref()));
     Script::opreturn(&pushes)
 }
+
+pub fn burn_opreturn(
+    token_id: &TokenId,
+    token_type: SlpTokenType,
+    burn_amount: SlpAmount,
+) -> Script {
+    let burn_amount = burn_amount.base_amount() as u64;
+    Script::opreturn(&[
+        SLP_LOKAD_ID,
+        token_type_bytes(token_type),
+        b"MINT",
+        token_id.as_slice_be(),
+        &burn_amount.to_be_bytes(),
+    ])
+}

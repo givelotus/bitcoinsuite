@@ -10,6 +10,7 @@ pub const BCHREG: &str = "bchreg";
 pub const SIMPLELEDGER: &str = "simpleledger";
 pub const ECASH: &str = "ecash";
 pub const ETOKEN: &str = "etoken";
+pub const ECREGTEST: &str = "ecregtest";
 
 const CHARSET: &[u8] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
