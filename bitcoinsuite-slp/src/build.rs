@@ -90,7 +90,7 @@ pub fn burn_opreturn(
     Script::opreturn(&[
         SLP_LOKAD_ID,
         token_type_bytes(token_type),
-        b"MINT",
+        b"BURN",
         token_id.as_slice_be(),
         &burn_amount.to_be_bytes(),
     ])
