@@ -4,7 +4,7 @@ use crate::{ecc::EccError, ByteArray};
 
 pub const PUBKEY_LENGTH: usize = 33;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PubKey([u8; PUBKEY_LENGTH]);
 
 impl PubKey {
@@ -40,6 +40,12 @@ impl Default for PubKey {
         PubKey(hex!(
             "020000000000000000000000000000000000000000000000000000000000000001"
         ))
+    }
+}
+
+impl std::fmt::Debug for PubKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PubKey({})", self.hex())
     }
 }
 
