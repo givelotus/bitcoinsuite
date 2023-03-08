@@ -52,6 +52,7 @@ export enum SlpTxType {
   GENESIS = 0,
   SEND = 1,
   MINT = 2,
+  BURN = 4,
   UNKNOWN_TX_TYPE = 3,
   UNRECOGNIZED = -1,
 }
@@ -67,6 +68,9 @@ export function slpTxTypeFromJSON(object: any): SlpTxType {
     case 2:
     case "MINT":
       return SlpTxType.MINT
+    case 4:
+    case "BURN":
+      return SlpTxType.BURN
     case 3:
     case "UNKNOWN_TX_TYPE":
       return SlpTxType.UNKNOWN_TX_TYPE
@@ -85,6 +89,8 @@ export function slpTxTypeToJSON(object: SlpTxType): string {
       return "SEND"
     case SlpTxType.MINT:
       return "MINT"
+    case SlpTxType.BURN:
+      return "BURN"
     case SlpTxType.UNKNOWN_TX_TYPE:
       return "UNKNOWN_TX_TYPE"
     default:

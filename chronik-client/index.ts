@@ -603,11 +603,14 @@ function convertToSlpMeta(slpMeta: proto.SlpMeta): SlpMeta {
     case proto.SlpTxType.MINT:
       txType = "MINT"
       break
+    case proto.SlpTxType.BURN:
+      txType = "BURN"
+      break
     case proto.SlpTxType.UNKNOWN_TX_TYPE:
       txType = "UNKNOWN_TX_TYPE"
       break
     default:
-      throw new Error(`Invalid token type: ${slpMeta.txType}`)
+      throw new Error(`Invalid slp tx type: ${slpMeta.txType}`)
   }
   return {
     tokenType,
@@ -1078,7 +1081,7 @@ export interface Error {
 export type Network = "BCH" | "XEC" | "XPI" | "XRG"
 
 /** Which SLP tx type. */
-export type SlpTxType = "GENESIS" | "SEND" | "MINT" | "UNKNOWN_TX_TYPE"
+export type SlpTxType = "GENESIS" | "SEND" | "MINT" | "BURN" | "UNKNOWN_TX_TYPE"
 
 /** Which SLP token type (normal fungible, NFT, unknown). */
 export type SlpTokenType =
