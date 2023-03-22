@@ -278,6 +278,25 @@ impl Iterator for ScriptOpIter {
     }
 }
 
+impl std::fmt::Display for Script {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Capacity adjusted to avoid reallocations in common scenarios: P2PKH and any scriptSig.
+        let mut asm = String::with_capacity(self.bytecode.len() * 2 + 50);
+        for op in self.ops() {
+            match op {
+                Ok(op) => asm.push_str(&op.to_string()),
+                Err(_) => {
+                    asm.push_str("[corrupt PUSHDATA] ");
+                    break;
+                },
+            }
+            asm.push(' ');
+        }
+        asm.pop();
+        f.write_str(&asm)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
@@ -792,6 +811,26 @@ mod tests {
             )?
             .parse_p2pkh_spend(),
             Some(([0; 33].into(), [0; 65].into())),
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_script_display() -> crate::Result<()> {
+        // Correct P2PKH
+        assert_eq!(
+            Script::p2pkh(&ShaRmd160::new([0xff; 20])).to_string(), 
+            "OP_DUP OP_HASH160 ffffffffffffffffffffffffffffffffffffffff OP_EQUALVERIFY OP_CHECKSIG"
+        );
+        // Incorrect opcode
+        assert_eq!(
+            Script::from_hex("ee")?.to_string(),
+            "[unrecognized opcode]"
+        );
+        // Incomplete pushdata
+        assert_eq!(
+            Script::from_hex("0200")?.to_string(),
+            "[corrupt PUSHDATA]"
         );
         Ok(())
     }
