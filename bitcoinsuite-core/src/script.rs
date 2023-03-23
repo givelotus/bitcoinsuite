@@ -288,7 +288,7 @@ impl std::fmt::Display for Script {
                 Err(_) => {
                     asm.push_str("[corrupt PUSHDATA] ");
                     break;
-                },
+                }
             }
             asm.push(' ');
         }
@@ -819,18 +819,26 @@ mod tests {
     fn test_script_display() -> crate::Result<()> {
         // Correct P2PKH
         assert_eq!(
-            Script::p2pkh(&ShaRmd160::new([0xff; 20])).to_string(), 
-            "OP_DUP OP_HASH160 ffffffffffffffffffffffffffffffffffffffff OP_EQUALVERIFY OP_CHECKSIG"
+            Script::p2pkh(&ShaRmd160::new([0xff; 20])).to_string(),
+            "OP_DUP OP_HASH160 0xffffffffffffffffffffffffffffffffffffffff OP_EQUALVERIFY OP_CHECKSIG"
         );
         // Incorrect opcode
-        assert_eq!(
-            Script::from_hex("ee")?.to_string(),
-            "[unrecognized opcode]"
-        );
+        assert_eq!(Script::from_hex("ee")?.to_string(), "[unrecognized opcode]");
         // Incomplete pushdata
+        assert_eq!(Script::from_hex("0200")?.to_string(), "[corrupt PUSHDATA]");
+        // ASCII string
         assert_eq!(
-            Script::from_hex("0200")?.to_string(),
-            "[corrupt PUSHDATA]"
+            Script::from_hex(
+                "6a334368616e63656c6c6f72206f6e20746865204272696e6b206\
+                 f66205365636f6e64204261696c6f757420666f722042616e6b73"
+            )?
+            .to_string(),
+            "OP_RETURN \"Chancellor on the Brink of Second Bailout for Banks\""
+        );
+        // UTF8 string
+        assert_eq!(
+            Script::from_hex("6a16d791d6b0d6bcd7a8d6b5d790d7a9d6b4d781d799d7aa")?.to_string(),
+            "OP_RETURN \"בְּרֵאשִׁית\""
         );
         Ok(())
     }

@@ -160,7 +160,7 @@ impl std::fmt::Display for Op {
                 OP_DIV => "OP_DIV",
                 OP_MOD => "OP_MOD",
                 OP_RAWLEFTBITSHIFT => "OP_RAWLEFTBITSHIFT", // Lotus only
-                OP_MULPOW2 => "OP_MULPOW2", // Lotus only
+                OP_MULPOW2 => "OP_MULPOW2",                 // Lotus only
 
                 OP_BOOLAND => "OP_BOOLAND",
                 OP_BOOLOR => "OP_BOOLOR",
@@ -215,7 +215,17 @@ impl std::fmt::Display for Op {
 
                 _ => "[unrecognized opcode]",
             }),
-            Op::Push(_, data) => f.write_str(&data.hex()),
+            Op::Push(len, data) => {
+                if *len < 4 {
+                    write!(f, "0x{}", &data.hex())
+                } else {
+                    if let Ok(text) = std::str::from_utf8(data) {
+                        write!(f, "\"{}\"", text)
+                    } else {
+                        write!(f, "0x{}", &data.hex())
+                    }
+                }
+            }
         }
     }
 }
