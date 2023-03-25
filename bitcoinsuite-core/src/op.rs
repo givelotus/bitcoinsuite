@@ -1,3 +1,6 @@
+use once_cell::sync::Lazy;
+use regex::Regex;
+
 use crate::{opcode::*, ser_script_num, BitcoinSuiteError, Bytes, BytesError, BytesMut, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -70,6 +73,9 @@ impl Op {
         Ok(())
     }
 }
+
+static TEXT_HEURISTIC: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[\w\s\p{Punctuation}\p{Symbol}\p{Emoji}]+$").unwrap());
 
 impl std::fmt::Display for Op {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -215,16 +221,13 @@ impl std::fmt::Display for Op {
 
                 _ => "[unrecognized opcode]",
             }),
-            Op::Push(len, data) => {
-                if *len < 4 {
-                    write!(f, "0x{}", &data.hex())
-                } else {
-                    if let Ok(text) = std::str::from_utf8(data) {
-                        write!(f, "\"{}\"", text)
-                    } else {
-                        write!(f, "0x{}", &data.hex())
+            Op::Push(_, data) => {
+                if let Ok(text) = std::str::from_utf8(data) {
+                    if TEXT_HEURISTIC.is_match(text.trim_end_matches('\0')) {
+                        return write!(f, "\"{}\"", text.replace('\0', "\\0"));
                     }
                 }
+                write!(f, "0x{}", &data.hex())
             }
         }
     }
