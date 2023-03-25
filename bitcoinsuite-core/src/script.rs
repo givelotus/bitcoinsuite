@@ -817,7 +817,7 @@ mod tests {
 
     #[test]
     fn test_script_display() -> crate::Result<()> {
-        // Correct P2PKH
+        // P2PKH
         assert_eq!(
             Script::p2pkh(&ShaRmd160::new([0xff; 20])).to_string(),
             "OP_DUP OP_HASH160 0xffffffffffffffffffffffffffffffffffffffff OP_EQUALVERIFY OP_CHECKSIG"
@@ -826,6 +826,8 @@ mod tests {
         assert_eq!(Script::from_hex("ee")?.to_string(), "[unrecognized opcode]");
         // Incomplete pushdata
         assert_eq!(Script::from_hex("0200")?.to_string(), "[corrupt PUSHDATA]");
+        // Empty pushdata
+        assert_eq!(Script::from_hex("6a4c00")?.to_string(), "OP_RETURN \"\"");
         // ASCII string
         assert_eq!(
             Script::from_hex(
@@ -839,6 +841,38 @@ mod tests {
         assert_eq!(
             Script::from_hex("6a16d791d6b0d6bcd7a8d6b5d790d7a9d6b4d781d799d7aa")?.to_string(),
             "OP_RETURN \"בְּרֵאשִׁית\""
+        );
+        // SLP token
+        assert_eq!(
+            Script::from_hex(
+                "6a04534c500001010453454e44207e7dacd72dcdb14e00a03dd3a\
+                ff47f019ed51a6f1f4e4f532ae50692f62bc4e5080000000000038\
+                bd708000000000000091408000000000000092b080000000000000\
+                67c08000000000000067c080000000000000cf7080000000000000\
+                19f08000000000000033e08000000000000019f080000000000000\
+                e6108000000000000002a"
+            )?
+            .to_string(),
+            "OP_RETURN \"SLP\\0\" 0x01 \"SEND\" \
+            0x7e7dacd72dcdb14e00a03dd3aff47f019ed51a6f1f4e4f532ae50692f62bc4e5 \
+            0x0000000000038bd7 0x0000000000000914 0x000000000000092b \
+            0x000000000000067c 0x000000000000067c 0x0000000000000cf7 \
+            0x000000000000019f 0x000000000000033e 0x000000000000019f \
+            0x0000000000000e61 0x000000000000002a"
+        );
+        // Symbols
+        assert_eq!(
+            Script::from_hex(
+                "6a2a313233343536373839302d3d21402324255e262a28295f2b6\
+                07e5b5d5c7b7d7c3b273a222c2e2f3c3e3f"
+            )?
+            .to_string(),
+            "OP_RETURN \"1234567890-=!@#$%^&*()_+`~[]\\{}|;':\",./<>?\"",
+        );
+        // Emoji
+        assert_eq!(
+            Script::from_hex("6a094769766520f09faab7")?.to_string(),
+            "OP_RETURN \"Give 🪷\"",
         );
         Ok(())
     }
