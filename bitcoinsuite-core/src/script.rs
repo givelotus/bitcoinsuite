@@ -826,6 +826,8 @@ mod tests {
         assert_eq!(Script::from_hex("ee")?.to_string(), "[unrecognized opcode]");
         // Incomplete pushdata
         assert_eq!(Script::from_hex("0200")?.to_string(), "[corrupt PUSHDATA]");
+        // Empty pushdata
+        assert_eq!(Script::from_hex("6a4c00")?.to_string(), "OP_RETURN \"\"");
         // ASCII string
         assert_eq!(
             Script::from_hex(

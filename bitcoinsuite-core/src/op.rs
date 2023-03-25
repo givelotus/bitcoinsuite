@@ -222,12 +222,15 @@ impl std::fmt::Display for Op {
                 _ => "[unrecognized opcode]",
             }),
             Op::Push(_, data) => {
+                if data.len() == 0 {
+                    return write!(f, "\"\"");
+                }
                 if let Ok(text) = std::str::from_utf8(data) {
                     if TEXT_HEURISTIC.is_match(text.trim_end_matches('\0')) {
                         return write!(f, "\"{}\"", text.replace('\0', "\\0"));
                     }
                 }
-                write!(f, "0x{}", &data.hex())
+                write!(f, "0x{}", data.hex())
             }
         }
     }
