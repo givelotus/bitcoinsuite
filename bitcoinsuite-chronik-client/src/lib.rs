@@ -91,7 +91,7 @@ impl ChronikClient {
         &self.ws_url
     }
 
-    pub async fn broadcast_tx(&self, raw_tx: Vec<u8>) -> Result<proto::BroadcastTxResponse> {
+    /*pub async fn broadcast_tx(&self, raw_tx: Vec<u8>) -> Result<proto::BroadcastTxResponse> {
         self.broadcast_tx_with_slp_check(raw_tx, false).await
     }
 
@@ -124,7 +124,7 @@ impl ChronikClient {
             skip_slp_check,
         };
         self._post("/broadcast-txs", &request).await
-    }
+    }*/
 
     pub async fn blockchain_info(&self) -> Result<proto::BlockchainInfo> {
         self._get("/blockchain-info").await
@@ -136,6 +136,10 @@ impl ChronikClient {
 
     pub async fn block_by_hash(&self, hash: &Sha256d) -> Result<proto::Block> {
         self._get(&format!("/block/{}", hash)).await
+    }
+
+    pub async fn block_txs_by_hash(&self, hash: &Sha256d, page: usize, page_size: usize) -> Result<proto::TxHistoryPage> {
+        self._get(&format!("/block-txs/{hash}?page={page}&page_size={page_size}")).await
     }
 
     pub async fn blocks(
@@ -177,18 +181,18 @@ impl ChronikClient {
         Ok(Bytes::from_bytes(bytes))
     }
 
-    pub async fn token(&self, token_id: &Sha256d) -> Result<proto::Token> {
-        self._get(&format!("/token/{}", token_id)).await
+    pub async fn token(&self, token_id: &Sha256d) -> Result<proto::Slpv2TokenInfo> {
+        self._get(&format!("/slpv2/token-info/{}", token_id)).await
     }
 
-    pub async fn validate_utxos(
+    /*pub async fn validate_utxos(
         &self,
         outpoints: Vec<proto::OutPoint>,
     ) -> Result<Vec<proto::UtxoState>> {
         let request = proto::ValidateUtxoRequest { outpoints };
         let response: proto::ValidateUtxoResponse = self._post("/validate-utxos", &request).await?;
         Ok(response.utxo_states)
-    }
+    }*/
 
     pub fn script<'payload, 'client>(
         &'client self,
@@ -283,16 +287,16 @@ impl ScriptEndpoint<'_, '_> {
             .await
     }
 
-    pub async fn utxos(&self) -> Result<Vec<proto::ScriptUtxos>> {
+    pub async fn utxos(&self) -> Result<proto::ScriptUtxos> {
         let utxos = self
             .client
-            ._get::<proto::Utxos>(&format!(
+            ._get::<proto::ScriptUtxos>(&format!(
                 "/script/{}/{}/utxos",
                 self.script_type,
                 hex::encode(self.script_payload),
             ))
             .await?;
-        Ok(utxos.script_utxos)
+        Ok(utxos)
     }
 }
 
