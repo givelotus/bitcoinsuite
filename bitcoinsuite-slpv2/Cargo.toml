@@ -1,0 +1,12 @@
+[package]
+name = "bitcoinsuite-slpv2"
+version = "0.1.0"
+authors = ["Tobias Ruck <ruck.tobias@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+# Base crate
+bitcoinsuite-core = { path = "../bitcoinsuite-core" }
+
+# Error handling 
+thiserror = "1.0"

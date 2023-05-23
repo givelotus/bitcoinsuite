@@ -113,6 +113,13 @@ export class ChronikClient {
     return convertToToken(token)
   }
 
+  /** Fetch SLPv2 token info and stats given the tokenId. */
+  public async slpv2Token(tokenId: string): Promise<Slpv2TokenInfo> {
+    const data = await _get(this._url, `/token/${tokenId}`)
+    const token = proto.Slpv2TokenInfo.decode(data)
+    return convertToSlpv2TokenInfo(token)
+  }
+
   /** Validate the given outpoints: whether they are unspent, spent or
    * never existed. */
   public async validateUtxos(outpoints: OutPoint[]): Promise<UtxoState[]> {
@@ -139,6 +146,11 @@ export class ChronikClient {
   /** Open a WebSocket connection to listen for updates. */
   public ws(config: WsConfig): WsEndpoint {
     return new WsEndpoint(`${this._wsUrl}/ws`, config)
+  }
+
+  /** Open a WebSocket connection to listen for updates. */
+  public wsLegacy(config: WsConfigLegacy): WsEndpointLegacy {
+    return new WsEndpointLegacy(`${this._wsUrl}/ws`, config)
   }
 }
 
@@ -186,14 +198,26 @@ export class ScriptEndpoint {
   /** Fetches the current UTXO set for this script.
    * It is grouped by output script, in case a script type can match multiple
    * different output scripts (e.g. Taproot on Lotus). */
-  public async utxos(): Promise<ScriptUtxos[]> {
+  public async utxos(): Promise<ScriptUtxos> {
+    const data = await _get(
+      this._url,
+      `/script/${this._scriptType}/${this._scriptPayload}/utxos`,
+    )
+    const utxos = proto.ScriptUtxos.decode(data)
+    return {
+      outputScript: toHex(utxos.script),
+      utxos: utxos.utxos.map(convertToUtxo),
+    }
+  }
+
+  public async utxosLegacy(): Promise<ScriptUtxos[]> {
     const data = await _get(
       this._url,
       `/script/${this._scriptType}/${this._scriptPayload}/utxos`,
     )
     const utxos = proto.Utxos.decode(data)
     return utxos.scriptUtxos.map(scriptUtxos => ({
-      outputScript: toHex(scriptUtxos.outputScript),
+      outputScript: toHex(scriptUtxos.script),
       utxos: scriptUtxos.utxos.map(convertToUtxo),
     }))
   }
@@ -201,6 +225,183 @@ export class ScriptEndpoint {
 
 /** Config for a WebSocket connection to Chronik. */
 export interface WsConfig {
+  /** Fired when a message is sent from the WebSocket. */
+  onMessage?: (msg: WsMsg) => void
+
+  /** Fired when a connection has been (re)established. */
+  onConnect?: (e: ws.Event) => void
+
+  /** Fired after a connection has been unexpectedly closed, and before a
+   * reconnection attempt is made. Only fired if `autoReconnect` is true. */
+  onReconnect?: (e: ws.Event) => void
+
+  /** Fired when an error with the WebSocket occurs. */
+  onError?: (e: ws.ErrorEvent) => void
+
+  /** Fired after a connection has been manually closed, or if `autoReconnect`
+   * is false, if the WebSocket disconnects for any reason. */
+  onEnd?: (e: ws.Event) => void
+
+  /** Whether to automatically reconnect on disconnect, default true. */
+  autoReconnect?: boolean
+}
+
+/** WebSocket connection to Chronik. */
+export class WsEndpoint {
+  /** Fired when a message is sent from the WebSocket. */
+  public onMessage?: (msg: WsMsg) => void
+
+  /** Fired when a connection has been (re)established. */
+  public onConnect?: (e: ws.Event) => void
+
+  /** Fired after a connection has been unexpectedly closed, and before a
+   * reconnection attempt is made. Only fired if `autoReconnect` is true. */
+  public onReconnect?: (e: ws.Event) => void
+
+  /** Fired when an error with the WebSocket occurs. */
+  public onError?: (e: ws.ErrorEvent) => void
+
+  /** Fired after a connection has been manually closed, or if `autoReconnect`
+   * is false, if the WebSocket disconnects for any reason. */
+  public onEnd?: (e: ws.Event) => void
+
+  /** Whether to automatically reconnect on disconnect, default true. */
+  public autoReconnect: boolean
+
+  private _ws: ws.WebSocket | undefined
+  private _wsUrl: string
+  private _connected: Promise<ws.Event> | undefined
+  private _manuallyClosed: boolean
+  private _subs: { scriptType: ScriptType; scriptPayload: string }[]
+
+  constructor(wsUrl: string, config: WsConfig) {
+    this.onMessage = config.onMessage
+    this.onConnect = config.onConnect
+    this.onReconnect = config.onReconnect
+    this.onEnd = config.onEnd
+    this.autoReconnect =
+      config.autoReconnect !== undefined ? config.autoReconnect : true
+    this._manuallyClosed = false
+    this._subs = []
+    this._wsUrl = wsUrl
+    this._connect()
+  }
+
+  /** Wait for the WebSocket to be connected. */
+  public async waitForOpen() {
+    await this._connected
+  }
+
+  /** Subscribe to the given script type and payload.
+   * For "p2pkh", `scriptPayload` is the 20 byte public key hash. */
+  public subscribe(scriptType: ScriptType, scriptPayload: string) {
+    this._subs.push({ scriptType, scriptPayload })
+    if (this._ws?.readyState === WebSocket.OPEN) {
+      this._subUnsub(false, scriptType, scriptPayload)
+    }
+  }
+
+  /** Unsubscribe from the given script type and payload. */
+  public unsubscribe(scriptType: ScriptType, scriptPayload: string) {
+    this._subs = this._subs.filter(
+      sub =>
+        sub.scriptType !== scriptType || sub.scriptPayload !== scriptPayload,
+    )
+    if (this._ws?.readyState === WebSocket.OPEN) {
+      this._subUnsub(true, scriptType, scriptPayload)
+    }
+  }
+
+  /** Close the WebSocket connection and prevent future any reconnection
+   * attempts. */
+  public close() {
+    this._manuallyClosed = true
+    this._ws?.close()
+  }
+
+  private _connect() {
+    const ws: ws.WebSocket = new WebSocket(this._wsUrl)
+    this._ws = ws
+    this._connected = new Promise(resolved => {
+      ws.onopen = msg => {
+        this._subs.forEach(sub =>
+          this._subUnsub(false, sub.scriptType, sub.scriptPayload),
+        )
+        resolved(msg)
+        if (this.onConnect !== undefined) {
+          this.onConnect(msg)
+        }
+      }
+    })
+    ws.onmessage = e => this._handleMsg(e as MessageEvent)
+    ws.onerror = e => this.onError !== undefined && this.onError(e)
+    ws.onclose = e => {
+      // End if manually closed or no auto-reconnect
+      if (this._manuallyClosed || !this.autoReconnect) {
+        if (this.onEnd !== undefined) {
+          this.onEnd(e)
+        }
+        return
+      }
+      if (this.onReconnect !== undefined) {
+        this.onReconnect(e)
+      }
+      this._connect()
+    }
+  }
+
+  private _subUnsub(
+    isUnsub: boolean,
+    scriptType: ScriptType,
+    scriptPayload: string,
+  ) {
+    const encodedSubscription = proto.WsSub.encode(<proto.WsSub>{
+      isUnsub,
+      script: {
+        scriptType,
+        payload: fromHex(scriptPayload),
+      },
+    }).finish()
+    if (this._ws === undefined)
+      throw new Error("Invalid state; _ws is undefined")
+    this._ws.send(encodedSubscription)
+  }
+
+  private async _handleMsg(wsMsg: MessageEvent) {
+    if (this.onMessage === undefined) {
+      return
+    }
+    const data =
+      wsMsg.data instanceof Buffer
+        ? (wsMsg.data as Uint8Array)
+        : new Uint8Array(await (wsMsg.data as Blob).arrayBuffer())
+    const msg = proto.WsMsg.decode(data)
+    if (msg.error) {
+      this.onMessage({
+        type: "Error",
+        ...msg.error,
+      })
+    } else if (msg.block) {
+      this.onMessage({
+        type: "MsgBlock",
+        msgType: convertBlockMsgType(msg.block.msgType),
+        blockHeight: msg.block.blockHeight,
+        blockHash: toHexRev(msg.block.blockHash),
+      })
+    } else if (msg.tx) {
+      this.onMessage({
+        type: "MsgTx",
+        msgType: convertTxMsgType(msg.tx.msgType),
+        txid: toHexRev(msg.tx.txid),
+      })
+    } else {
+      console.log("Silently ignored unknown Chronik message:", msg)
+    }
+  }
+}
+
+/** Config for a WebSocket connection to Chronik. */
+export interface WsConfigLegacy {
   /** Fired when a message is sent from the WebSocket. */
   onMessage?: (msg: SubscribeMsg) => void
 
@@ -223,7 +424,7 @@ export interface WsConfig {
 }
 
 /** WebSocket connection to Chronik. */
-export class WsEndpoint {
+export class WsEndpointLegacy {
   /** Fired when a message is sent from the WebSocket. */
   public onMessage?: (msg: SubscribeMsg) => void
 
@@ -250,7 +451,7 @@ export class WsEndpoint {
   private _manuallyClosed: boolean
   private _subs: { scriptType: ScriptType; scriptPayload: string }[]
 
-  constructor(wsUrl: string, config: WsConfig) {
+  constructor(wsUrl: string, config: WsConfigLegacy) {
     this.onMessage = config.onMessage
     this.onConnect = config.onConnect
     this.onReconnect = config.onReconnect
@@ -421,7 +622,7 @@ async function _post(
 function ensureResponseErrorThrown(response: AxiosResponse, path: string) {
   if (response.status != 200) {
     const error = proto.Error.decode(new Uint8Array(response.data))
-    throw new Error(`Failed getting ${path} (${error.errorCode}): ${error.msg}`)
+    throw new Error(`Failed getting ${path}: ${error.msg}`)
   }
 }
 
@@ -438,14 +639,11 @@ function convertToBlock(block: proto.Block): Block {
   if (block.blockInfo === undefined) {
     throw new Error("Block has no blockInfo")
   }
-  if (block.blockDetails === undefined) {
-    throw new Error("Block has no blockDetails")
-  }
   return {
     blockInfo: convertToBlockInfo(block.blockInfo),
-    blockDetails: convertToBlockDetails(block.blockDetails),
-    rawHeader: toHex(block.rawHeader),
-    txs: block.txs.map(convertToTx),
+    //blockDetails: convertToBlockDetails(block.blockDetails),
+    //rawHeader: toHex(block.rawHeader),
+    //txs: block.txs.map(convertToTx),
   }
 }
 
@@ -458,6 +656,9 @@ function convertToTx(tx: proto.Tx): Tx {
     lockTime: tx.lockTime,
     slpTxData: tx.slpTxData ? convertToSlpTxData(tx.slpTxData) : undefined,
     slpErrorMsg: tx.slpErrorMsg.length !== 0 ? tx.slpErrorMsg : undefined,
+    slpv2Sections: tx.slpv2Sections.map(convertSlpv2Section),
+    slpv2Errors: tx.slpv2Errors,
+    slpv2BurnTokenIds: tx.slpv2BurnTokenIds.map(toHexRev),
     block: tx.block !== undefined ? convertToBlockMeta(tx.block) : undefined,
     timeFirstSeen: tx.timeFirstSeen,
     size: tx.size,
@@ -466,7 +667,7 @@ function convertToTx(tx: proto.Tx): Tx {
   }
 }
 
-function convertToUtxo(utxo: proto.Utxo): Utxo {
+function convertToUtxo(utxo: proto.ScriptUtxo): ScriptUtxo {
   if (utxo.outpoint === undefined) {
     throw new Error("UTXO outpoint is undefined")
   }
@@ -485,6 +686,33 @@ function convertToUtxo(utxo: proto.Utxo): Utxo {
         ? convertToSlpToken(utxo.slpToken)
         : undefined,
     network: convertToNetwork(utxo.network),
+    slpv2: utxo.slpv2 !== undefined ? convertSlpv2Token(utxo.slpv2) : undefined,
+  }
+}
+
+function convertToSlpv2TokenInfo(tokenInfo: proto.Slpv2TokenInfo): Slpv2TokenInfo {
+  if (tokenInfo.genesisData === undefined) {
+    throw new Error("Token info genesisData is undefined")
+  }
+  return {
+    tokenId: toHexRev(tokenInfo.tokenId),
+    tokenType: convertSlpv2TokenType(tokenInfo.tokenType),
+    genesisData: convertToSlpv2GenesisInfo(tokenInfo.genesisData),
+    block:
+      tokenInfo.block !== undefined ? convertToBlockMeta(tokenInfo.block) : undefined,
+    timeFirstSeen: tokenInfo.timeFirstSeen,
+  }
+}
+
+function convertToSlpv2GenesisInfo(info: proto.Slpv2GenesisData): Slpv2GenesisData {
+  const decoder = new TextDecoder()
+  return {
+    tokenTicker: decoder.decode(info.tokenTicker),
+    tokenName: decoder.decode(info.tokenName),
+    url: decoder.decode(info.url),
+    data: info.data,
+    authPubkey: info.authPubkey,
+    decimals: info.decimals,
   }
 }
 
@@ -521,6 +749,7 @@ function convertToTxInput(input: proto.TxInput): TxInput {
       input.outputScript.length > 0 ? toHex(input.outputScript) : undefined,
     value: input.value,
     sequenceNo: input.sequenceNo,
+    slpv2: input.slpv2 !== undefined ? convertSlpv2Token(input.slpv2) : undefined,
     slpBurn:
       input.slpBurn !== undefined ? convertToSlpBurn(input.slpBurn) : undefined,
     slpToken:
@@ -534,6 +763,7 @@ function convertToTxOutput(output: proto.TxOutput): TxOutput {
   return {
     value: output.value,
     outputScript: toHex(output.outputScript),
+    slpv2: output.slpv2 !== undefined ? convertSlpv2Token(output.slpv2) : undefined,
     slpToken:
       output.slpToken !== undefined
         ? convertToSlpToken(output.slpToken)
@@ -542,7 +772,7 @@ function convertToTxOutput(output: proto.TxOutput): TxOutput {
       output.spentBy !== undefined
         ? {
             txid: toHexRev(output.spentBy.txid),
-            outIdx: output.spentBy.outIdx,
+            inputIdx: output.spentBy.inputIdx,
           }
         : undefined,
   }
@@ -650,6 +880,46 @@ function convertToBlockInfo(block: proto.BlockInfo): BlockInfo {
   }
 }
 
+function convertSlpv2Section(section: proto.Slpv2Section): Slpv2Section {
+  return {
+    tokenId: toHexRev(section.tokenId),
+    tokenType: convertSlpv2TokenType(section.tokenType),
+    sectionType: convertSlpv2SectionType(section.sectionType),
+    intentionalBurnAmount: section.intentionalBurnAmount,
+  }
+}
+
+function convertSlpv2TokenType(tokenType: proto.Slpv2TokenType): Slpv2TokenType {
+  switch (tokenType) {
+    case proto.Slpv2TokenType.SLPV2_TOKEN_TYPE_STANDARD:
+      return "Standard";
+    default:
+      throw new Error(`Invalid token type: ${tokenType}`)
+  }
+}
+
+function convertSlpv2SectionType(sectionType: proto.Slpv2SectionType): Slpv2SectionType {
+  switch (sectionType) {
+    case proto.Slpv2SectionType.SLPV2_GENESIS:
+      return "GENESIS";
+    case proto.Slpv2SectionType.SLPV2_MINT:
+      return "MINT";
+    case proto.Slpv2SectionType.SLPV2_SEND:
+      return "SEND";
+      default:
+        throw new Error(`Invalid section type: ${sectionType}`)
+  }
+}
+
+function convertSlpv2Token(section: proto.Slpv2Token): Slpv2Token {
+  return {
+    sectionIdx: section.sectionIdx,
+    tokenId: toHexRev(section.tokenId),
+    amount: section.amount,
+    isMintBaton: section.isMintBaton,
+  }
+}
+
 function convertToBlockDetails(blockDetails: proto.BlockDetails): BlockDetails {
   return {
     ...blockDetails,
@@ -706,6 +976,34 @@ function convertToUtxoStateVariant(
   }
 }
 
+function convertBlockMsgType(msgType: proto.BlockMsgType): BlockMsgType {
+  switch (msgType) {
+    case proto.BlockMsgType.BLK_CONNECTED:
+      return "Connected";
+    case proto.BlockMsgType.BLK_DISCONNECTED:
+      return "Disconnected";
+    case proto.BlockMsgType.BLK_FINALIZED:
+      return "Finalized";
+    default:
+      throw new Error(`Unknown BlockMsgType: ${msgType}`)
+  }
+}
+
+function convertTxMsgType(msgType: proto.TxMsgType): TxMsgType {
+  switch (msgType) {
+    case proto.TxMsgType.TX_ADDED_TO_MEMPOOL:
+      return "AddedToMempool";
+    case proto.TxMsgType.TX_REMOVED_FROM_MEMPOOL:
+      return "RemovedFromMempool";
+    case proto.TxMsgType.TX_CONFIRMED:
+      return "Confirmed";
+    case proto.TxMsgType.TX_FINALIZED:
+      return "Finalized";
+    default:
+      throw new Error(`Unknown BlockMsgType: ${msgType}`)
+  }
+}
+
 /** Current state of the blockchain. */
 export interface BlockchainInfo {
   /** Block hash of the current blockchain tip */
@@ -734,6 +1032,9 @@ export interface Tx {
   /** A human-readable message as to why this tx is not an SLP transaction,
    * unless trivially so. */
   slpErrorMsg: string | undefined
+  slpv2Sections: Slpv2Section[],
+  slpv2Errors: string[],
+  slpv2BurnTokenIds: string[],
   /** Block data for this tx, or undefined if not mined yet. */
   block: BlockMetadata | undefined
   /** UNIX timestamp when this tx has first been seen in the mempool.
@@ -749,7 +1050,7 @@ export interface Tx {
 }
 
 /** An unspent transaction output (aka. UTXO, aka. "Coin") of a script. */
-export interface Utxo {
+export interface ScriptUtxo {
   /** Outpoint of the UTXO. */
   outpoint: OutPoint
   /** Which block this UTXO is in, or -1 if in the mempool. */
@@ -759,6 +1060,7 @@ export interface Utxo {
   isCoinbase: boolean
   /** Value of the UTXO in satoshis. */
   value: string
+  slpv2: Slpv2Token | undefined
   /** SLP data in this UTXO. */
   slpMeta: SlpMeta | undefined
   /** SLP token of this UTXO (i.e. SLP amount + whether it's a mint baton). */
@@ -785,6 +1087,34 @@ export interface Token {
   containsBaton: boolean
   /** Which network this token is on. */
   network: Network
+}
+
+export type Slpv2TokenType = "Standard";
+export type Slpv2SectionType = "GENESIS" | "MINT" | "SEND";
+
+/** Data and stats about an SLP token. */
+export interface Slpv2TokenInfo {
+  tokenId: string
+  tokenType: Slpv2TokenType
+  genesisData: Slpv2GenesisData
+  block: BlockMetadata | undefined
+  timeFirstSeen: string
+}
+
+export interface Slpv2GenesisData {
+  tokenTicker: string
+  tokenName: string
+  url: string
+  data: Uint8Array
+  authPubkey: Uint8Array
+  decimals: number
+}
+
+export interface Slpv2Section {
+  tokenId: string
+  tokenType: Slpv2TokenType
+  sectionType: Slpv2SectionType
+  intentionalBurnAmount: string
 }
 
 /** Block info about a block */
@@ -836,12 +1166,12 @@ export interface Block {
   /** Info about the block. */
   blockInfo: BlockInfo
   /** Details about the block. */
-  blockDetails: BlockDetails
+  //blockDetails: BlockDetails
   /** Header encoded as hex. */
-  rawHeader: string
+  //rawHeader: string
   /** Txs in this block, in canonical order
    * (at least on all supported chains). */
-  txs: Tx[]
+  //txs: Tx[]
 }
 
 /** Group of UTXOs by output script. */
@@ -849,7 +1179,7 @@ export interface ScriptUtxos {
   /** Output script in hex. */
   outputScript: string
   /** UTXOs of the output script. */
-  utxos: Utxo[]
+  utxos: ScriptUtxo[]
 }
 
 /** Page of the transaction history. */
@@ -905,6 +1235,13 @@ export interface TokenStats {
   totalBurned: string
 }
 
+export interface Slpv2Token {
+  sectionIdx: number
+  tokenId: string
+  amount: string
+  isMintBaton: boolean
+}
+
 /** Input of a tx, spends an output of a previous tx. */
 export interface TxInput {
   /** Points to an output spent by this input. */
@@ -919,6 +1256,7 @@ export interface TxInput {
   value: string
   /** `sequence` field of the input; can be used for relative time locking. */
   sequenceNo: number
+  slpv2: Slpv2Token | undefined
   /** SLP tokens burned by this input, or `undefined` if no burn occured. */
   slpBurn: SlpBurn | undefined
   /** SLP tokens spent by this input, or `undefined` if the tokens were burned
@@ -933,12 +1271,13 @@ export interface TxOutput {
   /** Script of this output, locking the coins.
    * Aka. `scriptPubKey` in bitcoind parlance. */
   outputScript: string
+  slpv2: Slpv2Token | undefined
   /** SLP tokens locked up in this output, or `undefined` if no tokens were sent
    * to this output. */
   slpToken: SlpToken | undefined
   /** Transaction & input index spending this output, or undefined if
    * unspent. */
-  spentBy: OutPoint | undefined
+  spentBy: SpentBy | undefined
 }
 
 /** Metadata of a block, used in transaction data. */
@@ -960,6 +1299,14 @@ export interface OutPoint {
   /** Index of the output in the tx referenced by this outpoint
    * (or input index if used in field `spentBy`). */
   outIdx: number
+}
+
+export interface SpentBy {
+  /** Transaction referenced by this outpoint. */
+  txid: string
+  /** Index of the output in the tx referenced by this outpoint
+   * (or input index if used in field `spentBy`). */
+  inputIdx: number
 }
 
 /** SLP amount or whether this is a mint baton, for inputs and outputs. */
@@ -1064,16 +1411,45 @@ export interface MsgBlockDisconnected {
   blockHash: string
 }
 
+/** Message returned from the WebSocket. */
+export type WsMsg =
+  | Error
+  | MsgBlock
+  | MsgTx
+
+export type BlockMsgType = "Connected" | "Disconnected" | "Finalized";
+export type TxMsgType = "AddedToMempool" | "RemovedFromMempool" | "Confirmed" | "Finalized";
+
+/** Block got connected, disconnected, finalized, etc. */
+export interface MsgBlock {
+  type: "MsgBlock",
+  /** What happened to the block */
+  msgType: BlockMsgType
+  /** Hash of the block */
+  blockHash: string
+  /** Height of the block */
+  blockHeight: number
+}
+
+/** Tx got added to/removed from mempool, or confirmed in a block, etc. */
+export interface MsgTx {
+  type: "MsgTx",
+  /** What happened to the tx */
+  msgType: TxMsgType
+  /** Txid of the tx (little-endian) */
+  txid: string
+}
+
 /** Reports an error, e.g. when a subscription is malformed. */
 export interface Error {
   type: "Error"
   /** Code for this error, e.g. "tx-not-found". */
-  errorCode: string
+  //errorCode: string
   /** Human-readable message for this error. */
   msg: string
   /** Whether this error is presentable to an end-user.
    * This is somewhat subjective, but can be used as a good heuristic. */
-  isUserError: boolean
+  //isUserError: boolean
 }
 
 /** Different networks of txs/blocks/UTXOs.

@@ -1,7 +1,10 @@
 use bitcoinsuite_core::{ByteArray, Bytes, Script, TxInput, TxOutput, UnhashedTx};
 use serde::{Deserialize, Serialize};
 
-use crate::{SlpAmount, TokenId};
+use crate::{
+    consts::{SLP_TOKEN_TYPE_V1, SLP_TOKEN_TYPE_V1_NFT1_CHILD, SLP_TOKEN_TYPE_V1_NFT1_GROUP},
+    SlpAmount, TokenId,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlpTx {
@@ -184,6 +187,17 @@ impl SlpTxType {
             SlpTxType::Mint => SlpTxTypeVariant::Mint,
             SlpTxType::Burn(_) => SlpTxTypeVariant::Burn,
             SlpTxType::Unknown => SlpTxTypeVariant::Unknown,
+        }
+    }
+}
+
+impl SlpTokenType {
+    pub fn num(&self) -> Option<i32> {
+        match self {
+            SlpTokenType::Fungible => Some(SLP_TOKEN_TYPE_V1[0] as _),
+            SlpTokenType::Nft1Group => Some(SLP_TOKEN_TYPE_V1_NFT1_GROUP[0] as _),
+            SlpTokenType::Nft1Child => Some(SLP_TOKEN_TYPE_V1_NFT1_CHILD[0] as _),
+            SlpTokenType::Unknown => None,
         }
     }
 }

@@ -13,6 +13,7 @@ members = [
     "bitcoinsuite-error-derive",
     "bitcoinsuite-error-warp",
     "bitcoinsuite-slp",
+    "bitcoinsuite-slpv2",
     "bitcoinsuite-test-utils",
     "bitcoinsuite-test-utils-blockchain",
 ]

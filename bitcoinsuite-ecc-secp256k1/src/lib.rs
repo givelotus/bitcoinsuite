@@ -2,7 +2,10 @@ use bitcoinsuite_core::{
     ecc::{Ecc, EccError, PubKey, SecKey, VerifySignatureError, PUBKEY_LENGTH},
     ByteArray, Bytes,
 };
-use secp256k1_abc::{All, Message, PublicKey, Secp256k1, SecretKey, Signature};
+use secp256k1_abc::{
+    recovery::{RecoverableSignature, RecoveryId},
+    All, Message, PublicKey, Secp256k1, SecretKey, Signature,
+};
 
 #[derive(Debug, Clone)]
 pub struct EccSecp256k1 {
@@ -87,6 +90,29 @@ impl Ecc for EccSecp256k1 {
         let mut sig = Signature::from_der_lax(sig).map_err(|_| EccError::InvalidSignatureFormat)?;
         sig.normalize_s();
         Ok(sig.serialize_der().to_vec().into())
+    }
+
+    fn sign_recoverable(&self, seckey: &SecKey, msg: ByteArray<32>) -> (i32, Bytes) {
+        let msg = Message::from_slice(&msg).expect("Impossible");
+        let seckey = SecretKey::from_slice(seckey.as_slice()).expect("Invalid secret key");
+        let sig = self.curve.sign_recoverable(&msg, &seckey);
+        let (recover_id, sig_rs) = sig.serialize_compact();
+        (recover_id.to_i32(), sig_rs.into())
+    }
+
+    fn recover_sig(
+        &self,
+        data: &[u8],
+        recover_id: i32,
+        msg: ByteArray<32>,
+    ) -> Result<PubKey, EccError> {
+        let recover_id = RecoveryId::from_i32(recover_id)
+            .map_err(|_| EccError::InvalidRecoveryId(recover_id))?;
+        let sig = RecoverableSignature::from_compact(data, recover_id)
+            .map_err(|_| EccError::InvalidSignatureFormat)?;
+        let msg = Message::from_slice(&msg).expect("Impossible");
+        let pubkey = self.curve.recover(&msg, &sig).map_err(|_| EccError::RecoveryFailed)?;
+        Ok(PubKey::new_unchecked(pubkey.serialize()))
     }
 }
 

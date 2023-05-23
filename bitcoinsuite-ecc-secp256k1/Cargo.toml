@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 bitcoinsuite-core = { path = "../bitcoinsuite-core" }
 
-secp256k1-abc = { git = "https://github.com/raipay/secp256k1-abc", features = ["rand-std"] }
+secp256k1-abc = { git = "https://github.com/raipay/secp256k1-abc", features = ["rand-std", "recovery"] }
 
 [dev-dependencies]
 hex-literal = "0.3"

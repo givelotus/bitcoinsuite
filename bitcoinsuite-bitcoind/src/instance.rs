@@ -33,6 +33,7 @@ pub struct BitcoindConf {
     pub additional_args: Vec<OsString>,
     pub p2p_port: u16,
     pub rpc_port: u16,
+    pub chronik_port: u16,
     pub net: Net,
     pub chain: BitcoindChain,
 }
@@ -45,6 +46,7 @@ pub struct BitcoindInstance {
     bitcoind_child: Child,
     cli: BitcoinCli,
     client: BitcoindRpcClient,
+    chronik_url: String,
 }
 
 impl BitcoindConf {
@@ -62,7 +64,7 @@ impl BitcoindConf {
         net: Net,
         additional_args: Vec<OsString>,
     ) -> Result<Self> {
-        let ports = pick_ports(2)?;
+        let ports = pick_ports(3)?;
         let bin_folder = bin_folder.as_ref();
         let bin_folder = match chain {
             BitcoindChain::XEC => bin_folder.join("bitcoin-abc").join("bin"),
@@ -79,6 +81,7 @@ impl BitcoindConf {
             additional_args,
             p2p_port: ports[0],
             rpc_port: ports[1],
+            chronik_port: ports[2],
             net,
             chain,
         })
@@ -110,6 +113,7 @@ impl BitcoindInstance {
             File::create(instance_dir.join("stderr.txt")).wrap_err(BitcoindError::TestInstance)?;
         let rpc_user = "user";
         let rpc_pass = "pass";
+        let chronik_host = format!("127.0.0.1:{}", conf.chronik_port);
         let bitcoin_conf_str = format!(
             "\
 {net_line}
@@ -119,11 +123,12 @@ rpcpassword={rpc_pass}
 {net_section_header}
 port={p2p_port}
 rpcport={rpc_port}
+chronikbind={chronik_host}
 ",
             net_line = net_conf_line(conf.net),
             net_section_header = net_conf_section_header(conf.net),
             p2p_port = conf.p2p_port,
-            rpc_port = conf.rpc_port
+            rpc_port = conf.rpc_port,
         );
         let conf_path = match conf.chain {
             BitcoindChain::XPI => datadir.join("lotus.conf"),
@@ -154,6 +159,7 @@ rpcport={rpc_port}
             rpc_user: rpc_user.to_string(),
             rpc_pass: rpc_pass.to_string(),
         });
+        let chronik_url = format!("http://{}", chronik_host);
         Ok(BitcoindInstance {
             conf,
             instance_dir,
@@ -161,6 +167,7 @@ rpcport={rpc_port}
             bitcoind_child,
             cli,
             client,
+            chronik_url,
         })
     }
 
@@ -170,6 +177,10 @@ rpcport={rpc_port}
 
     pub fn rpc_client(&self) -> &BitcoindRpcClient {
         &self.client
+    }
+
+    pub fn chronik_url(&self) -> &str {
+        &self.chronik_url
     }
 
     fn shutdown_bitcoind(&mut self) -> Result<()> {
@@ -225,6 +236,10 @@ rpcport={rpc_port}
 
     pub fn p2p_port(&self) -> u16 {
         self.conf.p2p_port
+    }
+
+    pub fn chronik_port(&self) -> u16 {
+        self.conf.chronik_port
     }
 
     pub fn wait_for_ready(&mut self) -> Result<()> {

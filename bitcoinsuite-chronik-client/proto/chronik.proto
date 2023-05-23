@@ -10,12 +10,41 @@ package chronik;
 message Block {
     // Info about the block
     BlockInfo block_info = 1;
+    BlockDetails block_details = 3;
+    bytes raw_header = 4;
+    repeated Tx txs = 2;
 }
 
 // Range of blocks
 message Blocks {
     // Queried blocks
     repeated BlockInfo blocks = 1;
+}
+
+message ValidateUtxoRequest {
+    repeated OutPoint outpoints = 1;
+}
+
+message ValidateUtxoResponse {
+    repeated UtxoState utxo_states = 1;
+}
+
+message BroadcastTxRequest {
+    bytes raw_tx = 1;
+    bool skip_slp_check = 2;
+}
+
+message BroadcastTxResponse {
+    bytes txid = 1;
+}
+
+message BroadcastTxsRequest {
+    repeated bytes raw_txs = 1;
+    bool skip_slp_check = 2;
+}
+
+message BroadcastTxsResponse {
+    repeated bytes txids = 1;
 }
 
 // Info about the state of the blockchain.
@@ -58,6 +87,13 @@ message BlockInfo {
     int64 sum_burned_sats = 13;
 }
 
+message BlockDetails {
+    int32 version = 1;
+    bytes merkle_root = 2;
+    uint64 nonce = 3;
+    int64 median_timestamp = 4;
+}
+
 // Details about a transaction
 message Tx {
     // TxId (little-endian) of the tx
@@ -70,6 +106,8 @@ message Tx {
     repeated TxOutput outputs = 4;
     // nLockTime
     uint32 lock_time = 5;
+    SlpTxData slp_tx_data = 6;
+    string slp_error_msg = 7;
     // Which block this tx is in, or None, if in the mempool
     BlockMetadata block = 8;
     // Time this tx has first been added to the mempool, or 0 if unknown
@@ -78,6 +116,7 @@ message Tx {
     uint32 size = 11;
     // Whether this tx is a coinbase tx
     bool is_coinbase = 12;
+    Network network = 10;
     repeated Slpv2Section slpv2_sections = 13;
     repeated string slpv2_errors = 14;
     repeated bytes slpv2_burn_token_ids = 15;
@@ -93,6 +132,9 @@ message ScriptUtxo {
     bool is_coinbase = 3;
     // Value of the output, in satoshis.
     int64 value = 5;
+    SlpMeta slp_meta = 6;
+    SlpToken slp_token = 7;
+    Network network = 9;
     // Whether the UTXO has been finalized by Avalanche.
     bool is_final = 10;
     Slpv2Token slpv2 = 11;
@@ -126,6 +168,8 @@ message TxInput {
     int64 value = 4;
     // nSequence of the input.
     uint32 sequence_no = 5;
+    SlpBurn slp_burn = 6;
+    SlpToken slp_token = 7;
     Slpv2Token slpv2 = 8;
 }
 
@@ -135,6 +179,7 @@ message TxOutput {
     int64 value = 1;
     // scriptPubKey, script locking the output.
     bytes output_script = 2;
+    SlpToken slp_token = 3;
     // Which tx and input spent this output, if any.
     SpentBy spent_by = 4;
     Slpv2Token slpv2 = 5;
@@ -150,6 +195,70 @@ message BlockMetadata {
     int64 timestamp = 3;
     // Whether the block has been finalized by Avalanche.
     bool is_final = 4;
+}
+
+message SlpTxData {
+    SlpMeta slp_meta = 1;
+    SlpGenesisInfo genesis_info = 2;
+}
+
+message SlpMeta {
+    SlpTokenType token_type = 1;
+    SlpTxType tx_type = 2;
+    bytes token_id = 3;
+    bytes group_token_id = 4;
+}
+
+message TokenStats {
+    // This doesn't fit into uint64, so we use a string with the decimal
+    // representation. If available, use i128 to parse, otherwise some
+    // BigNumber library.
+    string total_minted = 1;
+    string total_burned = 2;
+}
+
+message Token {
+    SlpTxData slp_tx_data = 1;
+    TokenStats token_stats = 2;
+    BlockMetadata block = 3;
+    int64 time_first_seen = 4;
+    uint64 initial_token_quantity = 5;
+    bool contains_baton = 6;
+    Network network = 7;
+}
+
+
+message SlpToken {
+    uint64 amount = 1;
+    bool is_mint_baton = 2;
+}
+
+message SlpBurn {
+    SlpToken token = 1;
+    bytes token_id = 2;
+}
+
+message SlpGenesisInfo {
+    bytes token_ticker = 1;
+    bytes token_name = 2;
+    bytes token_document_url = 3;
+    bytes token_document_hash = 4;
+    uint32 decimals = 5;
+}
+
+enum SlpTokenType {
+    FUNGIBLE = 0;
+    NFT1_GROUP = 1;
+    NFT1_CHILD = 2;
+    UNKNOWN_TOKEN_TYPE = 3;
+}
+
+enum SlpTxType {
+    GENESIS = 0;
+    SEND = 1;
+    MINT = 2;
+    BURN = 4;
+    UNKNOWN_TX_TYPE = 3;
 }
 
 message Slpv2TokenInfo {
@@ -213,10 +322,76 @@ message ScriptUtxos {
     repeated ScriptUtxo utxos = 2;
 }
 
+message Utxos {
+    repeated ScriptUtxos script_utxos = 1;
+}
+
 // Raw serialized tx.
 message RawTx {
     // Bytes of the serialized tx.
     bytes raw_tx = 1;
+}
+
+enum Network {
+    BCH = 0;
+    XEC = 1;
+    XPI = 2;
+    XRG = 3;
+}
+
+message UtxoState {
+    int32 height = 1;
+    bool is_confirmed = 2;
+    UtxoStateVariant state = 3;
+}
+
+enum UtxoStateVariant {
+    UNSPENT = 0;
+    SPENT = 1;
+    NO_SUCH_TX = 2;
+    NO_SUCH_OUTPUT = 3;
+}
+
+message Subscription {
+    string script_type = 1;
+    bytes payload = 2;
+    bool is_subscribe = 3;
+}
+
+message SubscribeMsg {
+    oneof msg_type {
+        Error error = 1;
+        MsgAddedToMempool AddedToMempool = 2;
+        MsgRemovedFromMempool RemovedFromMempool = 3;
+        MsgConfirmed Confirmed = 4;
+        MsgReorg Reorg = 5;
+        MsgBlockConnected BlockConnected = 6;
+        MsgBlockDisconnected BlockDisconnected = 7;
+    }
+}
+
+message MsgAddedToMempool {
+    bytes txid = 1;
+}
+
+message MsgRemovedFromMempool {
+    bytes txid = 1;
+}
+
+message MsgConfirmed {
+    bytes txid = 1;
+}
+
+message MsgReorg {
+    bytes txid = 1;
+}
+
+message MsgBlockConnected {
+    bytes block_hash = 1;
+}
+
+message MsgBlockDisconnected {
+    bytes block_hash = 1;
 }
 
 // Subscription to WebSocket updates.
@@ -304,6 +479,7 @@ enum TxMsgType {
 
 // Error message returned from our APIs.
 message Error {
-    // 2, as legacy chronik uses this for the message so we're still compatible.
+    string error_code = 1;
     string msg = 2;
+    bool is_user_error = 3;
 }
