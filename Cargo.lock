@@ -223,6 +223,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitcoinsuite-slpv2"
+version = "0.1.0"
+dependencies = [
+ "bitcoinsuite-core",
+ "thiserror",
+]
+
+[[package]]
 name = "bitcoinsuite-test-utils"
 version = "0.1.0"
 dependencies = [
