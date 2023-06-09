@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use bitcoinsuite_core::{Hashed, Result, Sha256d};
 
@@ -46,5 +46,11 @@ impl TokenId {
 impl Debug for TokenId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "TokenId({})", self.txid)
+    }
+}
+
+impl Display for TokenId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <Sha256d as Display>::fmt(&self.txid, f)
     }
 }
