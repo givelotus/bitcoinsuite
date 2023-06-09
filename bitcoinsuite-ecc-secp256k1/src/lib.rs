@@ -2,7 +2,10 @@ use bitcoinsuite_core::{
     ecc::{Ecc, EccError, PubKey, SecKey, VerifySignatureError, PUBKEY_LENGTH},
     ByteArray, Bytes,
 };
-use secp256k1_abc::{All, Message, PublicKey, Secp256k1, SecretKey, Signature};
+use secp256k1_abc::{
+    recovery::{RecoverableSignature, RecoveryId},
+    All, Message, PublicKey, Secp256k1, SecretKey, Signature,
+};
 
 #[derive(Debug, Clone)]
 pub struct EccSecp256k1 {
@@ -87,6 +90,32 @@ impl Ecc for EccSecp256k1 {
         let mut sig = Signature::from_der_lax(sig).map_err(|_| EccError::InvalidSignatureFormat)?;
         sig.normalize_s();
         Ok(sig.serialize_der().to_vec().into())
+    }
+
+    fn sign_recoverable(&self, seckey: &SecKey, msg: ByteArray<32>) -> (i32, Bytes) {
+        let msg = Message::from_slice(&msg).expect("Impossible");
+        let seckey = SecretKey::from_slice(seckey.as_slice()).expect("Invalid secret key");
+        let sig = self.curve.sign_recoverable(&msg, &seckey);
+        let (recover_id, sig_rs) = sig.serialize_compact();
+        (recover_id.to_i32(), sig_rs.into())
+    }
+
+    fn recover_sig(
+        &self,
+        sig: &[u8],
+        recover_id: i32,
+        msg: ByteArray<32>,
+    ) -> Result<PubKey, EccError> {
+        let recover_id = RecoveryId::from_i32(recover_id)
+            .map_err(|_| EccError::InvalidRecoveryId(recover_id))?;
+        let sig = RecoverableSignature::from_compact(sig, recover_id)
+            .map_err(|_| EccError::InvalidSignatureFormat)?;
+        let msg = Message::from_slice(&msg).expect("Impossible");
+        let pubkey = self
+            .curve
+            .recover(&msg, &sig)
+            .map_err(|_| EccError::RecoveryFailed)?;
+        Ok(PubKey::new_unchecked(pubkey.serialize()))
     }
 }
 
@@ -228,5 +257,20 @@ mod tests {
         let high_s_sig = hex!("304502202289e8e0dfd833a207da5bf6e2f8edc8fb2beb78ab4982c48fc557c27b7c9e68022100c41560847ba73867553a9cc14f02b56228eda5b9d263aa9aacab68680cc1a99301").into();
         let normalized_sig = ecc.normalize_sig(&high_s_sig).unwrap();
         assert_eq!(normalized_sig.hex(), "304402202289e8e0dfd833a207da5bf6e2f8edc8fb2beb78ab4982c48fc557c27b7c9e6802203bea9f7b8458c798aac5633eb0fd4a9c91c1372cdce4f5a11326f624c37497ae");
+    }
+
+    #[test]
+    fn test_recover_sig() {
+        let ecc = EccSecp256k1::default();
+        let seckey = ecc.seckey_from_array([1; 32]).unwrap();
+        let msg = [3; 32];
+        let (recover_id, signature) = ecc.sign_recoverable(&seckey, msg.into());
+        let pubkey = ecc.recover_sig(&signature, recover_id, msg.into()).unwrap();
+        let expected_pk = ecc.derive_pubkey(&seckey);
+        assert_eq!(pubkey, expected_pk);
+        let wrong_pubkey = ecc
+            .recover_sig(&signature, (recover_id + 1) % 4, msg.into())
+            .unwrap();
+        assert_ne!(wrong_pubkey, expected_pk);
     }
 }
