@@ -92,18 +92,7 @@ impl ChronikClient {
     }
 
     pub async fn broadcast_tx(&self, raw_tx: Vec<u8>) -> Result<proto::BroadcastTxResponse> {
-        self.broadcast_tx_with_slp_check(raw_tx, false).await
-    }
-
-    pub async fn broadcast_tx_with_slp_check(
-        &self,
-        raw_tx: Vec<u8>,
-        skip_slp_check: bool,
-    ) -> Result<proto::BroadcastTxResponse> {
-        let request = proto::BroadcastTxRequest {
-            raw_tx,
-            skip_slp_check,
-        };
+        let request = proto::BroadcastTxRequest { raw_tx };
         self._post("/broadcast-tx", &request).await
     }
 
@@ -111,18 +100,7 @@ impl ChronikClient {
         &self,
         raw_txs: Vec<Vec<u8>>,
     ) -> Result<proto::BroadcastTxsResponse> {
-        self.broadcast_txs_with_slp_check(raw_txs, false).await
-    }
-
-    pub async fn broadcast_txs_with_slp_check(
-        &self,
-        raw_txs: Vec<Vec<u8>>,
-        skip_slp_check: bool,
-    ) -> Result<proto::BroadcastTxsResponse> {
-        let request = proto::BroadcastTxsRequest {
-            raw_txs,
-            skip_slp_check,
-        };
+        let request = proto::BroadcastTxsRequest { raw_txs };
         self._post("/broadcast-txs", &request).await
     }
 
@@ -154,40 +132,19 @@ impl ChronikClient {
     }
 
     pub async fn raw_tx(&self, txid: &Sha256d) -> Result<Bytes> {
-        use prost::Message as _;
-        let response = self
-            .client
-            .get(format!("{}/raw-tx/{}", self.http_url, txid))
-            .send()
-            .await
-            .wrap_err(HttpRequestError)?;
-        let status_code = response.status();
-        if status_code != StatusCode::OK {
-            let data = response.bytes().await?;
-            let error = proto::Error::decode(data.as_ref())
-                .wrap_err_with(|| InvalidProtobuf(hex::encode(&data)))?;
-            return Err(ChronikError {
-                status_code,
-                error_msg: error.msg.clone(),
-                error,
-            }
-            .into());
-        }
-        let bytes = response.bytes().await.wrap_err(HttpRequestError)?;
-        Ok(Bytes::from_bytes(bytes))
+        Ok(self
+            ._get::<proto::RawTx>(&format!("/raw-tx/{}", txid))
+            .await?
+            .raw_tx
+            .into())
     }
 
-    pub async fn token(&self, token_id: &Sha256d) -> Result<proto::Token> {
-        self._get(&format!("/token/{}", token_id)).await
+    pub async fn validate_tx(&self, raw_tx: Vec<u8>) -> Result<proto::Tx> {
+        self._post("/validate-tx", &proto::RawTx { raw_tx }).await
     }
 
-    pub async fn validate_utxos(
-        &self,
-        outpoints: Vec<proto::OutPoint>,
-    ) -> Result<Vec<proto::UtxoState>> {
-        let request = proto::ValidateUtxoRequest { outpoints };
-        let response: proto::ValidateUtxoResponse = self._post("/validate-utxos", &request).await?;
-        Ok(response.utxo_states)
+    pub async fn token(&self, token_id: &Sha256d) -> Result<proto::TokenInfo> {
+        self._get(&format!("/token-info/{}", token_id)).await
     }
 
     pub fn script<'payload, 'client>(
@@ -283,16 +240,38 @@ impl ScriptEndpoint<'_, '_> {
             .await
     }
 
-    pub async fn utxos(&self) -> Result<Vec<proto::ScriptUtxos>> {
+    pub async fn confirmed_txs(&self, page: usize) -> Result<proto::TxHistoryPage> {
+        self.client
+            ._get(&format!(
+                "/script/{}/{}/confirmed-txs?page={}",
+                self.script_type,
+                hex::encode(self.script_payload),
+                page,
+            ))
+            .await
+    }
+
+    pub async fn unconfirmed_txs(&self, page: usize) -> Result<proto::TxHistoryPage> {
+        self.client
+            ._get(&format!(
+                "/script/{}/{}/unconfirmed-txs?page={}",
+                self.script_type,
+                hex::encode(self.script_payload),
+                page,
+            ))
+            .await
+    }
+
+    pub async fn utxos(&self) -> Result<Vec<proto::ScriptUtxo>> {
         let utxos = self
             .client
-            ._get::<proto::Utxos>(&format!(
+            ._get::<proto::ScriptUtxos>(&format!(
                 "/script/{}/{}/utxos",
                 self.script_type,
                 hex::encode(self.script_payload),
             ))
             .await?;
-        Ok(utxos.script_utxos)
+        Ok(utxos.utxos)
     }
 }
 

@@ -46,7 +46,7 @@ pub fn mint_section(token_id: &TokenId, token_type: TokenType, mint_data: &MintD
     section.put_slice(MINT);
     section.put_slice(token_id.as_bytes());
     put_mint_data(&mut section, mint_data);
-    
+
     section.freeze()
 }
 
@@ -73,11 +73,7 @@ fn put_amount(section: &mut BytesMut, amount: Amount) {
     section.put_slice(&amount.to_le_bytes()[..6]);
 }
 
-pub fn send_section(
-    token_id: &TokenId,
-    token_type: TokenType,
-    send_amounts: &[Amount],
-) -> Bytes {
+pub fn send_section(token_id: &TokenId, token_type: TokenType, send_amounts: &[Amount]) -> Bytes {
     let mut section = BytesMut::new();
     section.put_slice(&SLPV2_LOKAD_ID);
     section.put_slice(&[token_type as u8]);
