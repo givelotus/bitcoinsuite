@@ -29,6 +29,10 @@ pub enum EccError {
     InvalidSecretKey,
     #[error("Pubkey has invalid length, expected {:.0} but got {0}", 33)]
     InvalidPubKeyLen(usize),
+    #[error("Invalid recovery_id: {0}")]
+    InvalidRecoveryId(i32),
+    #[error("Failed recovering signature")]
+    RecoveryFailed,
     #[error("Invalid hex: {0}")]
     Hex(#[from] hex::FromHexError),
 }
@@ -61,6 +65,15 @@ pub trait Ecc {
     fn serialize_pubkey_uncompressed(&self, pubkey: &PubKey) -> [u8; 65];
 
     fn normalize_sig(&self, sig: &Bytes) -> Result<Bytes, EccError>;
+
+    fn sign_recoverable(&self, seckey: &SecKey, msg: ByteArray<32>) -> (i32, Bytes);
+
+    fn recover_sig(
+        &self,
+        data: &[u8],
+        recover_id: i32,
+        msg: ByteArray<32>,
+    ) -> Result<PubKey, EccError>;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -111,5 +124,18 @@ impl Ecc for DummyEcc {
 
     fn normalize_sig(&self, sig: &Bytes) -> Result<Bytes, EccError> {
         Ok(vec![0; sig.len()].into())
+    }
+
+    fn sign_recoverable(&self, _seckey: &SecKey, _msg: ByteArray<32>) -> (i32, Bytes) {
+        (0, vec![0; 64].into())
+    }
+
+    fn recover_sig(
+        &self,
+        _data: &[u8],
+        _recover_id: i32,
+        _msg: ByteArray<32>,
+    ) -> Result<PubKey, EccError> {
+        unimplemented!()
     }
 }
