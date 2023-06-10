@@ -30,8 +30,11 @@ pub enum BitcoindError {
     UTF8,
 
     #[critical()]
-    #[error("Bitcoind exited")]
-    BitcoindExited,
+    #[error("Bitcoind exited: {stderr}\ndebug log tail:\n{debug_log_tail}")]
+    BitcoindExited {
+        stderr: String,
+        debug_log_tail: String,
+    },
 
     #[critical()]
     #[error("Timeout {0}")]

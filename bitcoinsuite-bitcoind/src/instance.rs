@@ -1,7 +1,7 @@
 use std::{
     ffi::OsString,
     fs::File,
-    io::Write,
+    io::{Read, Write, BufRead},
     path::{Path, PathBuf},
     process::{Child, Command, Output},
     str::FromStr,
@@ -11,6 +11,7 @@ use std::{
 use bitcoinsuite_core::Net;
 use bitcoinsuite_error::{Result, WrapErr};
 use bitcoinsuite_test_utils::pick_ports;
+use rev_buf_reader::RevBufReader;
 use tempdir::TempDir;
 
 use crate::{
@@ -243,7 +244,15 @@ rpcport={rpc_port}
             .wrap_err(BitcoindError::TestInstance)?
             .is_some()
         {
-            return Err(BitcoindError::BitcoindExited.into());
+            return Err(BitcoindError::BitcoindExited {
+                stderr: self
+                    .read_stderr()
+                    .unwrap_or_else(|err| format!("Failed opening stderr.txt: {err}")),
+                debug_log_tail: self
+                    .read_debug_log_tail()
+                    .unwrap_or_else(|err| format!("Failed opening debug.log: {err}")),
+            }
+            .into());
         }
         Ok(())
     }
@@ -270,6 +279,33 @@ rpcport={rpc_port}
 
     pub fn cleanup(&self) -> Result<()> {
         std::fs::remove_dir_all(&self.instance_dir).wrap_err(BitcoindError::TestInstance)
+    }
+
+    fn read_stderr(&self) -> Result<String, std::io::Error> {
+        let stderr_path = self.instance_dir.join("stderr.txt");
+        if !stderr_path.exists() {
+            return Ok("".to_string());
+        }
+        let mut file = File::open(stderr_path)?;
+        let mut stderr = String::new();
+        file.read_to_string(&mut stderr)?;
+        Ok(stderr)
+    }
+
+    fn read_debug_log_tail(&self) -> Result<String, std::io::Error> {
+        let debug_log_path = self.instance_dir.join("datadir").join("debug.log");
+        if !debug_log_path.exists() {
+            return Ok("".to_string());
+        }
+        let mut file = File::open(debug_log_path)?;
+        let rev_reader = RevBufReader::new(&mut file);
+        let lines = rev_reader.lines().take(20).collect::<Vec<_>>();
+        let mut debug_log = String::new();
+        for line in lines.into_iter() {
+            debug_log.push_str(&line?);
+            debug_log.push('\n');
+        }
+        Ok(debug_log)
     }
 }
 

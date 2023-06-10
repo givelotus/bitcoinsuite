@@ -25,6 +25,9 @@ tempdir = "0.3"
 reqwest = "0.11"
 json = "0.12"
 
+# Read files in reverse order
+rev_buf_reader = "0.3"
+
 bitcoinsuite-test-utils = { path = "../bitcoinsuite-test-utils" }
 
 [dev-dependencies]
