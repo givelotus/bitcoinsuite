@@ -1,25 +1,24 @@
 import * as chai from "chai"
 import chaiAsPromised from "chai-as-promised"
 import {
-  BlockDetails,
   BlockInfo,
   ChronikClient,
-  SlpTokenTxData,
-  SubscribeMsg,
+  ScriptUtxo,
+  SlpToken,
+  TokenInfo,
   Tx,
-  Utxo,
-  UtxoState,
 } from "../index"
 
 const expect = chai.expect
 const assert = chai.assert
 chai.use(chaiAsPromised)
 
-const TEST_URL = "https://chronik.be.cash/xec"
+const TEST_URL = "https://chronik.be.cash/xec2"
 
 const GENESIS_PK =
   "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc" +
   "3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f"
+
 const GENESIS_BLOCK_INFO: BlockInfo = {
   hash: "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
   prevHash: "0000000000000000000000000000000000000000000000000000000000000000",
@@ -34,14 +33,9 @@ const GENESIS_BLOCK_INFO: BlockInfo = {
   sumCoinbaseOutputSats: "5000000000",
   sumNormalOutputSats: "0",
   sumBurnedSats: "0",
+  isFinal: true,
 }
-const GENESIS_BLOCK_DETAILS: BlockDetails = {
-  version: 1,
-  merkleRoot:
-    "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
-  nonce: "2083236893",
-  medianTimestamp: "1231006505",
-}
+
 const GENESIS_TX: Tx = {
   txid: "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
   version: 1,
@@ -58,39 +52,40 @@ const GENESIS_TX: Tx = {
       outputScript: undefined,
       value: "0",
       sequenceNo: 0xffffffff,
-      slpBurn: undefined,
-      slpToken: undefined,
+      slp: undefined,
     },
   ],
   outputs: [
     {
       value: "5000000000",
       outputScript: "41" + GENESIS_PK + "ac",
-      slpToken: undefined,
+      slp: undefined,
       spentBy: undefined,
     },
   ],
   lockTime: 0,
-  slpTxData: undefined,
-  slpErrorMsg: undefined,
   block: {
     hash: "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
     height: 0,
     timestamp: "1231006505",
+    isFinal: true,
   },
   size: 204,
   isCoinbase: true,
   timeFirstSeen: "0",
-  network: "XEC",
+  slpv1Data: undefined,
+  slpv2Sections: [],
+  slpBurns: [],
+  slpErrors: [],
 }
-const GENESIS_UTXO: Utxo = {
+
+const GENESIS_UTXO: ScriptUtxo = {
   outpoint: { txid: GENESIS_TX.txid, outIdx: 0 },
   blockHeight: 0,
   isCoinbase: true,
   value: "5000000000",
-  slpMeta: undefined,
-  slpToken: undefined,
-  network: "XEC",
+  slp: undefined,
+  isFinal: true,
 }
 
 describe("new ChronikClient", () => {
@@ -136,14 +131,10 @@ describe("/block/:hash", () => {
       "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
     )
     expect(block.blockInfo).to.eql(GENESIS_BLOCK_INFO)
-    expect(block.blockDetails).to.eql(GENESIS_BLOCK_DETAILS)
-    expect(block.txs).to.eql([GENESIS_TX])
   })
   it("gives us the Genesis block by height", async () => {
     const block = await chronik.block(0)
     expect(block.blockInfo).to.eql(GENESIS_BLOCK_INFO)
-    expect(block.blockDetails).to.eql(GENESIS_BLOCK_DETAILS)
-    expect(block.txs).to.eql([GENESIS_TX])
   })
 })
 
@@ -184,6 +175,8 @@ describe("/blocks/:start/:end", () => {
 
 describe("/tx/:txid", () => {
   const chronik = new ChronikClient(TEST_URL)
+  const tokenId =
+    "0daf200e3418f2df1158efef36fbb507f12928f1fdcf3543703e64e75a4a9073"
   it("results in Not Found", async () => {
     assert.isRejected(
       chronik.tx(
@@ -217,11 +210,16 @@ describe("/tx/:txid", () => {
           outIdx: 1,
         },
         sequenceNo: 4294967295,
-        slpBurn: undefined,
-        slpToken: {
+        slp: {
           amount: "50000000",
+          isBurned: false,
           isMintBaton: false,
-        },
+          slpv1TokenType: "FUNGIBLE",
+          slpv2SectionIdx: 0,
+          slpv2TokenType: undefined,
+          tokenId,
+          tokenProtocol: "SLP",
+        } as SlpToken,
         value: "546",
       },
       {
@@ -236,8 +234,7 @@ describe("/tx/:txid", () => {
           outIdx: 0,
         },
         sequenceNo: 4294967295,
-        slpBurn: undefined,
-        slpToken: undefined,
+        slp: undefined,
         value: "100000",
       },
     ])
@@ -246,63 +243,71 @@ describe("/tx/:txid", () => {
         outputScript:
           "6a04534c500001010453454e44200daf200e3418f2df1158efef36fbb507f12928" +
           "f1fdcf3543703e64e75a4a90730800000000004c4b40080000000002aea540",
-        slpToken: undefined,
+        slp: undefined,
         spentBy: undefined,
         value: "0",
       },
       {
         outputScript: "76a9149c371def7e7cf89b30a62d658147937e679a965388ac",
-        slpToken: {
+        slp: {
           amount: "5000000",
+          isBurned: false,
           isMintBaton: false,
+          slpv1TokenType: "FUNGIBLE",
+          slpv2SectionIdx: 0,
+          slpv2TokenType: undefined,
+          tokenId,
+          tokenProtocol: "SLP",
         },
         spentBy: {
           txid: "962ace9db1a36d06c129dffbe9a92bcf2eafe37d1a44aedfc6f957d2be69f149",
-          outIdx: 0,
+          inputIdx: 0,
         },
         value: "546",
       },
       {
         outputScript: "76a914e7b4f63ec550ada1aed74960ddc4e0e107cd6cd188ac",
-        slpToken: {
+        slp: {
           amount: "45000000",
+          isBurned: false,
           isMintBaton: false,
+          slpv1TokenType: "FUNGIBLE",
+          slpv2SectionIdx: 0,
+          slpv2TokenType: undefined,
+          tokenId,
+          tokenProtocol: "SLP",
         },
         spentBy: {
           txid: "11ce5e4249c5b43927810129d887ce0df3bbde46d036998dff0180f94d2df6f8",
-          outIdx: 0,
+          inputIdx: 0,
         },
         value: "546",
       },
       {
         outputScript: "76a914d15b9793d6af77663f8acf7e2c884f114ef901da88ac",
-        slpToken: undefined,
+        slp: undefined,
         spentBy: {
           txid: "11ce5e4249c5b43927810129d887ce0df3bbde46d036998dff0180f94d2df6f8",
-          outIdx: 1,
+          inputIdx: 1,
         },
         value: "98938",
       },
     ])
     expect(tx.lockTime).to.eql(0)
-    expect(tx.slpTxData).to.eql({
-      genesisInfo: undefined,
-      slpMeta: {
-        tokenId:
-          "0daf200e3418f2df1158efef36fbb507f12928f1fdcf3543703e64e75a4a9073",
-        tokenType: "FUNGIBLE",
-        txType: "SEND",
-        groupTokenId: undefined,
-      },
+    expect(tx.slpv1Data).to.eql({
+      tokenId,
+      tokenType: "FUNGIBLE",
+      txType: "SEND",
+      groupTokenId: undefined,
     })
-    expect(tx.slpErrorMsg).to.eql(undefined)
+    expect(tx.slpErrors).to.eql([])
     expect(tx.block).to.eql({
       hash: "0000000000000000452f19532a6297ea194eaacac6d3bbcbf7c08a74cad84b44",
       height: 697728,
       timestamp: "1627790415",
+      isFinal: true,
     })
     expect(tx.timeFirstSeen).to.eql("0")
-    expect(tx.network).to.eql("XEC")
   })
 })
 
@@ -310,7 +315,7 @@ describe("/token/:tokenId", () => {
   const chronik = new ChronikClient(TEST_URL)
   it("results in Not Found", async () => {
     assert.isRejected(
-      chronik.token(
+      chronik.tokenInfo(
         "0000000000000000000000000000000000000000000000000000000000000000",
       ),
       Error,
@@ -318,88 +323,39 @@ describe("/token/:tokenId", () => {
   })
   it("results in Not Found", async () => {
     assert.isRejected(
-      chronik.token(
+      chronik.tokenInfo(
         "0f3c3908a2ddec8dea91d2fe1f77295bbbb158af869bff345d44ae800f0a5498",
       ),
       Error,
     )
   })
   it("gives us a token", async () => {
-    const token = await chronik.token(
+    const token = await chronik.tokenInfo(
       "0daf200e3418f2df1158efef36fbb507f12928f1fdcf3543703e64e75a4a9073",
     )
-    expect(token.slpTxData).to.eql({
-      genesisInfo: {
-        decimals: 4,
-        tokenDocumentHash: "",
-        tokenDocumentUrl: "https://www.raiusd.co/etoken",
-        tokenName: "RaiUSD",
-        tokenTicker: "USDR",
-      },
-      slpMeta: {
-        groupTokenId: undefined,
-        tokenId:
-          "0daf200e3418f2df1158efef36fbb507f12928f1fdcf3543703e64e75a4a9073",
+    expect(token).to.eql({
+      tokenProtocol: "SLP",
+      tokenId:
+        "0daf200e3418f2df1158efef36fbb507f12928f1fdcf3543703e64e75a4a9073",
+      slpv1: {
         tokenType: "FUNGIBLE",
-        txType: "GENESIS",
+        genesisInfo: {
+          decimals: 4,
+          tokenDocumentHash: "",
+          tokenDocumentUrl: "https://www.raiusd.co/etoken",
+          tokenName: "RaiUSD",
+          tokenTicker: "USDR",
+        },
       },
-    } as SlpTokenTxData)
-    expect(token.block).to.eql({
-      hash: "00000000000000002686aa5ffa8401c7ed67338fb9475561b2fa9817d6571da8",
-      height: 697721,
-      timestamp: "1627783243",
-    })
-    expect(token.timeFirstSeen).to.eql("0")
-    expect(token.initialTokenQuantity).to.eql("0")
-    expect(token.containsBaton).to.eql(true)
-    expect(token.network).to.eql("XEC")
-  })
-})
-
-describe("/validate-utxos", () => {
-  const chronik = new ChronikClient(TEST_URL)
-  it("validates the UTXOs", async () => {
-    const validationResult = await chronik.validateUtxos([
-      {
-        txid: "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
-        outIdx: 0,
+      slpv2: undefined,
+      block: {
+        hash: "00000000000000002686aa5ffa8401c7ed67338fb9475561b2fa9817d6571da8",
+        height: 697721,
+        timestamp: "1627783243",
+        isFinal: true,
       },
-      {
-        txid: "0f3c3908a2ddec8dea91d2fe1f77295bbbb158af869bff345d44ae800f0a5498",
-        outIdx: 1,
-      },
-      {
-        txid: "0f3c3908a2ddec8dea91d2fe1f77295bbbb158af869bff345d44ae800f0a5498",
-        outIdx: 100,
-      },
-      {
-        txid: "0000000000000000000000000000000000000000000000000000000000000000",
-        outIdx: 100,
-      },
-    ])
-    const expectedResult: UtxoState[] = [
-      {
-        height: 0,
-        isConfirmed: true,
-        state: "UNSPENT",
-      },
-      {
-        height: 697728,
-        isConfirmed: true,
-        state: "SPENT",
-      },
-      {
-        height: 697728,
-        isConfirmed: true,
-        state: "NO_SUCH_OUTPUT",
-      },
-      {
-        height: -1,
-        isConfirmed: false,
-        state: "NO_SUCH_TX",
-      },
-    ]
-    expect(validationResult).to.eql(expectedResult)
+      timeFirstSeen: "0",
+    } as TokenInfo)
   })
 })
 
@@ -436,16 +392,15 @@ describe("/script/:type/:payload/utxos", () => {
   it("gives us the UTXOs", async () => {
     const script = chronik.script("p2pk", GENESIS_PK)
     const utxos = await script.utxos()
-    expect(utxos.length).to.equal(1)
-    expect(utxos[0].outputScript).to.eql("41" + GENESIS_PK + "ac")
-    expect(utxos[0].utxos[0]).to.eql(GENESIS_UTXO)
+    expect(utxos.script).to.eql("41" + GENESIS_PK + "ac")
+    expect(utxos.utxos[0]).to.eql(GENESIS_UTXO)
   })
 })
 
-describe("/ws", () => {
+/*describe("/ws", () => {
   const chronik = new ChronikClient("https://chronik.be.cash/xpi")
   xit("gives us a confirmation", async () => {
-    const promise = new Promise((resolve: (msg: SubscribeMsg) => void) => {
+    const promise = new Promise((resolve: (msg: WsMsg) => void) => {
       const ws = chronik.ws({
         onMessage: msg => {
           resolve(msg)
@@ -467,4 +422,4 @@ describe("/ws", () => {
     })
     await promise
   })
-})
+})*/

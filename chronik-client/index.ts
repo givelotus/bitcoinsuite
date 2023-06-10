@@ -2,7 +2,7 @@ import axios, { AxiosResponse } from "axios"
 import WebSocket from "isomorphic-ws"
 import * as ws from "ws"
 import * as proto from "./chronik"
-import { fromHex, fromHexRev, toHex, toHexRev } from "./hex"
+import { fromHex, toHex, toHexRev } from "./hex"
 
 type MessageEvent = ws.MessageEvent | { data: Blob }
 
@@ -40,11 +40,9 @@ export class ChronikClient {
    */
   public async broadcastTx(
     rawTx: Uint8Array | string,
-    skipSlpCheck = false,
   ): Promise<{ txid: string }> {
     const request = proto.BroadcastTxRequest.encode({
       rawTx: typeof rawTx === "string" ? fromHex(rawTx) : rawTx,
-      skipSlpCheck,
     }).finish()
     const data = await _post(this._url, "/broadcast-tx", request)
     const broadcastResponse = proto.BroadcastTxResponse.decode(data)
@@ -59,13 +57,11 @@ export class ChronikClient {
    */
   public async broadcastTxs(
     rawTxs: (Uint8Array | string)[],
-    skipSlpCheck = false,
   ): Promise<{ txids: string[] }> {
     const request = proto.BroadcastTxsRequest.encode({
       rawTxs: rawTxs.map(rawTx =>
         typeof rawTx === "string" ? fromHex(rawTx) : rawTx,
       ),
-      skipSlpCheck,
     }).finish()
     const data = await _post(this._url, "/broadcast-txs", request)
     const broadcastResponse = proto.BroadcastTxsResponse.decode(data)
@@ -78,14 +74,14 @@ export class ChronikClient {
   public async blockchainInfo(): Promise<BlockchainInfo> {
     const data = await _get(this._url, `/blockchain-info`)
     const blockchainInfo = proto.BlockchainInfo.decode(data)
-    return convertToBlockchainInfo(blockchainInfo)
+    return convertBlockchainInfo(blockchainInfo)
   }
 
   /** Fetch the block given hash or height. */
   public async block(hashOrHeight: string | number): Promise<Block> {
     const data = await _get(this._url, `/block/${hashOrHeight}`)
     const block = proto.Block.decode(data)
-    return convertToBlock(block)
+    return convertBlock(block)
   }
 
   /** Fetch block info of a range of blocks. `startHeight` and `endHeight` are
@@ -96,39 +92,21 @@ export class ChronikClient {
   ): Promise<BlockInfo[]> {
     const data = await _get(this._url, `/blocks/${startHeight}/${endHeight}`)
     const blocks = proto.Blocks.decode(data)
-    return blocks.blocks.map(convertToBlockInfo)
+    return blocks.blocks.map(convertBlockInfo)
   }
 
   /** Fetch tx details given the txid. */
   public async tx(txid: string): Promise<Tx> {
     const data = await _get(this._url, `/tx/${txid}`)
     const tx = proto.Tx.decode(data)
-    return convertToTx(tx)
+    return convertTx(tx)
   }
 
   /** Fetch token info and stats given the tokenId. */
-  public async token(tokenId: string): Promise<Token> {
-    const data = await _get(this._url, `/token/${tokenId}`)
-    const token = proto.Token.decode(data)
-    return convertToToken(token)
-  }
-
-  /** Validate the given outpoints: whether they are unspent, spent or
-   * never existed. */
-  public async validateUtxos(outpoints: OutPoint[]): Promise<UtxoState[]> {
-    const request = proto.ValidateUtxoRequest.encode({
-      outpoints: outpoints.map(outpoint => ({
-        txid: fromHexRev(outpoint.txid),
-        outIdx: outpoint.outIdx,
-      })),
-    }).finish()
-    const data = await _post(this._url, "/validate-utxos", request)
-    const validationStates = proto.ValidateUtxoResponse.decode(data)
-    return validationStates.utxoStates.map(state => ({
-      height: state.height,
-      isConfirmed: state.isConfirmed,
-      state: convertToUtxoStateVariant(state.state),
-    }))
+  public async tokenInfo(tokenId: string): Promise<TokenInfo> {
+    const data = await _get(this._url, `/token-info/${tokenId}`)
+    const token = proto.TokenInfo.decode(data)
+    return convertTokenInfo(token)
   }
 
   /** Create object that allows fetching script history or UTXOs. */
@@ -178,7 +156,7 @@ export class ScriptEndpoint {
     )
     const historyPage = proto.TxHistoryPage.decode(data)
     return {
-      txs: historyPage.txs.map(convertToTx),
+      txs: historyPage.txs.map(convertTx),
       numPages: historyPage.numPages,
     }
   }
@@ -186,23 +164,23 @@ export class ScriptEndpoint {
   /** Fetches the current UTXO set for this script.
    * It is grouped by output script, in case a script type can match multiple
    * different output scripts (e.g. Taproot on Lotus). */
-  public async utxos(): Promise<ScriptUtxos[]> {
+  public async utxos(): Promise<ScriptUtxos> {
     const data = await _get(
       this._url,
       `/script/${this._scriptType}/${this._scriptPayload}/utxos`,
     )
-    const utxos = proto.Utxos.decode(data)
-    return utxos.scriptUtxos.map(scriptUtxos => ({
-      outputScript: toHex(scriptUtxos.outputScript),
-      utxos: scriptUtxos.utxos.map(convertToUtxo),
-    }))
+    const utxos = proto.ScriptUtxos.decode(data)
+    return {
+      script: toHex(utxos.script),
+      utxos: utxos.utxos.map(convertUtxo),
+    }
   }
 }
 
 /** Config for a WebSocket connection to Chronik. */
 export interface WsConfig {
   /** Fired when a message is sent from the WebSocket. */
-  onMessage?: (msg: SubscribeMsg) => void
+  onMessage?: (msg: WsMsg) => void
 
   /** Fired when a connection has been (re)established. */
   onConnect?: (e: ws.Event) => void
@@ -225,7 +203,7 @@ export interface WsConfig {
 /** WebSocket connection to Chronik. */
 export class WsEndpoint {
   /** Fired when a message is sent from the WebSocket. */
-  public onMessage?: (msg: SubscribeMsg) => void
+  public onMessage?: (msg: WsMsg) => void
 
   /** Fired when a connection has been (re)established. */
   public onConnect?: (e: ws.Event) => void
@@ -273,7 +251,7 @@ export class WsEndpoint {
   public subscribe(scriptType: ScriptType, scriptPayload: string) {
     this._subs.push({ scriptType, scriptPayload })
     if (this._ws?.readyState === WebSocket.OPEN) {
-      this._subUnsub(true, scriptType, scriptPayload)
+      this._subUnsub(false, scriptType, scriptPayload)
     }
   }
 
@@ -284,7 +262,7 @@ export class WsEndpoint {
         sub.scriptType !== scriptType || sub.scriptPayload !== scriptPayload,
     )
     if (this._ws?.readyState === WebSocket.OPEN) {
-      this._subUnsub(false, scriptType, scriptPayload)
+      this._subUnsub(true, scriptType, scriptPayload)
     }
   }
 
@@ -301,7 +279,7 @@ export class WsEndpoint {
     this._connected = new Promise(resolved => {
       ws.onopen = msg => {
         this._subs.forEach(sub =>
-          this._subUnsub(true, sub.scriptType, sub.scriptPayload),
+          this._subUnsub(false, sub.scriptType, sub.scriptPayload),
         )
         resolved(msg)
         if (this.onConnect !== undefined) {
@@ -327,14 +305,16 @@ export class WsEndpoint {
   }
 
   private _subUnsub(
-    isSubscribe: boolean,
+    isUnsub: boolean,
     scriptType: ScriptType,
     scriptPayload: string,
   ) {
-    const encodedSubscription = proto.Subscription.encode({
-      isSubscribe,
-      scriptType,
-      payload: fromHex(scriptPayload),
+    const encodedSubscription = proto.WsSub.encode(<proto.WsSub>{
+      isUnsub,
+      script: {
+        scriptType,
+        payload: fromHex(scriptPayload),
+      },
     }).finish()
     if (this._ws === undefined)
       throw new Error("Invalid state; _ws is undefined")
@@ -349,41 +329,54 @@ export class WsEndpoint {
       wsMsg.data instanceof Buffer
         ? (wsMsg.data as Uint8Array)
         : new Uint8Array(await (wsMsg.data as Blob).arrayBuffer())
-    const msg = proto.SubscribeMsg.decode(data)
+    const msg = proto.WsMsg.decode(data)
     if (msg.error) {
       this.onMessage({
         type: "Error",
         ...msg.error,
       })
-    } else if (msg.AddedToMempool) {
+    } else if (msg.tx) {
+      const txMsgType = ((msgType: proto.TxMsgType) => {
+        switch (msgType) {
+          case proto.TxMsgType.TX_ADDED_TO_MEMPOOL:
+            return <const>"AddedToMempool"
+          case proto.TxMsgType.TX_REMOVED_FROM_MEMPOOL:
+            return <const>"RemovedFromMempool"
+          case proto.TxMsgType.TX_CONFIRMED:
+            return <const>"Confirmed"
+          case proto.TxMsgType.TX_FINALIZED:
+            return <const>"Finalized"
+        }
+      })(msg.tx.msgType)
+      if (txMsgType === undefined) {
+        console.log("Silently ignored unknown Chronik tx message:", msg)
+        return
+      }
       this.onMessage({
-        type: "AddedToMempool",
-        txid: toHexRev(msg.AddedToMempool.txid),
+        type: "MsgTx",
+        txMsgType,
+        txid: toHexRev(msg.tx.txid),
       })
-    } else if (msg.RemovedFromMempool) {
+    } else if (msg.block) {
+      const blockMsgType = ((msgType: proto.BlockMsgType) => {
+        switch (msgType) {
+          case proto.BlockMsgType.BLK_CONNECTED:
+            return <const>"Connected"
+          case proto.BlockMsgType.BLK_DISCONNECTED:
+            return <const>"Disconnected"
+          case proto.BlockMsgType.BLK_FINALIZED:
+            return <const>"Finalized"
+        }
+      })(msg.block.msgType)
+      if (blockMsgType === undefined) {
+        console.log("Silently ignored unknown Chronik block message:", msg)
+        return
+      }
       this.onMessage({
-        type: "RemovedFromMempool",
-        txid: toHexRev(msg.RemovedFromMempool.txid),
-      })
-    } else if (msg.Confirmed) {
-      this.onMessage({
-        type: "Confirmed",
-        txid: toHexRev(msg.Confirmed.txid),
-      })
-    } else if (msg.Reorg) {
-      this.onMessage({
-        type: "Reorg",
-        txid: toHexRev(msg.Reorg.txid),
-      })
-    } else if (msg.BlockConnected) {
-      this.onMessage({
-        type: "BlockConnected",
-        blockHash: toHexRev(msg.BlockConnected.blockHash),
-      })
-    } else if (msg.BlockDisconnected) {
-      this.onMessage({
-        type: "BlockDisconnected",
-        blockHash: toHexRev(msg.BlockDisconnected.blockHash),
+        type: "MsgBlock",
+        blockMsgType,
+        blockHash: toHexRev(msg.block.blockHash),
+        blockHeight: msg.block.blockHeight,
       })
     } else {
       console.log("Silently ignored unknown Chronik message:", msg)
@@ -421,11 +414,11 @@ async function _post(
 function ensureResponseErrorThrown(response: AxiosResponse, path: string) {
   if (response.status != 200) {
     const error = proto.Error.decode(new Uint8Array(response.data))
-    throw new Error(`Failed getting ${path} (${error.errorCode}): ${error.msg}`)
+    throw new Error(`Failed getting ${path}: ${error.msg}`)
   }
 }
 
-function convertToBlockchainInfo(
+function convertBlockchainInfo(
   blockchainInfo: proto.BlockchainInfo,
 ): BlockchainInfo {
   return {
@@ -434,39 +427,35 @@ function convertToBlockchainInfo(
   }
 }
 
-function convertToBlock(block: proto.Block): Block {
+function convertBlock(block: proto.Block): Block {
   if (block.blockInfo === undefined) {
     throw new Error("Block has no blockInfo")
   }
-  if (block.blockDetails === undefined) {
-    throw new Error("Block has no blockDetails")
-  }
   return {
-    blockInfo: convertToBlockInfo(block.blockInfo),
-    blockDetails: convertToBlockDetails(block.blockDetails),
-    rawHeader: toHex(block.rawHeader),
-    txs: block.txs.map(convertToTx),
+    blockInfo: convertBlockInfo(block.blockInfo),
   }
 }
 
-function convertToTx(tx: proto.Tx): Tx {
+function convertTx(tx: proto.Tx): Tx {
   return {
     txid: toHexRev(tx.txid),
     version: tx.version,
-    inputs: tx.inputs.map(convertToTxInput),
-    outputs: tx.outputs.map(convertToTxOutput),
+    inputs: tx.inputs.map(convertTxInput),
+    outputs: tx.outputs.map(convertTxOutput),
     lockTime: tx.lockTime,
-    slpTxData: tx.slpTxData ? convertToSlpTxData(tx.slpTxData) : undefined,
-    slpErrorMsg: tx.slpErrorMsg.length !== 0 ? tx.slpErrorMsg : undefined,
-    block: tx.block !== undefined ? convertToBlockMeta(tx.block) : undefined,
+    block: tx.block !== undefined ? convertBlockMeta(tx.block) : undefined,
     timeFirstSeen: tx.timeFirstSeen,
     size: tx.size,
     isCoinbase: tx.isCoinbase,
-    network: convertToNetwork(tx.network),
+    slpv1Data:
+      tx.slpv1Data !== undefined ? convertSlpv1TxData(tx.slpv1Data) : undefined,
+    slpv2Sections: tx.slpv2Sections.map(convertSlpv2Section),
+    slpBurns: tx.slpBurns.map(convertSlpBurn),
+    slpErrors: tx.slpErrors,
   }
 }
 
-function convertToUtxo(utxo: proto.Utxo): Utxo {
+function convertUtxo(utxo: proto.ScriptUtxo): ScriptUtxo {
   if (utxo.outpoint === undefined) {
     throw new Error("UTXO outpoint is undefined")
   }
@@ -478,36 +467,12 @@ function convertToUtxo(utxo: proto.Utxo): Utxo {
     blockHeight: utxo.blockHeight,
     isCoinbase: utxo.isCoinbase,
     value: utxo.value,
-    slpMeta:
-      utxo.slpMeta !== undefined ? convertToSlpMeta(utxo.slpMeta) : undefined,
-    slpToken:
-      utxo.slpToken !== undefined
-        ? convertToSlpToken(utxo.slpToken)
-        : undefined,
-    network: convertToNetwork(utxo.network),
+    isFinal: utxo.isFinal,
+    slp: utxo.slp !== undefined ? convertSlpToken(utxo.slp) : undefined,
   }
 }
 
-function convertToToken(token: proto.Token): Token {
-  if (token.slpTxData === undefined) {
-    throw new Error("Invalid proto, no slpTxData")
-  }
-  if (token.tokenStats === undefined) {
-    throw new Error("Invalid proto, no tokenStats")
-  }
-  return {
-    slpTxData: convertToSlpTokenTxData(token.slpTxData),
-    tokenStats: token.tokenStats,
-    block:
-      token.block !== undefined ? convertToBlockMeta(token.block) : undefined,
-    timeFirstSeen: token.timeFirstSeen,
-    initialTokenQuantity: token.initialTokenQuantity,
-    containsBaton: token.containsBaton,
-    network: convertToNetwork(token.network),
-  }
-}
-
-function convertToTxInput(input: proto.TxInput): TxInput {
+function convertTxInput(input: proto.TxInput): TxInput {
   if (input.prevOut === undefined) {
     throw new Error("Invalid proto, no prevOut")
   }
@@ -521,109 +486,133 @@ function convertToTxInput(input: proto.TxInput): TxInput {
       input.outputScript.length > 0 ? toHex(input.outputScript) : undefined,
     value: input.value,
     sequenceNo: input.sequenceNo,
-    slpBurn:
-      input.slpBurn !== undefined ? convertToSlpBurn(input.slpBurn) : undefined,
-    slpToken:
-      input.slpToken !== undefined
-        ? convertToSlpToken(input.slpToken)
-        : undefined,
+    slp: input.slp !== undefined ? convertSlpToken(input.slp) : undefined,
   }
 }
 
-function convertToTxOutput(output: proto.TxOutput): TxOutput {
+function convertTxOutput(output: proto.TxOutput): TxOutput {
   return {
     value: output.value,
     outputScript: toHex(output.outputScript),
-    slpToken:
-      output.slpToken !== undefined
-        ? convertToSlpToken(output.slpToken)
-        : undefined,
     spentBy:
       output.spentBy !== undefined
         ? {
             txid: toHexRev(output.spentBy.txid),
-            outIdx: output.spentBy.outIdx,
+            inputIdx: output.spentBy.inputIdx,
           }
         : undefined,
+    slp: output.slp !== undefined ? convertSlpToken(output.slp) : undefined,
   }
 }
 
-function convertToSlpTxData(slpTxData: proto.SlpTxData): SlpTxData {
-  if (slpTxData.slpMeta === undefined) {
-    throw new Error("Invalid slpTxData: slpMeta is undefined")
-  }
+function convertSlpv1TxData(slpTxData: proto.Slpv1TxData): Slpv1TxData {
   return {
-    slpMeta: convertToSlpMeta(slpTxData.slpMeta),
-    genesisInfo:
-      slpTxData.genesisInfo !== undefined
-        ? convertToSlpGenesisInfo(slpTxData.genesisInfo)
-        : undefined,
-  }
-}
-
-function convertToSlpTokenTxData(slpTxData: proto.SlpTxData): SlpTokenTxData {
-  if (slpTxData.slpMeta === undefined) {
-    throw new Error("Invalid slpTxData: slpMeta is undefined")
-  }
-  if (slpTxData.genesisInfo === undefined) {
-    throw new Error("Invalid slpTxData: genesisInfo is undefined")
-  }
-  return {
-    slpMeta: convertToSlpMeta(slpTxData.slpMeta),
-    genesisInfo: convertToSlpGenesisInfo(slpTxData.genesisInfo),
-  }
-}
-
-function convertToSlpMeta(slpMeta: proto.SlpMeta): SlpMeta {
-  let tokenType: SlpTokenType
-  switch (slpMeta.tokenType) {
-    case proto.SlpTokenType.FUNGIBLE:
-      tokenType = "FUNGIBLE"
-      break
-    case proto.SlpTokenType.NFT1_GROUP:
-      tokenType = "NFT1_GROUP"
-      break
-    case proto.SlpTokenType.NFT1_CHILD:
-      tokenType = "NFT1_CHILD"
-      break
-    case proto.SlpTokenType.UNKNOWN_TOKEN_TYPE:
-      tokenType = "UNKNOWN_TOKEN_TYPE"
-      break
-    default:
-      throw new Error(`Invalid token type: ${slpMeta.tokenType}`)
-  }
-  let txType: SlpTxType
-  switch (slpMeta.txType) {
-    case proto.SlpTxType.GENESIS:
-      txType = "GENESIS"
-      break
-    case proto.SlpTxType.SEND:
-      txType = "SEND"
-      break
-    case proto.SlpTxType.MINT:
-      txType = "MINT"
-      break
-    case proto.SlpTxType.BURN:
-      txType = "BURN"
-      break
-    case proto.SlpTxType.UNKNOWN_TX_TYPE:
-      txType = "UNKNOWN_TX_TYPE"
-      break
-    default:
-      throw new Error(`Invalid slp tx type: ${slpMeta.txType}`)
-  }
-  return {
-    tokenType,
-    txType,
-    tokenId: toHex(slpMeta.tokenId),
+    tokenType: convertSlpv1TokenType(slpTxData.tokenType),
+    txType: convertSlpTxType(slpTxData.txType),
+    tokenId: toHex(slpTxData.tokenId),
     groupTokenId:
-      slpMeta.groupTokenId.length == 32
-        ? toHex(slpMeta.groupTokenId)
+      slpTxData.groupTokenId.length == 32
+        ? toHex(slpTxData.groupTokenId)
         : undefined,
   }
 }
 
-function convertToSlpGenesisInfo(info: proto.SlpGenesisInfo): SlpGenesisInfo {
+function convertSlpv2Section(section: proto.Slpv2Section): Slpv2Section {
+  return {
+    tokenId: toHexRev(section.tokenId),
+    tokenType: convertSlpv2TokenType(section.tokenType),
+    sectionType: convertSlpTxType(section.sectionType),
+  }
+}
+
+function convertTokenProtocol(
+  tokenProtocol: proto.TokenProtocol,
+): TokenProtocol {
+  switch (tokenProtocol) {
+    case proto.TokenProtocol.TOKEN_PROTOCOL_SLPV1:
+      return "SLP"
+    case proto.TokenProtocol.TOKEN_PROTOCOL_SLPV2:
+      return "SLPV2"
+    default:
+      throw new Error(`Invalid token protocol: ${tokenProtocol}`)
+  }
+}
+
+function convertSlpv1TokenType(
+  tokenType: proto.Slpv1TokenType,
+): Slpv1TokenType {
+  switch (tokenType) {
+    case proto.Slpv1TokenType.SLPV1_TOKEN_TYPE_FUNGIBLE:
+      return "FUNGIBLE"
+    case proto.Slpv1TokenType.SLPV1_TOKEN_TYPE_NFT1_GROUP:
+      return "NFT1_GROUP"
+    case proto.Slpv1TokenType.SLPV1_TOKEN_TYPE_NFT1_CHILD:
+      return "NFT1_CHILD"
+    case proto.Slpv1TokenType.SLPV1_TOKEN_TYPE_UNKNOWN:
+      return "UNKNOWN"
+    default:
+      throw new Error(`Invalid SLP v1 token type: ${tokenType}`)
+  }
+}
+
+function convertSlpv2TokenType(
+  tokenType: proto.Slpv2TokenType,
+): Slpv2TokenType {
+  switch (tokenType) {
+    case proto.Slpv2TokenType.SLPV2_TOKEN_TYPE_STANDARD:
+      return "STANDARD"
+    case proto.Slpv2TokenType.UNRECOGNIZED:
+      return "UNKNOWN"
+    default:
+      throw new Error(`Invalid SLPv2 token type: ${tokenType}`)
+  }
+}
+
+function convertSlpTxType(txType: proto.SlpTxType): SlpTxType {
+  switch (txType) {
+    case proto.SlpTxType.GENESIS:
+      return "GENESIS"
+    case proto.SlpTxType.SEND:
+      return "SEND"
+    case proto.SlpTxType.MINT:
+      return "MINT"
+    case proto.SlpTxType.BURN:
+      return "BURN"
+    case proto.SlpTxType.UNKNOWN:
+      return "UNKNOWN"
+    default:
+      throw new Error(`Invalid slp tx type: ${txType}`)
+  }
+}
+
+function convertTokenInfo(info: proto.TokenInfo): TokenInfo {
+  const tokenProtocol = convertTokenProtocol(info.tokenProtocol)
+  return {
+    tokenId:
+      tokenProtocol == "SLP" ? toHex(info.tokenId) : toHexRev(info.tokenId),
+    tokenProtocol,
+    slpv1:
+      tokenProtocol === "SLP"
+        ? {
+            tokenType: convertSlpv1TokenType(info.slpv1TokenType),
+            genesisInfo: convertSlpv1GenesisInfo(info.slpv1GenesisInfo!),
+          }
+        : undefined,
+    slpv2:
+      tokenProtocol === "SLPV2"
+        ? {
+            tokenType: convertSlpv2TokenType(info.slpv2TokenType),
+            genesisInfo: convertSlpv2GenesisInfo(info.slpv2GenesisInfo!),
+          }
+        : undefined,
+    block: info.block !== undefined ? convertBlockMeta(info.block) : undefined,
+    timeFirstSeen: info.timeFirstSeen,
+  }
+}
+
+function convertSlpv1GenesisInfo(
+  info: proto.Slpv1GenesisInfo,
+): Slpv1GenesisInfo {
   const decoder = new TextDecoder()
   return {
     tokenTicker: decoder.decode(info.tokenTicker),
@@ -634,15 +623,30 @@ function convertToSlpGenesisInfo(info: proto.SlpGenesisInfo): SlpGenesisInfo {
   }
 }
 
-function convertToBlockMeta(block: proto.BlockMetadata): BlockMetadata {
+function convertSlpv2GenesisInfo(
+  info: proto.Slpv2GenesisInfo,
+): Slpv2GenesisInfo {
+  const decoder = new TextDecoder()
+  return {
+    tokenTicker: decoder.decode(info.tokenTicker),
+    tokenName: decoder.decode(info.tokenName),
+    url: decoder.decode(info.url),
+    data: info.data,
+    authPubkey: toHex(info.authPubkey),
+    decimals: info.decimals,
+  }
+}
+
+function convertBlockMeta(block: proto.BlockMetadata): BlockMetadata {
   return {
     height: block.height,
     hash: toHexRev(block.hash),
     timestamp: block.timestamp,
+    isFinal: block.isFinal,
   }
 }
 
-function convertToBlockInfo(block: proto.BlockInfo): BlockInfo {
+function convertBlockInfo(block: proto.BlockInfo): BlockInfo {
   return {
     ...block,
     hash: toHexRev(block.hash),
@@ -650,59 +654,46 @@ function convertToBlockInfo(block: proto.BlockInfo): BlockInfo {
   }
 }
 
-function convertToBlockDetails(blockDetails: proto.BlockDetails): BlockDetails {
+function convertSlpBurn(burn: proto.SlpBurn): SlpBurn {
+  const tokenProtocol = convertTokenProtocol(burn.tokenProtocol)
   return {
-    ...blockDetails,
-    merkleRoot: toHexRev(blockDetails.merkleRoot),
+    tokenId:
+      tokenProtocol == "SLP" ? toHex(burn.tokenId) : toHexRev(burn.tokenId),
+    tokenProtocol,
+    slpv1TokenType:
+      tokenProtocol === "SLP"
+        ? convertSlpv1TokenType(burn.slpv1TokenType)
+        : undefined,
+    slpv2TokenType:
+      tokenProtocol === "SLPV2"
+        ? convertSlpv2TokenType(burn.slpv2TokenType)
+        : undefined,
+    burnError: burn.burnError,
+    actualBurn:
+      tokenProtocol === "SLP" ? burn.slpv1ActualBurn : burn.slpv2ActualBurn,
+    slpv2IntentionalBurn: burn.slpv2IntentionalBurn,
+    burnMintBatons: burn.burnMintBatons,
   }
 }
 
-function convertToSlpBurn(burn: proto.SlpBurn): SlpBurn {
-  if (burn.token === undefined) {
-    throw new Error("Invalid burn: token is undefined")
-  }
+function convertSlpToken(token: proto.SlpToken): SlpToken {
+  const tokenProtocol = convertTokenProtocol(token.tokenProtocol)
   return {
-    token: convertToSlpToken(burn.token),
-    tokenId: toHex(burn.tokenId),
-  }
-}
-
-function convertToSlpToken(token: proto.SlpToken): SlpToken {
-  return {
+    tokenId:
+      tokenProtocol == "SLP" ? toHex(token.tokenId) : toHexRev(token.tokenId),
+    tokenProtocol,
+    slpv1TokenType:
+      tokenProtocol === "SLP"
+        ? convertSlpv1TokenType(token.slpv1TokenType)
+        : undefined,
+    slpv2TokenType:
+      tokenProtocol === "SLPV2"
+        ? convertSlpv2TokenType(token.slpv2TokenType)
+        : undefined,
+    slpv2SectionIdx: token.slpv2SectionIdx,
+    isBurned: token.isBurned,
     amount: token.amount,
     isMintBaton: token.isMintBaton,
-  }
-}
-
-function convertToNetwork(network: proto.Network): Network {
-  switch (network) {
-    case proto.Network.BCH:
-      return "BCH"
-    case proto.Network.XEC:
-      return "XEC"
-    case proto.Network.XPI:
-      return "XPI"
-    case proto.Network.XRG:
-      return "XRG"
-    default:
-      throw new Error(`Unknown network: ${network}`)
-  }
-}
-
-function convertToUtxoStateVariant(
-  variant: proto.UtxoStateVariant,
-): UtxoStateVariant {
-  switch (variant) {
-    case proto.UtxoStateVariant.UNSPENT:
-      return "UNSPENT"
-    case proto.UtxoStateVariant.SPENT:
-      return "SPENT"
-    case proto.UtxoStateVariant.NO_SUCH_TX:
-      return "NO_SUCH_TX"
-    case proto.UtxoStateVariant.NO_SUCH_OUTPUT:
-      return "NO_SUCH_OUTPUT"
-    default:
-      throw new Error(`Unknown UtxoStateVariant: ${variant}`)
   }
 }
 
@@ -729,11 +720,6 @@ export interface Tx {
   outputs: TxOutput[]
   /** `locktime` field of the transaction, tx is not valid before this time. */
   lockTime: number
-  /** SLP data about this transaction, if valid. */
-  slpTxData: SlpTxData | undefined
-  /** A human-readable message as to why this tx is not an SLP transaction,
-   * unless trivially so. */
-  slpErrorMsg: string | undefined
   /** Block data for this tx, or undefined if not mined yet. */
   block: BlockMetadata | undefined
   /** UNIX timestamp when this tx has first been seen in the mempool.
@@ -744,12 +730,14 @@ export interface Tx {
   size: number
   /** Whether this tx is a coinbase tx. */
   isCoinbase: boolean
-  /** Which network this tx is on. */
-  network: Network
+  slpv1Data: Slpv1TxData | undefined
+  slpv2Sections: Slpv2Section[]
+  slpBurns: SlpBurn[]
+  slpErrors: string[]
 }
 
 /** An unspent transaction output (aka. UTXO, aka. "Coin") of a script. */
-export interface Utxo {
+export interface ScriptUtxo {
   /** Outpoint of the UTXO. */
   outpoint: OutPoint
   /** Which block this UTXO is in, or -1 if in the mempool. */
@@ -759,32 +747,9 @@ export interface Utxo {
   isCoinbase: boolean
   /** Value of the UTXO in satoshis. */
   value: string
-  /** SLP data in this UTXO. */
-  slpMeta: SlpMeta | undefined
-  /** SLP token of this UTXO (i.e. SLP amount + whether it's a mint baton). */
-  slpToken: SlpToken | undefined
-  /** Which network this UTXO is on. */
-  network: Network
-}
-
-/** Data and stats about an SLP token. */
-export interface Token {
-  /** SLP data of the GENESIS transaction. */
-  slpTxData: SlpTokenTxData
-  /** Current stats about this token, e.g. minted and burned amount. */
-  tokenStats: TokenStats
-  /** Block the GENESIS transaction has been mined in, or undefined if not mined yet. */
-  block: BlockMetadata | undefined
-  /** UNIX timestamp when the GENESIS transaction has first been seen in the mempool.
-   * 0 if unknown. */
-  timeFirstSeen: string
-  /** How many tokens have been mined in the GENESIS transaction. */
-  initialTokenQuantity: string
-  /** Whether the GENESIS transaction created a mint baton.
-   * Note: This doesn't indicate whether the mint baton is still alive. */
-  containsBaton: boolean
-  /** Which network this token is on. */
-  network: Network
+  isFinal: boolean
+  /** SLP and SLPv2 data in this UTXO. */
+  slp: SlpToken | undefined
 }
 
 /** Block info about a block */
@@ -817,39 +782,21 @@ export interface BlockInfo {
   sumNormalOutputSats: string
   /** Total number of satoshis burned using OP_RETURN. */
   sumBurnedSats: string
-}
-
-/** Additional details about a block. */
-export interface BlockDetails {
-  /** nVersion field of the block. */
-  version: number
-  /** Merkle root of the block. */
-  merkleRoot: string
-  /** Nonce of the block (32-bit on XEC, 64-bit on XPI). */
-  nonce: string
-  /** Median-time-past (MTP) of the last 11 blocks. */
-  medianTimestamp: string
+  isFinal: boolean
 }
 
 /** Block on the blockchain. */
 export interface Block {
   /** Info about the block. */
   blockInfo: BlockInfo
-  /** Details about the block. */
-  blockDetails: BlockDetails
-  /** Header encoded as hex. */
-  rawHeader: string
-  /** Txs in this block, in canonical order
-   * (at least on all supported chains). */
-  txs: Tx[]
 }
 
 /** Group of UTXOs by output script. */
 export interface ScriptUtxos {
   /** Output script in hex. */
-  outputScript: string
+  script: string
   /** UTXOs of the output script. */
-  utxos: Utxo[]
+  utxos: ScriptUtxo[]
 }
 
 /** Page of the transaction history. */
@@ -861,48 +808,89 @@ export interface TxHistoryPage {
   numPages: number
 }
 
-/** SLP data about an SLP transaction. */
-export interface SlpTxData {
-  /** SLP metadata. */
-  slpMeta: SlpMeta
-  /** Genesis info, only present for GENESIS txs. */
-  genesisInfo: SlpGenesisInfo | undefined
-}
+export type TokenProtocol = "SLP" | "SLPV2"
 
-/** SLP data about an SLP transaction. */
-export interface SlpTokenTxData {
-  /** SLP metadata. */
-  slpMeta: SlpMeta
-  /** Genesis info of the token. */
-  genesisInfo: SlpGenesisInfo
-}
+/** Which SLP tx type or SLPv2 section type. */
+export type SlpTxType = "GENESIS" | "SEND" | "MINT" | "BURN" | "UNKNOWN"
 
-/** Metadata about an SLP tx or UTXO. */
-export interface SlpMeta {
-  /** Whether this token is a normal fungible token, or an NFT or unknown. */
-  tokenType: SlpTokenType
-  /** Whether this tx is a GENESIS, MINT, SEND or UNKNOWN transaction. */
-  txType: SlpTxType
-  /** Token ID of this tx/UTXO, in human-readable (big-endian) hex encoding. */
+/** Which SLP token type (normal fungible, NFT, unknown). */
+export type Slpv1TokenType =
+  | "FUNGIBLE"
+  | "NFT1_GROUP"
+  | "NFT1_CHILD"
+  | "UNKNOWN"
+
+export type Slpv2TokenType = "STANDARD" | "UNKNOWN"
+
+export interface TokenInfo {
   tokenId: string
-  /** Group token ID of this tx/UTXO, NFT only, in human-readable
-   * (big-endian) hex encoding.
-   * This is the token ID of the token that went into the GENESIS of this token
-   * as first input. */
+  tokenProtocol: TokenProtocol
+  slpv1:
+    | {
+        tokenType: Slpv1TokenType
+        genesisInfo: Slpv1GenesisInfo
+      }
+    | undefined
+  slpv2:
+    | {
+        tokenType: Slpv2TokenType
+        genesisInfo: Slpv2GenesisInfo
+      }
+    | undefined
+  block: BlockMetadata | undefined
+  timeFirstSeen: string
+}
+
+export interface Slpv1TxData {
+  tokenType: Slpv1TokenType
+  txType: SlpTxType
+  tokenId: string
   groupTokenId: string | undefined
 }
 
-/**
- * Stats about a token.
- *
- * `totalMinted` and `totalBurned` don't fit in a 64-bit integer, therefore we
- * use a string with the decimal representation.
- */
-export interface TokenStats {
-  /** Total number of tokens minted (including GENESIS). */
-  totalMinted: string
-  /** Total number of tokens burned. */
-  totalBurned: string
+export interface Slpv2Section {
+  tokenId: string
+  tokenType: Slpv2TokenType
+  sectionType: SlpTxType
+}
+
+export interface SlpBurn {
+  tokenId: string
+  tokenProtocol: TokenProtocol
+  slpv1TokenType: Slpv1TokenType | undefined
+  slpv2TokenType: Slpv2TokenType | undefined
+  burnError: string
+  actualBurn: string
+  slpv2IntentionalBurn: string
+  burnMintBatons: boolean
+}
+
+export interface Slpv1GenesisInfo {
+  tokenTicker: string
+  tokenName: string
+  tokenDocumentUrl: string
+  tokenDocumentHash: string
+  decimals: number
+}
+
+export interface Slpv2GenesisInfo {
+  tokenTicker: string
+  tokenName: string
+  url: string
+  data: Uint8Array
+  authPubkey: string
+  decimals: number
+}
+
+export interface SlpToken {
+  tokenId: string
+  tokenProtocol: TokenProtocol
+  slpv1TokenType: Slpv1TokenType | undefined
+  slpv2TokenType: Slpv2TokenType | undefined
+  slpv2SectionIdx: number
+  isBurned: boolean
+  amount: string
+  isMintBaton: boolean
 }
 
 /** Input of a tx, spends an output of a previous tx. */
@@ -919,11 +907,8 @@ export interface TxInput {
   value: string
   /** `sequence` field of the input; can be used for relative time locking. */
   sequenceNo: number
-  /** SLP tokens burned by this input, or `undefined` if no burn occured. */
-  slpBurn: SlpBurn | undefined
-  /** SLP tokens spent by this input, or `undefined` if the tokens were burned
-   * or if there were no tokens in the output spent by this input. */
-  slpToken: SlpToken | undefined
+  /** SLP/SLPv2 tokens of this input, or `undefined` if no tokens. */
+  slp: SlpToken | undefined
 }
 
 /** Output of a tx, creates new UTXOs. */
@@ -933,12 +918,12 @@ export interface TxOutput {
   /** Script of this output, locking the coins.
    * Aka. `scriptPubKey` in bitcoind parlance. */
   outputScript: string
-  /** SLP tokens locked up in this output, or `undefined` if no tokens were sent
-   * to this output. */
-  slpToken: SlpToken | undefined
+  /** SLP/SLPv2 tokens locked up in this output, or `undefined` if no tokens
+   * were sent to this output. */
+  slp: SlpToken | undefined
   /** Transaction & input index spending this output, or undefined if
    * unspent. */
-  spentBy: OutPoint | undefined
+  spentBy: SpentBy | undefined
 }
 
 /** Metadata of a block, used in transaction data. */
@@ -950,6 +935,7 @@ export interface BlockMetadata {
   /** Timestamp of the block; useful if `timeFirstSeen` of a transaction is
    * unknown. */
   timestamp: string
+  isFinal: boolean
 }
 
 /** Outpoint referencing an output on the blockchain (or input for field
@@ -962,6 +948,11 @@ export interface OutPoint {
   outIdx: number
 }
 
+export interface SpentBy {
+  txid: string
+  inputIdx: number
+}
+
 /** SLP amount or whether this is a mint baton, for inputs and outputs. */
 export interface SlpToken {
   /** SLP amount of the input or output, in base units. */
@@ -970,137 +961,31 @@ export interface SlpToken {
   isMintBaton: boolean
 }
 
-/** SLP burn; indicates burn of some tokens. */
-export interface SlpBurn {
-  /** SLP amount/mint baton burned by this burn. */
-  token: SlpToken
-  /** Token ID of the burned SLP tokens, in human-readable (big-endian) hex
-   * encoding. */
-  tokenId: string
-}
-
-/** SLP info about a GENESIS transaction. */
-export interface SlpGenesisInfo {
-  /** Ticker of the token, decoded as UTF-8. */
-  tokenTicker: string
-  /** Name of the token, decoded as UTF-8. */
-  tokenName: string
-  /** URL of the token, decoded as UTF-8. */
-  tokenDocumentUrl: string
-  /** Document hash of the token, encoded in hex (byte order as occuring in the
-   * OP_RETURN). */
-  tokenDocumentHash: string
-  /** Number of decimals of the GENESIS transaction. */
-  decimals: number
-}
-
-/** State of a UTXO (from `validateUtxos`). */
-export interface UtxoState {
-  /** Height of the UTXO. -1 if the tx doesn't exist or is unconfirmed.
-   * If it's confirmed (or if the output doesn't exist but the tx does),
-   * it's the height of the block confirming the tx. */
-  height: number
-  /** Whether the UTXO or the transaction queried is confirmed. */
-  isConfirmed: boolean
-  /** State of the UTXO, can be unconfirmed, confirmed, tx doesn't exist or
-   * output doesn't exist. */
-  state: UtxoStateVariant
-}
-
 /** Message returned from the WebSocket. */
-export type SubscribeMsg =
-  | Error
-  | MsgAddedToMempool
-  | MsgRemovedFromMempool
-  | MsgConfirmed
-  | MsgReorg
-  | MsgBlockConnected
-  | MsgBlockDisconnected
+export type WsMsg = Error | MsgTx | MsgBlock
 
 /** A transaction has been added to the mempool. */
-export interface MsgAddedToMempool {
-  type: "AddedToMempool"
-  /** txid of the transaction, in 'human-readable' (big-endian) hex encoding. */
-  txid: string
-}
-
-/** A transaction has been removed from the mempool,
- * but not because of a confirmation (e.g. expiry, conflict, etc.).
- */
-export interface MsgRemovedFromMempool {
-  type: "RemovedFromMempool"
-  /** txid of the transaction, in 'human-readable' (big-endian) hex encoding. */
-  txid: string
-}
-
-/** A transaction has been confirmed in a block. */
-export interface MsgConfirmed {
-  type: "Confirmed"
-  /** txid of the transaction, in 'human-readable' (big-endian) hex encoding. */
-  txid: string
-}
-
-/** A transaction used to be part of a block but now got re-orged.
- * Usually, unless something malicious occurs, a "Confirmed" message is sent
- * immediately afterwards.
- */
-export interface MsgReorg {
-  type: "Reorg"
-  /** txid of the transaction, in 'human-readable' (big-endian) hex encoding. */
+export interface MsgTx {
+  type: "MsgTx"
+  txMsgType: "AddedToMempool" | "RemovedFromMempool" | "Confirmed" | "Finalized"
   txid: string
 }
 
 /** A new block has been added to the chain. Sent regardless of subscriptions. */
-export interface MsgBlockConnected {
-  type: "BlockConnected"
+export interface MsgBlock {
+  type: "MsgBlock"
+  blockMsgType: "Connected" | "Disconnected" | "Finalized"
   /** block hash of the block, in 'human-readable' (big-endian) hex encoding. */
   blockHash: string
-}
-
-/** A block has been removed from the chain. Sent regardless of subscriptions. */
-export interface MsgBlockDisconnected {
-  type: "BlockDisconnected"
-  /** block hash of the block, in 'human-readable' (big-endian) hex encoding. */
-  blockHash: string
+  blockHeight: number
 }
 
 /** Reports an error, e.g. when a subscription is malformed. */
 export interface Error {
   type: "Error"
-  /** Code for this error, e.g. "tx-not-found". */
-  errorCode: string
   /** Human-readable message for this error. */
   msg: string
-  /** Whether this error is presentable to an end-user.
-   * This is somewhat subjective, but can be used as a good heuristic. */
-  isUserError: boolean
 }
-
-/** Different networks of txs/blocks/UTXOs.
- * Supported are BCH, eCash, Lotus and Ergon. */
-export type Network = "BCH" | "XEC" | "XPI" | "XRG"
-
-/** Which SLP tx type. */
-export type SlpTxType = "GENESIS" | "SEND" | "MINT" | "BURN" | "UNKNOWN_TX_TYPE"
-
-/** Which SLP token type (normal fungible, NFT, unknown). */
-export type SlpTokenType =
-  | "FUNGIBLE"
-  | "NFT1_GROUP"
-  | "NFT1_CHILD"
-  | "UNKNOWN_TOKEN_TYPE"
-
-/** State of a transaction output.
- * - `UNSPENT`: The UTXO is unspent.
- * - `SPENT`: The output is spent and no longer part of the UTXO set.
- * - `NO_SUCH_TX`: The tx queried does not exist.
- * - `NO_SUCH_OUTPUT`: The output queried does not exist, but the tx does exist.
- */
-export type UtxoStateVariant =
-  | "UNSPENT"
-  | "SPENT"
-  | "NO_SUCH_TX"
-  | "NO_SUCH_OUTPUT"
 
 /** Script type queried in the `script` method.
  * - `other`: Script type not covered by the standard script types; payload is
@@ -1112,16 +997,5 @@ export type UtxoStateVariant =
  *   Payload is the 20 byte public key hash.
  * - `p2sh`: Pay-to-Script-Hash (`OP_HASH160 <sh> OP_EQUAL`).
  *   Payload is the 20 byte script hash.
- * - `p2tr-commitment`: Pay-to-Taproot
- *   (`OP_SCRIPTTYPE OP_1 <commitment> <state>?`), only on Lotus.
- *   Queries by the commitment. Payload is the 33 byte commitment.
- * - `p2tr-state`: Pay-to-Taproot (`OP_SCRIPTTYPE OP_1 <commitment> <state>`),
- *   only on Lotus. Queries by the state. Payload is the 32 byte state.
  */
-export type ScriptType =
-  | "other"
-  | "p2pk"
-  | "p2pkh"
-  | "p2sh"
-  | "p2tr-commitment"
-  | "p2tr-state"
+export type ScriptType = "other" | "p2pk" | "p2pkh" | "p2sh"
