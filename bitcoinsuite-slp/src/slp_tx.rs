@@ -1,7 +1,13 @@
 use bitcoinsuite_core::{ByteArray, Bytes, Script, TxInput, TxOutput, UnhashedTx};
 use serde::{Deserialize, Serialize};
 
-use crate::{SlpAmount, TokenId};
+use crate::{
+    consts::{
+        SLP_TOKEN_TYPE_V1, SLP_TOKEN_TYPE_V1_NFT1_CHILD, SLP_TOKEN_TYPE_V1_NFT1_GROUP,
+        SLP_TOKEN_TYPE_V2,
+    },
+    SlpAmount, TokenId,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlpTx {
@@ -24,6 +30,7 @@ pub struct SlpTxData {
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SlpTokenType {
     Fungible,
+    Fungible2,
     Nft1Group,
     Nft1Child,
     Unknown,
@@ -54,6 +61,7 @@ pub struct SlpGenesisInfo {
     pub token_document_url: Bytes,
     pub token_document_hash: Option<ByteArray<32>>,
     pub decimals: u32,
+    pub mint_vault_scripthash: Option<ByteArray<20>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -184,6 +192,18 @@ impl SlpTxType {
             SlpTxType::Mint => SlpTxTypeVariant::Mint,
             SlpTxType::Burn(_) => SlpTxTypeVariant::Burn,
             SlpTxType::Unknown => SlpTxTypeVariant::Unknown,
+        }
+    }
+}
+
+impl SlpTokenType {
+    pub fn to_u16(&self) -> Option<u16> {
+        match self {
+            SlpTokenType::Fungible => Some(SLP_TOKEN_TYPE_V1[0] as _),
+            SlpTokenType::Fungible2 => Some(SLP_TOKEN_TYPE_V2[0] as _),
+            SlpTokenType::Nft1Group => Some(SLP_TOKEN_TYPE_V1_NFT1_GROUP[0] as _),
+            SlpTokenType::Nft1Child => Some(SLP_TOKEN_TYPE_V1_NFT1_CHILD[0] as _),
+            SlpTokenType::Unknown => None,
         }
     }
 }

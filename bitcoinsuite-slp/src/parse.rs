@@ -3,7 +3,7 @@ use bitcoinsuite_core::{opcode::*, ByteArray, Bytes, Op, Sha256d, UnhashedTx};
 use crate::{
     consts::{
         SLP_LOKAD_ID, SLP_OUTPUT_QUANTITY_FIELD_NAMES, SLP_TOKEN_TYPE_V1,
-        SLP_TOKEN_TYPE_V1_NFT1_CHILD, SLP_TOKEN_TYPE_V1_NFT1_GROUP,
+        SLP_TOKEN_TYPE_V1_NFT1_CHILD, SLP_TOKEN_TYPE_V1_NFT1_GROUP, SLP_TOKEN_TYPE_V2,
     },
     SlpAmount, SlpError, SlpGenesisInfo, SlpToken, SlpTokenType, SlpTxType, TokenId,
 };
@@ -152,6 +152,8 @@ fn parse_lokad_id(ops: &[Op]) -> Result<(), SlpError> {
 fn parse_token_type(bytes: &Bytes) -> Option<SlpTokenType> {
     if bytes.as_ref() == SLP_TOKEN_TYPE_V1 {
         Some(SlpTokenType::Fungible)
+    } else if bytes.as_ref() == SLP_TOKEN_TYPE_V2 {
+        Some(SlpTokenType::Fungible2)
     } else if bytes.as_ref() == SLP_TOKEN_TYPE_V1_NFT1_GROUP {
         Some(SlpTokenType::Nft1Group)
     } else if bytes.as_ref() == SLP_TOKEN_TYPE_V1_NFT1_CHILD {
@@ -201,7 +203,7 @@ fn parse_genesis_data(
     let token_document_url = data_iter.next().unwrap();
     let token_document_hash = data_iter.next().unwrap();
     let decimals = data_iter.next().unwrap();
-    let mint_baton_out_idx = data_iter.next().unwrap();
+    let mint_baton_or_vault = data_iter.next().unwrap();
     let initial_quantity = data_iter.next().unwrap();
     assert!(data_iter.next().is_none());
     if token_document_hash.len() != 0 && token_document_hash.len() != 32 {
@@ -218,12 +220,28 @@ fn parse_genesis_data(
             actual: decimals.len(),
         });
     }
-    if mint_baton_out_idx.len() != 0 && mint_baton_out_idx.len() != 1 {
-        return Err(SlpError::InvalidFieldSize {
-            field_name: "mint_baton_out_idx",
-            expected: &[0, 1],
-            actual: mint_baton_out_idx.len(),
-        });
+    if slp_token_type == SlpTokenType::Fungible {
+        if mint_baton_or_vault.len() != 0 && mint_baton_or_vault.len() != 1 {
+            return Err(SlpError::InvalidFieldSize {
+                field_name: "mint_baton_out_idx",
+                expected: &[0, 1],
+                actual: mint_baton_or_vault.len(),
+            });
+        }
+        if mint_baton_or_vault.len() == 1 && mint_baton_or_vault[0] < 2 {
+            return Err(SlpError::InvalidMintBatonIdx {
+                actual: mint_baton_or_vault[0] as usize,
+            });
+        }
+    }
+    if slp_token_type == SlpTokenType::Fungible2 {
+        if mint_baton_or_vault.len() != 20 {
+            return Err(SlpError::InvalidFieldSize {
+                field_name: "mint_vault_scripthash",
+                expected: &[20],
+                actual: mint_baton_or_vault.len(),
+            });
+        }
     }
     let initial_quantity = SlpAmount::from_u64_be(&initial_quantity, "initial_quantity")?;
     if decimals[0] > 9 {
@@ -231,14 +249,9 @@ fn parse_genesis_data(
             actual: decimals[0] as usize,
         });
     }
-    if mint_baton_out_idx.len() == 1 && mint_baton_out_idx[0] < 2 {
-        return Err(SlpError::InvalidMintBatonIdx {
-            actual: mint_baton_out_idx[0] as usize,
-        });
-    }
     let decimals = decimals[0] as u32;
     if slp_token_type == SlpTokenType::Nft1Child {
-        if !mint_baton_out_idx.is_empty() {
+        if !mint_baton_or_vault.is_empty() {
             return Err(SlpError::Nft1ChildCannotHaveMintBaton);
         }
         if initial_quantity != SlpAmount::new(1) {
@@ -257,11 +270,18 @@ fn parse_genesis_data(
             token_document_url,
             token_document_hash: ByteArray::from_slice(&token_document_hash).ok(),
             decimals,
+            mint_vault_scripthash: match slp_token_type {
+                SlpTokenType::Fungible2 => ByteArray::from_slice(&mint_baton_or_vault).ok(),
+                _ => None,
+            },
         })),
         outputs: ParsedOutputs::MintTokens {
-            baton_out_idx: mint_baton_out_idx
-                .first()
-                .map(|&mint_baton_out_idx| mint_baton_out_idx as usize),
+            baton_out_idx: match slp_token_type {
+                SlpTokenType::Fungible2 => None,
+                _ => mint_baton_or_vault
+                    .first()
+                    .map(|&mint_baton_out_idx| mint_baton_out_idx as usize),
+            },
             mint_quantity: initial_quantity,
         },
         token_id: None,
@@ -672,12 +692,31 @@ mod tests {
             &[
                 [0x6a, 0x04].as_ref(),
                 b"SLP\0",
+                &[0x01, 2],
+                &[0x07],
+                b"GENESIS",
+                &[0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x4c, 0x00],
+                &[0x01, 0x00],
+                &[0x02, 0x00, 0x00],
+                &[0x01, 0x00],
+            ]
+            .concat(),
+            SlpError::InvalidFieldSize {
+                field_name: "mint_vault_scripthash",
+                actual: 2,
+                expected: &[20],
+            },
+        );
+        check_script(
+            &[
+                [0x6a, 0x04].as_ref(),
+                b"SLP\0",
                 &[0x01, 1],
                 &[0x07],
                 b"GENESIS",
                 &[0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x4c, 0x00],
                 &[0x01, 0x00],
-                &[0x01, 0x00],
+                &[0x01, 0x02],
                 &[0x01, 0x00],
             ]
             .concat(),
@@ -696,7 +735,7 @@ mod tests {
                 b"GENESIS",
                 &[0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x4c, 0x00],
                 &[0x01, 10],
-                &[0x01, 0x00],
+                &[0x01, 0x02],
                 &[0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
             ]
             .concat(),
@@ -801,7 +840,8 @@ mod tests {
                     token_name: [0x55].into(),
                     token_document_url: [0x66].into(),
                     token_document_hash: None,
-                    decimals: 9
+                    decimals: 9,
+                    mint_vault_scripthash: None,
                 })),
                 token_id: TokenId::new(Sha256d::new([3; 32])),
             }),
@@ -868,6 +908,7 @@ mod tests {
                             SlpTokenType::Nft1Child => 0,
                             _ => 9,
                         },
+                        mint_vault_scripthash: None,
                     })),
                     token_id: TokenId::new(Sha256d::new([3; 32])),
                 }),
