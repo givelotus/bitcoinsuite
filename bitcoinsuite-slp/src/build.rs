@@ -2,7 +2,8 @@ use bitcoinsuite_core::Script;
 
 use crate::{
     consts::{
-        SLP_LOKAD_ID, SLP_TOKEN_TYPE_V1, SLP_TOKEN_TYPE_V1_NFT1_CHILD, SLP_TOKEN_TYPE_V1_NFT1_GROUP,
+        SLP_LOKAD_ID, SLP_TOKEN_TYPE_V1, SLP_TOKEN_TYPE_V1_NFT1_CHILD,
+        SLP_TOKEN_TYPE_V1_NFT1_GROUP, SLP_TOKEN_TYPE_V2,
     },
     SlpAmount, SlpGenesisInfo, SlpTokenType, TokenId,
 };
@@ -10,6 +11,7 @@ use crate::{
 fn token_type_bytes(token_type: SlpTokenType) -> &'static [u8] {
     match token_type {
         SlpTokenType::Fungible => SLP_TOKEN_TYPE_V1,
+        SlpTokenType::Fungible2 => SLP_TOKEN_TYPE_V2,
         SlpTokenType::Nft1Group => SLP_TOKEN_TYPE_V1_NFT1_GROUP,
         SlpTokenType::Nft1Child => SLP_TOKEN_TYPE_V1_NFT1_CHILD,
         SlpTokenType::Unknown => panic!("Cannot use 'Unknown' token type here"),
