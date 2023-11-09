@@ -49,7 +49,7 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
 
     let parsed_opreturn = match opreturn_data[2].as_ref() {
         b"GENESIS" => parse_genesis_data(opreturn_data, slp_token_type)?,
-        b"MINT" => parse_mint_data(opreturn_data)?,
+        b"MINT" => parse_mint_data(opreturn_data, slp_token_type)?,
         b"SEND" => parse_send_data(opreturn_data)?,
         b"BURN" => parse_burn_data(opreturn_data)?,
         _ => return Err(SlpError::InvalidTxType(opreturn_data[2].clone())),
@@ -67,7 +67,7 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
         .map(|_| SlpToken::EMPTY)
         .collect::<Vec<_>>();
     match parsed_opreturn.outputs {
-        ParsedOutputs::MintTokens {
+        ParsedOutputs::Mint {
             mint_quantity,
             baton_out_idx,
         } => {
@@ -78,6 +78,12 @@ pub fn parse_slp_tx(txid: &Sha256d, tx: &UnhashedTx) -> Result<SlpParseData, Slp
             }
             if let Some(output_token) = output_tokens.get_mut(1) {
                 output_token.amount = mint_quantity;
+            }
+        }
+        ParsedOutputs::VaultMint(amounts) => {
+            output_tokens.resize(amounts.len() + 1, SlpToken::EMPTY);
+            for (output_token, amount) in output_tokens.iter_mut().skip(1).zip(amounts) {
+                output_token.amount = amount;
             }
         }
         ParsedOutputs::Send(amounts) => {
@@ -170,10 +176,13 @@ struct ParsedOpReturn {
 }
 
 enum ParsedOutputs {
-    MintTokens {
+    /// Used with Type 1 tokens, including NFT.
+    Mint {
         baton_out_idx: Option<usize>,
         mint_quantity: SlpAmount,
     },
+    /// Used with Type 2 tokens.
+    VaultMint(Vec<SlpAmount>),
     Send(Vec<SlpAmount>),
     Burn,
 }
@@ -275,20 +284,24 @@ fn parse_genesis_data(
                 _ => None,
             },
         })),
-        outputs: ParsedOutputs::MintTokens {
-            baton_out_idx: match slp_token_type {
-                SlpTokenType::Fungible2 => None,
-                _ => mint_baton_or_vault
+        outputs: match slp_token_type {
+            SlpTokenType::Fungible2 => ParsedOutputs::VaultMint(vec![initial_quantity]),
+            _ => ParsedOutputs::Mint {
+                baton_out_idx: mint_baton_or_vault
                     .first()
                     .map(|&mint_baton_out_idx| mint_baton_out_idx as usize),
+
+                mint_quantity: initial_quantity,
             },
-            mint_quantity: initial_quantity,
         },
         token_id: None,
     })
 }
 
-fn parse_mint_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpError> {
+fn parse_mint_data(
+    opreturn_data: Vec<Bytes>,
+    slp_token_type: SlpTokenType,
+) -> Result<ParsedOpReturn, SlpError> {
     if opreturn_data.len() < 6 {
         return Err(SlpError::TooFewPushesExact {
             expected: 6,
@@ -306,9 +319,6 @@ fn parse_mint_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpError
     let _token_type = data_iter.next().unwrap();
     let _tx_type = data_iter.next().unwrap();
     let token_id = data_iter.next().unwrap();
-    let mint_baton_out_idx = data_iter.next().unwrap();
-    let additional_quantity = data_iter.next().unwrap();
-    assert!(data_iter.next().is_none());
     if token_id.len() != 32 {
         return Err(SlpError::InvalidFieldSize {
             field_name: "token_id",
@@ -316,29 +326,50 @@ fn parse_mint_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpError
             actual: token_id.len(),
         });
     }
-    if !(0..=1).contains(&mint_baton_out_idx.len()) {
-        return Err(SlpError::InvalidFieldSize {
-            field_name: "mint_baton_out_idx",
-            expected: &[0, 1],
-            actual: mint_baton_out_idx.len(),
-        });
+    match slp_token_type {
+        SlpTokenType::Fungible2 => {
+            let output_quantities = data_iter
+                .enumerate()
+                .map(|(idx, quantity)| {
+                    SlpAmount::from_u64_be(&quantity, SLP_OUTPUT_QUANTITY_FIELD_NAMES[idx])
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(ParsedOpReturn {
+                slp_tx_type: SlpTxType::Mint,
+                outputs: ParsedOutputs::VaultMint(output_quantities),
+                token_id: Some(TokenId::from_slice_be(&token_id).unwrap()),
+            })
+        }
+        _ => {
+            let mint_baton_out_idx = data_iter.next().unwrap();
+            let additional_quantity = data_iter.next().unwrap();
+            assert!(data_iter.next().is_none());
+            if !(0..=1).contains(&mint_baton_out_idx.len()) {
+                return Err(SlpError::InvalidFieldSize {
+                    field_name: "mint_baton_out_idx",
+                    expected: &[0, 1],
+                    actual: mint_baton_out_idx.len(),
+                });
+            }
+            if mint_baton_out_idx.len() == 1 && mint_baton_out_idx[0] < 2 {
+                return Err(SlpError::InvalidMintBatonIdx {
+                    actual: mint_baton_out_idx[0] as usize,
+                });
+            }
+            let additional_quantity =
+                SlpAmount::from_u64_be(&additional_quantity, "additional_quantity")?;
+            Ok(ParsedOpReturn {
+                slp_tx_type: SlpTxType::Mint,
+                outputs: ParsedOutputs::Mint {
+                    baton_out_idx: mint_baton_out_idx
+                        .first()
+                        .map(|&mint_baton_out_idx| mint_baton_out_idx as usize),
+                    mint_quantity: additional_quantity,
+                },
+                token_id: Some(TokenId::from_slice_be(&token_id).unwrap()),
+            })
+        }
     }
-    if mint_baton_out_idx.len() == 1 && mint_baton_out_idx[0] < 2 {
-        return Err(SlpError::InvalidMintBatonIdx {
-            actual: mint_baton_out_idx[0] as usize,
-        });
-    }
-    let additional_quantity = SlpAmount::from_u64_be(&additional_quantity, "additional_quantity")?;
-    Ok(ParsedOpReturn {
-        slp_tx_type: SlpTxType::Mint,
-        outputs: ParsedOutputs::MintTokens {
-            baton_out_idx: mint_baton_out_idx
-                .first()
-                .map(|&mint_baton_out_idx| mint_baton_out_idx as usize),
-            mint_quantity: additional_quantity,
-        },
-        token_id: Some(TokenId::from_slice_be(&token_id).unwrap()),
-    })
 }
 
 fn parse_send_data(opreturn_data: Vec<Bytes>) -> Result<ParsedOpReturn, SlpError> {
