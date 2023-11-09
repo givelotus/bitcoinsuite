@@ -61,6 +61,7 @@ pub struct SlpGenesisInfo {
     pub token_document_url: Bytes,
     pub token_document_hash: Option<ByteArray<32>>,
     pub decimals: u32,
+    /// Used only in Type 2 tokens. 
     pub mint_vault_scripthash: Option<ByteArray<20>>,
 }
 
