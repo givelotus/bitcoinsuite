@@ -1,7 +1,7 @@
 use std::{
     ffi::OsString,
     fs::File,
-    io::{Read, Write, BufRead},
+    io::{BufRead, Read, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Output},
     str::FromStr,
