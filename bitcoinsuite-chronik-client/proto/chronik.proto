@@ -188,10 +188,12 @@ message SlpGenesisInfo {
     bytes token_document_url = 3;
     bytes token_document_hash = 4;
     uint32 decimals = 5;
+    bytes mint_vault_scripthash = 6;
 }
 
 enum SlpTokenType {
     FUNGIBLE = 0;
+    FUNGIBLE_2 = 4;
     NFT1_GROUP = 1;
     NFT1_CHILD = 2;
     UNKNOWN_TOKEN_TYPE = 3;

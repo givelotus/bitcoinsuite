@@ -284,6 +284,7 @@ pub async fn test_token() -> Result<()> {
                 token_document_url: b"https://www.raiusd.co/etoken".to_vec(),
                 token_document_hash: vec![],
                 decimals: 4,
+                mint_vault_scripthash: vec![],
             }),
         }),
     );
