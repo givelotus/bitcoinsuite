@@ -26,6 +26,12 @@ message BlockchainInfo {
     int32 tip_height = 2;
 }
 
+// Info about the chronik software this server is running
+message ChronikInfo {
+    // chronik server version from chronik-http/Cargo.toml
+    string version = 1;
+}
+
 // Info about a block
 message BlockInfo {
     // Hash (little-endian)
@@ -78,12 +84,13 @@ message Tx {
     uint32 size = 11;
     // Whether this tx is a coinbase tx
     bool is_coinbase = 12;
-
-    Slpv1TxData slpv1_data = 13;
-
-    repeated Slpv2Section slpv2_sections = 14;
-    repeated SlpBurn slp_burns = 15;
-    repeated string slp_errors = 16;
+    // Tokens involved in this txs
+    repeated TokenEntry token_entries = 13;
+    // Failed parsing attempts of this tx
+    repeated TokenFailedParsing token_failed_parsings = 14;
+    // Token status, i.e. whether this tx has any tokens or unintentional token burns
+    // or something unexpected, like failed parsings etc.
+    TokenStatus token_status = 15;
 }
 
 // UTXO of a script.
@@ -98,7 +105,30 @@ message ScriptUtxo {
     int64 value = 5;
     // Whether the UTXO has been finalized by Avalanche.
     bool is_final = 10;
-    SlpToken slp = 11;
+    // Token value attached to this UTXO
+    Token token = 11;
+    // Data attached to the UTXO by plugins
+    map<string, PluginEntry> plugins = 12;
+}
+
+// UTXO, but with a script attached.
+message Utxo {
+    // txid and out_idx of the unspent output.
+    OutPoint outpoint = 1;
+    // Block height of the UTXO, or -1 if in mempool.
+    int32 block_height = 2;
+    // Whether the UTXO has been created in a coinbase tx.
+    bool is_coinbase = 3;
+    // Value of the output, in satoshis.
+    int64 value = 4;
+    // Bytecode of the script of the output
+    bytes script = 5;
+    // Whether the UTXO has been finalized by Avalanche.
+    bool is_final = 6;
+    // Token value attached to this UTXO
+    Token token = 7;
+    // Data attached to the UTXO by plugins
+    map<string, PluginEntry> plugins = 8;
 }
 
 // COutPoint, points to a coin being spent by an input.
@@ -129,7 +159,10 @@ message TxInput {
     int64 value = 4;
     // nSequence of the input.
     uint32 sequence_no = 5;
-    SlpToken slp = 8;
+    // Token value attached to this input
+    Token token = 8;
+    // Data attached by plugins to the output spent by this input
+    map<string, PluginEntry> plugins = 9;
 }
 
 // CTxOut, creates a new coin.
@@ -140,7 +173,10 @@ message TxOutput {
     bytes output_script = 2;
     // Which tx and input spent this output, if any.
     SpentBy spent_by = 4;
-    SlpToken slp = 5;
+    // Token value attached to this output
+    Token token = 5;
+    // Data attached to this output by plugins
+    map<string, PluginEntry> plugins = 6;
 }
 
 // Data about a block which a Tx is in.
@@ -155,92 +191,167 @@ message BlockMetadata {
     bool is_final = 4;
 }
 
-enum TokenProtocol {
-    TOKEN_PROTOCOL_SLPV1 = 0;
-    TOKEN_PROTOCOL_SLPV2 = 1;
+// Status of a token tx
+enum TokenStatus {
+    // Tx involves no tokens whatsover, i.e. neither any burns nor any failed
+    // parsing/coloring or any tokens being created / moved.
+    TOKEN_STATUS_NON_TOKEN = 0;
+    // Tx involves tokens but no unintentional burns or failed parsings/colorings
+    TOKEN_STATUS_NORMAL = 1;
+    // Tx involves tokens but contains unintentional burns or failed parsings/colorings
+    TOKEN_STATUS_NOT_NORMAL = 2;
 }
 
-enum Slpv1TokenType {
-    SLPV1_TOKEN_TYPE_UNKNOWN = 0;
-    SLPV1_TOKEN_TYPE_FUNGIBLE = 1;
-    SLPV1_TOKEN_TYPE_NFT1_GROUP = 0x81;
-    SLPV1_TOKEN_TYPE_NFT1_CHILD = 0x41;
+// ALP token type
+enum AlpTokenType {
+    // Standard ALP token type
+    ALP_TOKEN_TYPE_STANDARD = 0;
 }
 
-enum Slpv2TokenType {
-    SLPV2_TOKEN_TYPE_STANDARD = 0;
+// SLP token type
+enum SlpTokenType {
+    // Unknown "0" token type
+    SLP_TOKEN_TYPE_NONE = 0;
+    // SLP V1 token type
+    SLP_TOKEN_TYPE_FUNGIBLE = 1;
+    // SLP V2 mint vault token type
+    SLP_TOKEN_TYPE_MINT_VAULT = 2;
+    // NFT1 group token type
+    SLP_TOKEN_TYPE_NFT1_GROUP = 0x81;
+    // NFT1 child token type
+    SLP_TOKEN_TYPE_NFT1_CHILD = 0x41;
 }
 
-enum SlpTxType {
-    UNKNOWN = 0;
-    GENESIS = 1;
-    SEND = 2;
-    MINT = 3;
-    BURN = 4;
+// SLP/ALP token type
+message TokenType {
+    // SLP/ALP token type
+    oneof token_type {
+        // SLP token type. Can have unknown values for unknown token types
+        SlpTokenType slp = 1;
+        // ALP token type. Can have unknown values for unknown token types
+        AlpTokenType alp = 2;
+    }
 }
 
+// SLP/ALP tx type
+enum TokenTxType {
+    // No tx type, e.g. when input tokens are burned
+    NONE = 0;
+    // Unknown tx type, i.e. for unknown token types
+    UNKNOWN = 1;
+    // GENESIS tx
+    GENESIS = 2;
+    // SEND tx
+    SEND = 3;
+    // MINT tx
+    MINT = 4;
+    // BURN tx
+    BURN = 5;
+}
+
+// Info about a token
 message TokenInfo {
-    bytes token_id = 1;
-    TokenProtocol token_protocol = 2;
-    Slpv1TokenType slpv1_token_type = 3;
-    Slpv1GenesisInfo slpv1_genesis_info = 4;
-    Slpv2TokenType slpv2_token_type = 5;
-    Slpv2GenesisInfo slpv2_genesis_info = 6;
-    BlockMetadata block = 7;
-    int64 time_first_seen = 8;
+    // Hex token_id (in big-endian, like usually displayed to users) of the token.
+    // This is not `bytes` because SLP and ALP use different endiannnes, so to avoid this we use hex, which conventionally implies big-endian in a bitcoin context.
+    string token_id = 1;
+    // Token type of the token
+    TokenType token_type = 2;
+    // Info found in the token's GENESIS tx
+    GenesisInfo genesis_info = 3;
+    // Block of the GENESIS tx, if it's mined already
+    BlockMetadata block = 4;
+    // Time the GENESIS tx has first been seen by the indexer
+    int64 time_first_seen = 5;
 }
 
-message Slpv1TxData {
-    Slpv1TokenType token_type = 1;
-    SlpTxType tx_type = 2;
-    bytes token_id = 3;
-    bytes group_token_id = 4;
+// Token involved in a transaction
+message TokenEntry {
+    // Hex token_id (in big-endian, like usually displayed to users) of the token.
+    // This is not `bytes` because SLP and ALP use different endiannes, so to avoid
+    // this we use hex, which conventionally implies big-endian in a bitcoin context.
+    string token_id = 1;
+    // Token type of the token
+    TokenType token_type = 2;
+    // Tx type of the token; NONE if there's no section that introduced it (e.g. in an accidental burn)
+    TokenTxType tx_type = 3;
+    // For NFT1 Child tokens: group ID
+    string group_token_id = 4;
+    // Whether the validation rules have been violated for this section
+    bool is_invalid = 5;
+    // Human-readable error message of why this entry burned tokens
+    string burn_summary = 6;
+    // Human-readable error messages of why colorings failed
+    repeated TokenFailedColoring failed_colorings = 7;
+    // Number of actually burned tokens (as decimal integer string, e.g. "2000").
+    // This is because burns can exceed the 64-bit range of values and protobuf doesn't have a nice type to encode this.
+    string actual_burn_amount = 8;
+    // Burn amount the user explicitly opted into
+    uint64 intentional_burn = 9;
+    // Whether any mint batons have been burned of this token
+    bool burns_mint_batons = 10;
 }
 
-message Slpv2Section {
-    bytes token_id = 1;
-    Slpv2TokenType token_type = 2;
-    SlpTxType section_type = 3;
-}
-
-message SlpBurn {
-    bytes token_id = 1;
-    TokenProtocol token_protocol = 2;
-    Slpv1TokenType slpv1_token_type = 3;
-    Slpv2TokenType slpv2_token_type = 4;
-    string burn_error = 5;
-    string slpv1_actual_burn = 6;
-    int64 slpv2_intentional_burn = 7;
-    int64 slpv2_actual_burn = 8;
-    bool burn_mint_batons = 9;
-}
-
-message Slpv1GenesisInfo {
+// Genesis info found in GENESIS txs of tokens
+message GenesisInfo {
+    // token_ticker of the token
     bytes token_ticker = 1;
+    // token_name of the token
     bytes token_name = 2;
-    bytes token_document_url = 3;
-    bytes token_document_hash = 4;
-    uint32 decimals = 5;
-}
-
-message Slpv2GenesisInfo {
-    bytes token_ticker = 1;
-    bytes token_name = 2;
+    // URL of the token
     bytes url = 3;
-    bytes data = 4;
-    bytes auth_pubkey = 5;
-    uint32 decimals = 6;
+    // token_document_hash of the token (only on SLP)
+    bytes hash = 4;
+    // mint_vault_scripthash (only on SLP V2 Mint Vault)
+    bytes mint_vault_scripthash = 5;
+    // Arbitray payload data of the token (only on ALP)
+    bytes data = 6;
+    // auth_pubkey of the token (only on ALP)
+    bytes auth_pubkey = 7;
+    // decimals of the token, i.e. how many decimal places the token should be displayed with.
+    uint32 decimals = 8;
 }
 
-message SlpToken {
-    bytes token_id = 1;
-    TokenProtocol token_protocol = 2;
-    Slpv1TokenType slpv1_token_type = 3;
-    Slpv2TokenType slpv2_token_type = 4;
-    int32 slpv2_section_idx = 5;
-    bool is_burned = 6;
-    uint64 amount = 7;
-    bool is_mint_baton = 8;
+// Token coloring an input or output
+message Token {
+    // Hex token_id of the token, see `TokenInfo` for details
+    string token_id = 1;
+    // Token type of the token
+    TokenType token_type = 2;
+    // Index into `token_entries` for `Tx`. -1 for UTXOs
+    int32 entry_idx = 3;
+    // Base token amount of the input/output
+    uint64 amount = 4;
+    // Whether the token is a mint baton
+    bool is_mint_baton = 5;
+}
+
+// A report of a failed parsing attempt of SLP/ALP.
+// This should always indicate something went wrong when building the tx.
+message TokenFailedParsing {
+    // For ALP, the index of the pushdata in the OP_RETURN that failed parsing.
+    // -1 if the whole OP_RETURN failed, e.g. for SLP or eMPP
+    int32 pushdata_idx = 1;
+    // The bytes that failed parsing, useful for debugging
+    bytes bytes = 2;
+    // Human-readable message of what went wrong
+    string error = 3;
+}
+
+// A report of a failed coloring attempt of SLP/ALP.
+// This should always indicate something went wrong when building the tx.
+message TokenFailedColoring {
+    // For ALP, the index of the pushdata in the OP_RETURN that failed parsing.
+    int32 pushdata_idx = 1;
+    // Human-readable message of what went wrong
+    string error = 3;
+}
+
+// Data attached by a plugin to an output
+message PluginEntry {
+    // Groups assigned to this output
+    repeated bytes groups = 1;
+    // Data assigned to the output
+    repeated bytes data = 2;
 }
 
 // Page with txs
@@ -261,19 +372,37 @@ message ScriptUtxos {
     repeated ScriptUtxo utxos = 2;
 }
 
-message BroadcastTxRequest {
-    bytes raw_tx = 1;
+// List of UTXOs
+message Utxos {
+    // UTXOs
+    repeated Utxo utxos = 1;
 }
 
+// Broadcast a single tx
+message BroadcastTxRequest {
+    // Serialized tx
+    bytes raw_tx = 1;
+    // Whether to skip token checks and broadcast even if tokens are unintentionally burned
+    bool skip_token_checks = 2;
+}
+
+// Response of broadcasting the tx
 message BroadcastTxResponse {
+    // TxId of the broadcast tx
     bytes txid = 1;
 }
 
+// Broadcast multiple txs. If one of the txs fails token validation, the entire batch will not be broadcast.
 message BroadcastTxsRequest {
+    // Serialized txs.
     repeated bytes raw_txs = 1;
+    // Whether to skip token checks and broadcast even if tokens are unintentionally burned
+    bool skip_token_checks = 2;
 }
 
+// Response of broadcasting txs
 message BroadcastTxsResponse {
+    // TxIds of the broadcast txs
     repeated bytes txids = 1;
 }
 
@@ -293,6 +422,8 @@ message WsSub {
         WsSubBlocks blocks = 2;
         // Subscription to a script
         WsSubScript script = 3;
+        // Subscription to a token ID
+        WsSubTokenId token_id = 4;
     }
 }
 
@@ -300,7 +431,7 @@ message WsSub {
 // disconnected or finalized.
 message WsSubBlocks {}
 
-// Subscription to a script. They will be send every time a tx spending the
+// Subscription to a script. They will be sent every time a tx spending the
 // given script or sending to the given script has been added to/removed from
 // the mempool, or confirmed in a block.
 message WsSubScript {
@@ -311,6 +442,13 @@ message WsSubScript {
     // - 33-byte or 65-byte pubkey for "p2pk"
     // - Serialized script for "other"
     bytes payload = 2;
+}
+
+// Subscription to a token ID. They will be sent every time a tx spending or
+// sending tokens with the token ID.
+message WsSubTokenId {
+    // Hex token ID to subscribe to.
+    string token_id = 1;
 }
 
 // Message coming from the WebSocket
@@ -365,6 +503,9 @@ enum TxMsgType {
     // Tx finalized by Avalanche
     TX_FINALIZED = 3;
 }
+
+// Empty msg without any data
+message Empty {}
 
 // Error message returned from our APIs.
 message Error {
