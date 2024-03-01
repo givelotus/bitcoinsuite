@@ -1,11 +1,16 @@
-use bitcoinsuite_chronik_client::{proto, ChronikClient, ChronikClientError, ScriptType};
+use std::collections::HashMap;
+
+use bitcoinsuite_chronik_client::{
+    proto::{self, token_type},
+    ChronikClient, ChronikClientError, ScriptType,
+};
 use bitcoinsuite_core::{Hashed, Sha256d};
 use bitcoinsuite_error::Result;
 
 use pretty_assertions::assert_eq;
 use reqwest::StatusCode;
 
-const CHRONIK_URL: &str = "https://chronik.be.cash/xec2";
+const CHRONIK_URL: &str = "https://chronik.pay2stay.com/xec";
 const GENESIS_PK_HEX: &str = "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb6\
                               49f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f";
 
@@ -28,6 +33,15 @@ pub async fn test_broadcast_tx() -> Result<()> {
             error_msg: error_msg.to_string(),
         },
     );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore]
+pub async fn test_plugin() -> Result<()> {
+    let client = ChronikClient::new(CHRONIK_URL.to_string())?;
+    let response = client.plugin("exch_demo", &[0]).history(0).await?;
+    assert_eq!(response.txs.len(), 0);
     Ok(())
 }
 
@@ -180,16 +194,17 @@ pub async fn test_tx() -> Result<()> {
             )?,
             value: 5_000_000_000,
             sequence_no: 0xffffffff,
-            slp: None,
+            token: None,
+            plugins: HashMap::new(),
         }],
         outputs: vec![
             proto::TxOutput {
                 value: 1_000_000_000,
                 output_script: hex::decode(
                     "4104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab373\
-                     97f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac"
+                     97f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac",
                 )?,
-                slp: None,
+                token: None,
                 spent_by: Some(proto::SpentBy {
                     txid: Sha256d::from_hex_be(
                         "ea44e97271691990157559d0bdd9959e02790c34db6c006d779e82fa5aee708e",
@@ -198,13 +213,15 @@ pub async fn test_tx() -> Result<()> {
                     .to_vec(),
                     input_idx: 0,
                 }),
+                plugins: HashMap::new(),
             },
             proto::TxOutput {
                 value: 4_000_000_000,
                 output_script: hex::decode(
                     "410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eadd\
-                     fb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac")?,
-                slp: None,
+                     fb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac",
+                )?,
+                token: None,
                 spent_by: Some(proto::SpentBy {
                     txid: Sha256d::from_hex_be(
                         "a16f3ce4dd5deb92d98ef5cf8afeaf0775ebca408f708b2146c4fb42b41e14be",
@@ -213,13 +230,13 @@ pub async fn test_tx() -> Result<()> {
                     .to_vec(),
                     input_idx: 0,
                 }),
+                plugins: HashMap::new(),
             },
         ],
         lock_time: 0,
-        slp_burns: vec![],
-        slp_errors: vec![],
-        slpv1_data: None,
-        slpv2_sections: vec![],
+        token_entries: vec![],
+        token_failed_parsings: vec![],
+        token_status: proto::TokenStatus::NonToken as _,
         block: Some(proto::BlockMetadata {
             height: 170,
             hash: block_hash.as_slice().to_vec(),
@@ -263,18 +280,22 @@ pub async fn test_slpv1_token() -> Result<()> {
     assert_eq!(
         token,
         proto::TokenInfo {
-            token_id: token_id.to_vec_be(),
-            token_protocol: proto::TokenProtocol::Slpv1 as _,
-            slpv1_token_type: proto::Slpv1TokenType::Fungible as _,
-            slpv1_genesis_info: Some(proto::Slpv1GenesisInfo {
+            token_id: token_id.to_string(),
+            token_type: Some(proto::TokenType {
+                token_type: Some(token_type::TokenType::Slp(
+                    proto::SlpTokenType::Fungible as _
+                ))
+            }),
+            genesis_info: Some(proto::GenesisInfo {
                 token_ticker: b"USDR".to_vec(),
                 token_name: b"RaiUSD".to_vec(),
-                token_document_url: b"https://www.raiusd.co/etoken".to_vec(),
-                token_document_hash: vec![],
+                mint_vault_scripthash: vec![],
+                url: b"https://www.raiusd.co/etoken".to_vec(),
+                hash: vec![],
+                data: vec![],
+                auth_pubkey: vec![],
                 decimals: 4,
             }),
-            slpv2_token_type: Default::default(),
-            slpv2_genesis_info: None,
             block: Some(proto::BlockMetadata {
                 hash: block_hash.as_slice().to_vec(),
                 height: 697721,
@@ -298,15 +319,18 @@ pub async fn test_slpv2_token() -> Result<()> {
     assert_eq!(
         token,
         proto::TokenInfo {
-            token_id: token_id.as_slice().to_vec(),
-            token_protocol: proto::TokenProtocol::Slpv2 as _,
-            slpv1_token_type: Default::default(),
-            slpv1_genesis_info: None,
-            slpv2_token_type: proto::Slpv2TokenType::Standard as _,
-            slpv2_genesis_info: Some(proto::Slpv2GenesisInfo {
+            token_id: token_id.to_string(),
+            token_type: Some(proto::TokenType {
+                token_type: Some(token_type::TokenType::Alp(
+                    proto::AlpTokenType::Standard as _
+                ))
+            }),
+            genesis_info: Some(proto::GenesisInfo {
                 token_ticker: b"CRD".to_vec(),
                 token_name: b"Credo In Unum Deo".to_vec(),
+                mint_vault_scripthash: vec![],
                 url: b"https://crd.network/token".to_vec(),
+                hash: vec![],
                 data: vec![],
                 auth_pubkey: hex::decode(
                     "0334b744e6338ad438c92900c0ed1869c3fd2c0f35a4a9b97a88447b6e2b145f10"

@@ -34,6 +34,13 @@ pub struct ScriptEndpoint<'payload, 'client> {
     client: &'client ChronikClient,
 }
 
+#[derive(Debug, Clone)]
+pub struct PluginEndpoint<'payload, 'client> {
+    plugin_name: &'payload str,
+    payload: &'payload [u8],
+    client: &'client ChronikClient,
+}
+
 #[derive(Debug, Error, ErrorMeta, PartialEq)]
 pub enum ChronikClientError {
     #[critical()]
@@ -92,7 +99,10 @@ impl ChronikClient {
     }
 
     pub async fn broadcast_tx(&self, raw_tx: Vec<u8>) -> Result<proto::BroadcastTxResponse> {
-        let request = proto::BroadcastTxRequest { raw_tx };
+        let request = proto::BroadcastTxRequest {
+            raw_tx,
+            skip_token_checks: false,
+        };
         self._post("/broadcast-tx", &request).await
     }
 
@@ -100,7 +110,10 @@ impl ChronikClient {
         &self,
         raw_txs: Vec<Vec<u8>>,
     ) -> Result<proto::BroadcastTxsResponse> {
-        let request = proto::BroadcastTxsRequest { raw_txs };
+        let request = proto::BroadcastTxsRequest {
+            raw_txs,
+            skip_token_checks: false,
+        };
         self._post("/broadcast-txs", &request).await
     }
 
@@ -144,7 +157,7 @@ impl ChronikClient {
     }
 
     pub async fn token(&self, token_id: &Sha256d) -> Result<proto::TokenInfo> {
-        self._get(&format!("/token-info/{}", token_id)).await
+        self._get(&format!("/token/{}", token_id)).await
     }
 
     pub fn script<'payload, 'client>(
@@ -155,6 +168,18 @@ impl ChronikClient {
         ScriptEndpoint {
             script_type,
             script_payload,
+            client: self,
+        }
+    }
+
+    pub fn plugin<'payload, 'client>(
+        &'client self,
+        plugin_name: &'payload str,
+        payload: &'payload [u8],
+    ) -> PluginEndpoint<'payload, 'client> {
+        PluginEndpoint {
+            plugin_name,
+            payload,
             client: self,
         }
     }
@@ -269,6 +294,69 @@ impl ScriptEndpoint<'_, '_> {
                 "/script/{}/{}/utxos",
                 self.script_type,
                 hex::encode(self.script_payload),
+            ))
+            .await?;
+        Ok(utxos.utxos)
+    }
+}
+
+impl PluginEndpoint<'_, '_> {
+    pub async fn history_with_page_size(
+        &self,
+        page: usize,
+        page_size: usize,
+    ) -> Result<proto::TxHistoryPage> {
+        self.client
+            ._get(&format!(
+                "/plugin/{}/{}/history?page={}&page_size={}",
+                self.plugin_name,
+                hex::encode(self.payload),
+                page,
+                page_size,
+            ))
+            .await
+    }
+
+    pub async fn history(&self, page: usize) -> Result<proto::TxHistoryPage> {
+        self.client
+            ._get(&format!(
+                "/plugin/{}/{}/history?page={}",
+                self.plugin_name,
+                hex::encode(self.payload),
+                page,
+            ))
+            .await
+    }
+
+    pub async fn confirmed_txs(&self, page: usize) -> Result<proto::TxHistoryPage> {
+        self.client
+            ._get(&format!(
+                "/plugin/{}/{}/confirmed-txs?page={}",
+                self.plugin_name,
+                hex::encode(self.payload),
+                page,
+            ))
+            .await
+    }
+
+    pub async fn unconfirmed_txs(&self, page: usize) -> Result<proto::TxHistoryPage> {
+        self.client
+            ._get(&format!(
+                "/plugin/{}/{}/unconfirmed-txs?page={}",
+                self.plugin_name,
+                hex::encode(self.payload),
+                page,
+            ))
+            .await
+    }
+
+    pub async fn utxos(&self) -> Result<Vec<proto::ScriptUtxo>> {
+        let utxos = self
+            .client
+            ._get::<proto::ScriptUtxos>(&format!(
+                "/plugin/{}/{}/utxos",
+                self.plugin_name,
+                hex::encode(self.payload),
             ))
             .await?;
         Ok(utxos.utxos)
