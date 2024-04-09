@@ -152,6 +152,50 @@ impl ChronikClient {
             .into())
     }
 
+    pub async fn block_txs_by_height(
+        &self,
+        height: i32,
+        page: usize,
+    ) -> Result<proto::TxHistoryPage> {
+        self._get(&format!("/block-txs/{}?page={}", height, page))
+            .await
+    }
+
+    pub async fn block_txs_by_height_with_page_size(
+        &self,
+        height: i32,
+        page: usize,
+        page_size: usize,
+    ) -> Result<proto::TxHistoryPage> {
+        self._get(&format!(
+            "/block-txs/{}?page={}&page_size={}",
+            height, page, page_size
+        ))
+        .await
+    }
+
+    pub async fn block_txs_by_hash(
+        &self,
+        hash: &Sha256d,
+        page: usize,
+    ) -> Result<proto::TxHistoryPage> {
+        self._get(&format!("/block-txs/{}?page={}", hash, page))
+            .await
+    }
+
+    pub async fn block_txs_by_hash_with_page_size(
+        &self,
+        hash: &Sha256d,
+        page: usize,
+        page_size: usize,
+    ) -> Result<proto::TxHistoryPage> {
+        self._get(&format!(
+            "/block-txs/{}?page={}&page_size={}",
+            hash, page, page_size
+        ))
+        .await
+    }
+
     pub async fn validate_tx(&self, raw_tx: Vec<u8>) -> Result<proto::Tx> {
         self._post("/validate-tx", &proto::RawTx { raw_tx }).await
     }

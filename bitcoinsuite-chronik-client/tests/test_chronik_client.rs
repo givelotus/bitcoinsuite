@@ -270,6 +270,50 @@ pub async fn test_raw_tx() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+pub async fn test_block_txs() -> Result<()> {
+    let client = ChronikClient::new(CHRONIK_URL.to_string())?;
+    let block_hash =
+        Sha256d::from_hex_be("00000000000053807791091d70e691abff37fc4f8196df306ade8fd8fc40b9e8")?;
+    let block_height: i32 = 122740;
+    let block_txs_by_hash = client.block_txs_by_hash(&block_hash, 0).await?;
+    let block_txs_by_height = client.block_txs_by_height(block_height, 0).await?;
+    assert_eq!(block_txs_by_hash, block_txs_by_height);
+
+    let num_txs_in_block: u32 = block_txs_by_hash.num_txs;
+    assert_eq!(block_txs_by_hash.num_txs, 64);
+
+    let num_txs_in_page: u32 = block_txs_by_hash.txs.len().try_into().unwrap();
+    assert_eq!(
+        block_txs_by_hash.num_pages,
+        num_txs_in_block / num_txs_in_page + 1
+    );
+
+    // Same page size gives the same result
+    let page_size: usize = num_txs_in_page.try_into().unwrap();
+    let block_txs_by_hash_with_page_size = client
+        .block_txs_by_hash_with_page_size(&block_hash, 0, page_size)
+        .await?;
+    let block_txs_by_height_with_page_size = client
+        .block_txs_by_height_with_page_size(block_height, 0, page_size)
+        .await?;
+
+    assert_eq!(
+        block_txs_by_hash_with_page_size,
+        block_txs_by_height_with_page_size
+    );
+    assert_eq!(block_txs_by_hash_with_page_size, block_txs_by_hash);
+
+    let block_txs_by_hash_with_max_page_size = client
+        .block_txs_by_hash_with_page_size(&block_hash, 0, 64)
+        .await?;
+    assert_eq!(block_txs_by_hash_with_max_page_size.num_pages, 1);
+    assert_eq!(block_txs_by_hash_with_max_page_size.num_txs, 64);
+    assert_eq!(block_txs_by_hash_with_max_page_size.txs.len(), 64);
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 pub async fn test_slpv1_token() -> Result<()> {
     let client = ChronikClient::new(CHRONIK_URL.to_string())?;
     let token_id =
