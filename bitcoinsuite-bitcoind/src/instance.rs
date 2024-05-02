@@ -277,6 +277,15 @@ rpcport={rpc_port}
         Err(BitcoindError::Timeout("bitcoind".into()).into())
     }
 
+    pub fn terminate(&mut self) -> Result<()> {
+        let exit_code = Command::new("kill")
+            .args(["-s", "TERM", &self.bitcoind_child.id().to_string()])
+            .spawn()?
+            .wait()?;
+        self.bitcoind_child.wait()?;
+        Ok(())
+    }
+
     pub fn cleanup(&self) -> Result<()> {
         std::fs::remove_dir_all(&self.instance_dir).wrap_err(BitcoindError::TestInstance)
     }
