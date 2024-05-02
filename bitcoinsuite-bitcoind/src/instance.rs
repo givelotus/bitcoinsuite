@@ -282,7 +282,6 @@ rpcport={rpc_port}
             .args(["-s", "TERM", &self.bitcoind_child.id().to_string()])
             .spawn()?
             .wait()?;
-        println!("exit_code = {exit_code}");
         self.bitcoind_child.wait()?;
         Ok(())
     }
