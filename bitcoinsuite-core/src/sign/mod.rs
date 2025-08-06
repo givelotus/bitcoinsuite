@@ -1,4 +1,4 @@
-pub mod error;
+mod error;
 mod sign_data;
 mod signatory;
 mod tx_builder;

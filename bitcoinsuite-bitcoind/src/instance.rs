@@ -1,7 +1,7 @@
 use std::{
     ffi::OsString,
     fs::File,
-    io::{Read, Write, BufRead},
+    io::{BufRead, Read, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Output},
     str::FromStr,
@@ -278,7 +278,7 @@ rpcport={rpc_port}
     }
 
     pub fn terminate(&mut self) -> Result<()> {
-        let exit_code = Command::new("kill")
+        Command::new("kill")
             .args(["-s", "TERM", &self.bitcoind_child.id().to_string()])
             .spawn()?
             .wait()?;
