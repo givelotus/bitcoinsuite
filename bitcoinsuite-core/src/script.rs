@@ -60,7 +60,7 @@ impl Script {
 
     pub fn opreturn(data: &[&[u8]]) -> Self {
         let mut bytes = BytesMut::new();
-        bytes.put_slice(&[OP_RETURN as u8]);
+        bytes.put_slice(&[OP_RETURN]);
         for &item in data {
             if item.is_empty() {
                 bytes.put_slice(&[OP_PUSHDATA1, 0]);
@@ -312,7 +312,7 @@ mod tests {
         for i in 0..100 {
             match script.cut_out_codesep(Some(i)) {
                 Err(BitcoinSuiteError::CodesepNotFound(pos)) => assert_eq!(pos, i),
-                other => panic!("Unexpected result: {:?}", other),
+                other => panic!("Unexpected result: {other:?}"),
             }
         }
         Ok(())
@@ -368,7 +368,7 @@ mod tests {
         assert_eq!(script.cut_out_codesep(Some(4))?, Script::from_slice(&[]));
         match script.cut_out_codesep(Some(5)) {
             Err(BitcoinSuiteError::CodesepNotFound(5)) => {}
-            other => panic!("Unexpected result: {:?}", other),
+            other => panic!("Unexpected result: {other:?}"),
         }
         Ok(())
     }

@@ -31,7 +31,7 @@ async fn test_txs() -> Result<(), Box<dyn std::error::Error>> {
     let txid_hex = bitcoind.cmd_string("sendrawtransaction", &[&p2pkh_send_tx.ser().hex()])?;
     let txid = Sha256d::from_hex_be(&txid_hex)?;
 
-    let sig_hash_types = vec![
+    let sig_hash_types = [
         SigHashType::ALL_BIP143,
         SigHashType::NONE_BIP143,
         SigHashType::SINGLE_BIP143,

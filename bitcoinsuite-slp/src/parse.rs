@@ -126,7 +126,7 @@ fn parse_opreturn_ops(ops: impl Iterator<Item = Op>) -> Result<Vec<Bytes>, SlpEr
 }
 
 fn parse_lokad_id(ops: &[Op]) -> Result<(), SlpError> {
-    match ops.get(0) {
+    match ops.first() {
         Some(op) => match op {
             Op::Code(OP_RETURN) => {}
             &Op::Code(opcode) | &Op::Push(opcode, _) => {
@@ -204,7 +204,7 @@ fn parse_genesis_data(
     let mint_baton_out_idx = data_iter.next().unwrap();
     let initial_quantity = data_iter.next().unwrap();
     assert!(data_iter.next().is_none());
-    if token_document_hash.len() != 0 && token_document_hash.len() != 32 {
+    if !token_document_hash.is_empty() && token_document_hash.len() != 32 {
         return Err(SlpError::InvalidFieldSize {
             field_name: "token_document_hash",
             expected: &[0, 32],
@@ -218,7 +218,7 @@ fn parse_genesis_data(
             actual: decimals.len(),
         });
     }
-    if mint_baton_out_idx.len() != 0 && mint_baton_out_idx.len() != 1 {
+    if !mint_baton_out_idx.is_empty() && mint_baton_out_idx.len() != 1 {
         return Err(SlpError::InvalidFieldSize {
             field_name: "mint_baton_out_idx",
             expected: &[0, 1],

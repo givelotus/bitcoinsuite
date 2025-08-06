@@ -308,7 +308,7 @@ mod tests {
                 .push(TxBuilderOutput::Leftover(leftover_script));
             match tx_builder.sign(&DummyEcc, 1000, 546) {
                 Err(BitcoinSuiteError::Sign(SignError::MissingValue)) => {}
-                result => panic!("Unexpected: {:?}", result),
+                result => panic!("Unexpected: {result:?}"),
             }
         }
         {
@@ -329,7 +329,7 @@ mod tests {
                     required_fee: 68,
                     max_fee: 1,
                 })) => {}
-                result => panic!("Unexpected: {:?}", result),
+                result => panic!("Unexpected: {result:?}"),
             }
         }
         {
@@ -347,7 +347,7 @@ mod tests {
                 .push(TxBuilderOutput::Leftover(leftover_script));
             match tx_builder.sign(&DummyEcc, 1000, 546) {
                 Err(BitcoinSuiteError::Sign(SignError::MultipleLeftover)) => {}
-                result => panic!("Unexpected: {:?}", result),
+                result => panic!("Unexpected: {result:?}"),
             }
         }
         Ok(())

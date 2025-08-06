@@ -66,7 +66,7 @@ impl Display for ValueOutput {
 
 impl Display for CoinProtocolType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", format!("{:?}", self).to_ascii_lowercase())
+        write!(f, "{}", format!("{self:?}").to_ascii_lowercase())
     }
 }
 

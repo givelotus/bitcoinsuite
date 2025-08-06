@@ -38,7 +38,7 @@ pub trait ErrorFmt {
 
 impl ErrorFmt for eyre::Report {
     fn fmt_err(&self) -> String {
-        format!("{:#}", self)
+        format!("{self:#}")
     }
 }
 
@@ -48,7 +48,7 @@ pub fn report_to_details(
 ) -> ErrorDetails {
     let short_msg = report.to_string();
     let msg = report.fmt_err();
-    let full_debug_report = format!("{:?}", report);
+    let full_debug_report = format!("{report:?}");
     let meta = detail_func(report);
     match meta {
         Some(meta) => ErrorDetails {

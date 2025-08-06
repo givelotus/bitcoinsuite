@@ -22,10 +22,7 @@ pub fn read_compact_size_slice(slice: &[u8]) -> Option<(usize, u64)> {
             4,
             u32::from_le_bytes(slice.get(1..5)?.try_into().unwrap()) as u64,
         )),
-        0xff => Some((
-            8,
-            u64::from_le_bytes(slice.get(1..9)?.try_into().unwrap()) as u64,
-        )),
+        0xff => Some((8, u64::from_le_bytes(slice.get(1..9)?.try_into().unwrap()))),
     }
 }
 

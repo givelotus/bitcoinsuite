@@ -417,7 +417,7 @@ mod tests {
         {
             match input.sighash_preimage(SigHashType::ALL_BIP143, Some(2)) {
                 Err(SignError::CodesepNotFound(2)) => {}
-                result => panic!("Unexpected: {:?}", result),
+                result => panic!("Unexpected: {result:?}"),
             }
         }
         Ok(())

@@ -46,7 +46,7 @@ impl Eq for Bytes {}
 
 impl PartialOrd for Bytes {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.data.partial_cmp(&other.data)
+        Some(self.data.cmp(&other.data))
     }
 }
 

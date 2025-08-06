@@ -6,14 +6,14 @@ use crate::{
 /// Amount compression:
 /// * If the amount is 0, output 0
 /// * first, divide the amount (in base units) by the largest power of 10
-/// possible; call the exponent e (e is max 9)
+///   possible; call the exponent e (e is max 9)
 /// * if e<9, the last digit of the resulting number cannot be 0; store it as d,
-/// and drop it (divide by 10)
+///   and drop it (divide by 10)
 ///   * call the result n
 ///   * output 1 + 10*(9*n + d - 1) + e
-/// * if e==9, we only know the resulting number is not zero, so output 1 + 10*(n
-/// - 1) + 9
-/// (this is decodable, as d is in [1-9] and e is in [0-9])
+/// * if e==9, we only know the resulting number is not zero, so output
+///   1 + 10*(n - 1) + 9.
+///   (this is decodable, as d is in [1-9] and e is in [0-9])
 pub fn compress_amount(mut amount: u64) -> u64 {
     if amount == 0 {
         return 0;
@@ -82,14 +82,14 @@ pub fn read_var_int(bytes: &mut Bytes) -> Result<u64, BitcoinSuiteError> {
     let mut n = 0u64;
     loop {
         let ch_data = bytes.split_to_array::<1>()?[0];
-        if n > (std::u64::MAX >> 7) {
+        if n > (u64::MAX >> 7) {
             return Err(BitcoinSuiteError::InvalidVarInt);
         }
         n = (n << 7) | (ch_data & 0x7F) as u64;
         if (ch_data & 0x80) == 0 {
             return Ok(n);
         }
-        if n == std::u64::MAX {
+        if n == u64::MAX {
             return Err(BitcoinSuiteError::InvalidVarInt);
         }
         n += 1;

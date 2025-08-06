@@ -40,7 +40,7 @@ pub fn validate_slp_tx(
             }
             if parse_data.slp_token_type == SlpTokenType::Nft1Child {
                 let spent_output = spent_outputs
-                    .get(0)
+                    .first()
                     .and_then(|x| x.as_ref())
                     .ok_or(SlpError::HasNoNft1Group)?;
                 if spent_output.token_type != SlpTokenType::Nft1Group
@@ -204,8 +204,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        validate_slp_tx, SlpAmount, SlpBurn, SlpError, SlpGenesisInfo, SlpParseData,
-        SlpSpentOutput, SlpToken, SlpTokenType, SlpTxData, SlpTxType, SlpValidTxData, TokenId,
+        validate_slp_tx, SlpAmount, SlpBurn, SlpError, SlpParseData, SlpSpentOutput, SlpToken,
+        SlpTokenType, SlpTxData, SlpTxType, SlpValidTxData, TokenId,
     };
 
     #[test]
@@ -216,7 +216,7 @@ mod tests {
                 SlpParseData {
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Nft1Child,
-                    slp_tx_type: SlpTxType::Genesis(Box::new(SlpGenesisInfo::default())),
+                    slp_tx_type: SlpTxType::Genesis(Box::default()),
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                 },
                 &[None],
@@ -229,7 +229,7 @@ mod tests {
                 SlpParseData {
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Nft1Child,
-                    slp_tx_type: SlpTxType::Genesis(Box::new(SlpGenesisInfo::default())),
+                    slp_tx_type: SlpTxType::Genesis(Box::default()),
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                 },
                 &[Some(&SlpSpentOutput {
@@ -247,7 +247,7 @@ mod tests {
                 SlpParseData {
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Nft1Child,
-                    slp_tx_type: SlpTxType::Genesis(Box::new(SlpGenesisInfo::default())),
+                    slp_tx_type: SlpTxType::Genesis(Box::default()),
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                 },
                 &[Some(&SlpSpentOutput {
@@ -265,7 +265,7 @@ mod tests {
                 SlpParseData {
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Nft1Child,
-                    slp_tx_type: SlpTxType::Genesis(Box::new(SlpGenesisInfo::default())),
+                    slp_tx_type: SlpTxType::Genesis(Box::default()),
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                 },
                 &[Some(&SlpSpentOutput {
@@ -283,7 +283,7 @@ mod tests {
                 SlpParseData {
                     output_tokens: vec![],
                     slp_token_type: SlpTokenType::Nft1Child,
-                    slp_tx_type: SlpTxType::Genesis(Box::new(SlpGenesisInfo::default())),
+                    slp_tx_type: SlpTxType::Genesis(Box::default()),
                     token_id: TokenId::new(Sha256d::new([4; 32])),
                 },
                 &[

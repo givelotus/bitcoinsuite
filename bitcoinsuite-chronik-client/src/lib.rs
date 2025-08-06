@@ -122,11 +122,11 @@ impl ChronikClient {
     }
 
     pub async fn block_by_height(&self, height: i32) -> Result<proto::Block> {
-        self._get(&format!("/block/{}", height)).await
+        self._get(&format!("/block/{height}")).await
     }
 
     pub async fn block_by_hash(&self, hash: &Sha256d) -> Result<proto::Block> {
-        self._get(&format!("/block/{}", hash)).await
+        self._get(&format!("/block/{hash}")).await
     }
 
     pub async fn blocks(
@@ -135,18 +135,18 @@ impl ChronikClient {
         end_height: i32,
     ) -> Result<Vec<proto::BlockInfo>> {
         let blocks: proto::Blocks = self
-            ._get(&format!("/blocks/{}/{}", start_height, end_height))
+            ._get(&format!("/blocks/{start_height}/{end_height}"))
             .await?;
         Ok(blocks.blocks)
     }
 
     pub async fn tx(&self, txid: &Sha256d) -> Result<proto::Tx> {
-        self._get(&format!("/tx/{}", txid)).await
+        self._get(&format!("/tx/{txid}")).await
     }
 
     pub async fn raw_tx(&self, txid: &Sha256d) -> Result<Bytes> {
         Ok(self
-            ._get::<proto::RawTx>(&format!("/raw-tx/{}", txid))
+            ._get::<proto::RawTx>(&format!("/raw-tx/{txid}"))
             .await?
             .raw_tx
             .into())
@@ -157,8 +157,7 @@ impl ChronikClient {
         height: i32,
         page: usize,
     ) -> Result<proto::TxHistoryPage> {
-        self._get(&format!("/block-txs/{}?page={}", height, page))
-            .await
+        self._get(&format!("/block-txs/{height}?page={page}")).await
     }
 
     pub async fn block_txs_by_height_with_page_size(
@@ -168,8 +167,7 @@ impl ChronikClient {
         page_size: usize,
     ) -> Result<proto::TxHistoryPage> {
         self._get(&format!(
-            "/block-txs/{}?page={}&page_size={}",
-            height, page, page_size
+            "/block-txs/{height}?page={page}&page_size={page_size}"
         ))
         .await
     }
@@ -179,8 +177,7 @@ impl ChronikClient {
         hash: &Sha256d,
         page: usize,
     ) -> Result<proto::TxHistoryPage> {
-        self._get(&format!("/block-txs/{}?page={}", hash, page))
-            .await
+        self._get(&format!("/block-txs/{hash}?page={page}")).await
     }
 
     pub async fn block_txs_by_hash_with_page_size(
@@ -190,8 +187,7 @@ impl ChronikClient {
         page_size: usize,
     ) -> Result<proto::TxHistoryPage> {
         self._get(&format!(
-            "/block-txs/{}?page={}&page_size={}",
-            hash, page, page_size
+            "/block-txs/{hash}?page={page}&page_size={page_size}"
         ))
         .await
     }
@@ -201,7 +197,7 @@ impl ChronikClient {
     }
 
     pub async fn token(&self, token_id: &Sha256d) -> Result<proto::TokenInfo> {
-        self._get(&format!("/token/{}", token_id)).await
+        self._get(&format!("/token/{token_id}")).await
     }
 
     pub fn script<'payload, 'client>(
@@ -417,7 +413,7 @@ impl Display for ScriptType {
             ScriptType::P2trCommitment => "p2tr-commitment",
             ScriptType::P2trState => "p2tr-state",
         };
-        write!(f, "{}", text)?;
+        write!(f, "{text}")?;
         Ok(())
     }
 }

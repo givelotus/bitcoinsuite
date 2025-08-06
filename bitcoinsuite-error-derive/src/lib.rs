@@ -37,7 +37,7 @@ fn parse_string_lit(lit: &syn::Lit) -> Result<String, syn::Error> {
     };
     Err(syn::Error::new(
         lit.span(),
-        format!("Invalid attribute, expected string but got {}", got),
+        format!("Invalid attribute, expected string but got {got}"),
     ))
 }
 
@@ -77,7 +77,7 @@ fn generate(item_struct: syn::ItemEnum) -> Result<TokenStream, syn::Error> {
                             if tags.contains_key(&field_str) {
                                 return Err(syn::Error::new(
                                     attr.span(),
-                                    format!("Duplicate tag: {}", field_str),
+                                    format!("Duplicate tag: {field_str}"),
                                 ));
                             }
                             tags.insert(field_str, parse_string_lit(&name_value.lit)?);

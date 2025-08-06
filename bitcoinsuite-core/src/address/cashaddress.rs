@@ -420,7 +420,7 @@ mod tests {
             .unwrap_err();
         match err {
             CashAddressError::InvalidChecksum => {}
-            _ => panic!("Unexpected error: {}", err),
+            _ => panic!("Unexpected error: {err}"),
         }
     }
 
@@ -431,7 +431,7 @@ mod tests {
             .unwrap_err();
         match err {
             CashAddressError::MissingPrefix => {}
-            _ => panic!("Unexpected error: {}", err),
+            _ => panic!("Unexpected error: {err}"),
         }
     }
 
@@ -442,7 +442,7 @@ mod tests {
             .unwrap_err();
         match err {
             CashAddressError::InvalidAddressType(1) => {}
-            _ => panic!("Unexpected error: {}", err),
+            _ => panic!("Unexpected error: {err}"),
         }
     }
 
@@ -453,7 +453,7 @@ mod tests {
             .unwrap_err();
         match err {
             CashAddressError::InvalidPayloadLength(3) => {}
-            _ => panic!("Unexpected error: {}", err),
+            _ => panic!("Unexpected error: {err}"),
         }
     }
 

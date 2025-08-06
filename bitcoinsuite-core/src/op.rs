@@ -222,7 +222,7 @@ impl std::fmt::Display for Op {
                 _ => "[unrecognized opcode]",
             }),
             Op::Push(_, data) => {
-                if data.len() == 0 {
+                if data.is_empty() {
                     return write!(f, "\"\"");
                 }
                 if let Ok(text) = std::str::from_utf8(data) {

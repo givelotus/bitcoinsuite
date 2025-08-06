@@ -247,7 +247,7 @@ mod tests {
             "ipc://{}",
             ipc_dir.path().join("rpc.pipe").to_string_lossy()
         );
-        let rpc_arg = format!("-nngrpc={}", rpc_url);
+        let rpc_arg = format!("-nngrpc={rpc_url}");
         let conf = BitcoindConf::from_chain_regtest(
             bin_folder(),
             BitcoindChain::XPI,

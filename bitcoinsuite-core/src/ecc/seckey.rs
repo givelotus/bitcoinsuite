@@ -42,6 +42,6 @@ mod tests {
     #[test]
     fn test_format_debug_doesnt_leak() {
         let seckey = SecKey::new_unchecked([1; 32]);
-        assert_eq!(format!("{:?}", seckey), "SecKey([SECRET])");
+        assert_eq!(format!("{seckey:?}"), "SecKey([SECRET])");
     }
 }

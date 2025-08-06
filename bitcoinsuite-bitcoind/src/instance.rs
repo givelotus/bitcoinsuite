@@ -322,7 +322,7 @@ impl Drop for BitcoindInstance {
     fn drop(&mut self) {
         if let Ok(None) = self.bitcoind_child.try_wait() {
             if let Err(err) = self.shutdown_bitcoind() {
-                eprintln!("Failed to shut down bitcoind: {}", err);
+                eprintln!("Failed to shut down bitcoind: {err}");
             }
         }
     }

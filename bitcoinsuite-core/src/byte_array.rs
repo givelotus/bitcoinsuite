@@ -33,7 +33,7 @@ impl<const N: usize> ByteArray<N> {
     }
 
     pub fn hex(&self) -> String {
-        hex::encode(&self.data)
+        hex::encode(self.data)
     }
 }
 

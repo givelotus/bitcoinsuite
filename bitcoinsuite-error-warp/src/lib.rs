@@ -146,7 +146,7 @@ pub fn rejection_to_reply(
             },
         )
     } else {
-        println!("Unknown error: {:?}", err);
+        println!("Unknown error: {err:?}");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             HttpError {

@@ -126,7 +126,7 @@ impl PubInterface {
                 structs::Message::ChainStateFlushed(structs::ChainStateFlushed::from_fbs(msg)?)
             }
             _ => {
-                eprintln!("Unknown message prefix: {:?}", prefix);
+                eprintln!("Unknown message prefix: {prefix:?}");
                 return Err(InvalidPubMessage(msg).into());
             }
         })
@@ -157,7 +157,7 @@ mod tests {
             bin_folder(),
             BitcoindChain::XPI,
             vec![
-                OsString::from_str(&format!("-nngpub={}", pub_url))?,
+                OsString::from_str(&format!("-nngpub={pub_url}"))?,
                 OsString::from_str("-nngpubmsg=updateblktip")?,
             ],
         )?;
