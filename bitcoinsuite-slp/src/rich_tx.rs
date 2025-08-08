@@ -37,7 +37,7 @@ pub struct RichTxOutput<'tx> {
 }
 
 impl RichTx {
-    pub fn inputs(&self) -> impl ExactSizeIterator<Item = RichTxInput> {
+    pub fn inputs(&self) -> impl ExactSizeIterator<Item = RichTxInput<'_>> {
         (0..self.tx.inputs().len()).map(|idx| RichTxInput {
             tx_input: &self.tx.inputs()[idx],
             slp_burn: self.slp_burns[idx].as_deref(),
@@ -53,7 +53,7 @@ impl RichTx {
         })
     }
 
-    pub fn outputs(&self) -> impl ExactSizeIterator<Item = RichTxOutput> {
+    pub fn outputs(&self) -> impl ExactSizeIterator<Item = RichTxOutput<'_>> {
         (0..self.tx.outputs().len()).map(|idx| RichTxOutput {
             tx_output: &self.tx.outputs()[idx],
             slp_token: self

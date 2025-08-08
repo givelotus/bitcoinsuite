@@ -51,7 +51,7 @@ impl UnsignedTx {
         self.tx
     }
 
-    pub fn input_at(&mut self, input_idx: usize) -> UnsignedTxInput {
+    pub fn input_at(&mut self, input_idx: usize) -> UnsignedTxInput<'_> {
         UnsignedTxInput {
             idx: input_idx,
             unsigned_tx: self,

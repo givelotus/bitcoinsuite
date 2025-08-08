@@ -123,7 +123,7 @@ impl SlpTx {
         }
     }
 
-    pub fn inputs(&self) -> impl Iterator<Item = SlpTxInput> {
+    pub fn inputs(&self) -> impl Iterator<Item = SlpTxInput<'_>> {
         let input_tokens = match &self.slp_tx_data {
             Some(slp_tx_data) => slp_tx_data.input_tokens.as_slice(),
             None => &[],
@@ -135,7 +135,7 @@ impl SlpTx {
             .map(|(input, token)| SlpTxInput { input, token })
     }
 
-    pub fn outputs(&self) -> impl Iterator<Item = SlpTxOutput> {
+    pub fn outputs(&self) -> impl Iterator<Item = SlpTxOutput<'_>> {
         let output_tokens = match &self.slp_tx_data {
             Some(slp_tx_data) => slp_tx_data.output_tokens.as_slice(),
             None => &[],

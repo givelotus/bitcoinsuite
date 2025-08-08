@@ -169,7 +169,7 @@ impl Neg for SlpAmount {
 
 impl PartialOrd for SlpAmount {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.base_amount.cmp(&other.base_amount))
+        Some(self.cmp(other))
     }
 }
 
