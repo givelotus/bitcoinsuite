@@ -18,6 +18,22 @@ message Blocks {
     repeated BlockInfo blocks = 1;
 }
 
+// Header on the blockchain
+message BlockHeader {
+    // Raw data
+    bytes raw_header = 1;
+    // Merkle root
+    bytes root = 2;
+    // Merkle branch of header up to root, deepest pairing first
+    repeated bytes branch = 3;
+}
+
+// Range of headers
+message BlockHeaders {
+    // Queried headers
+    repeated BlockHeader headers = 1;
+}
+
 // Info about the state of the blockchain.
 message BlockchainInfo {
     // Hash (little-endian) of the current tip
@@ -91,6 +107,8 @@ message Tx {
     // Token status, i.e. whether this tx has any tokens or unintentional token burns
     // or something unexpected, like failed parsings etc.
     TokenStatus token_status = 15;
+    // Whether the transaction has been finalized by avalanche
+    bool is_final = 16;
 }
 
 // UTXO of a script.
@@ -102,12 +120,12 @@ message ScriptUtxo {
     // Whether the UTXO has been created in a coinbase tx.
     bool is_coinbase = 3;
     // Value of the output, in satoshis.
-    int64 value = 5;
+    int64 sats = 5;
     // Whether the UTXO has been finalized by Avalanche.
     bool is_final = 10;
     // Token value attached to this UTXO
     Token token = 11;
-    // Data attached to the UTXO by plugins
+    // Data attached to this output by plugins
     map<string, PluginEntry> plugins = 12;
 }
 
@@ -120,14 +138,14 @@ message Utxo {
     // Whether the UTXO has been created in a coinbase tx.
     bool is_coinbase = 3;
     // Value of the output, in satoshis.
-    int64 value = 4;
+    int64 sats = 4;
     // Bytecode of the script of the output
     bytes script = 5;
     // Whether the UTXO has been finalized by Avalanche.
     bool is_final = 6;
     // Token value attached to this UTXO
     Token token = 7;
-    // Data attached to the UTXO by plugins
+    // Data attached to this output by plugins
     map<string, PluginEntry> plugins = 8;
 }
 
@@ -156,19 +174,19 @@ message TxInput {
     // scriptPubKey, script of the output locking the coin.
     bytes output_script = 3;
     // value of the output being spent, in satoshis.
-    int64 value = 4;
+    int64 sats = 4;
     // nSequence of the input.
     uint32 sequence_no = 5;
     // Token value attached to this input
     Token token = 8;
-    // Data attached by plugins to the output spent by this input
+    // Data attached to this output by plugins
     map<string, PluginEntry> plugins = 9;
 }
 
 // CTxOut, creates a new coin.
 message TxOutput {
     // Value of the coin, in satoshis.
-    int64 value = 1;
+    int64 sats = 1;
     // scriptPubKey, script locking the output.
     bytes output_script = 2;
     // Which tx and input spent this output, if any.
@@ -282,11 +300,13 @@ message TokenEntry {
     string burn_summary = 6;
     // Human-readable error messages of why colorings failed
     repeated TokenFailedColoring failed_colorings = 7;
-    // Number of actually burned tokens (as decimal integer string, e.g. "2000").
-    // This is because burns can exceed the 64-bit range of values and protobuf doesn't have a nice type to encode this.
-    string actual_burn_amount = 8;
-    // Burn amount the user explicitly opted into
-    uint64 intentional_burn = 9;
+    // Number of actually burned tokens (as decimal integer 
+    // string, e.g. "2000"; in atoms aka base tokens).
+    // This is because burns can exceed the 64-bit range of 
+    // values and protobuf doesn't have a nice type to encode this.
+    string actual_burn_atoms = 8;
+    // Burn amount (in atoms aka base tokens) the user explicitly opted into
+    uint64 intentional_burn_atoms = 9;
     // Whether any mint batons have been burned of this token
     bool burns_mint_batons = 10;
 }
@@ -320,7 +340,7 @@ message Token {
     // Index into `token_entries` for `Tx`. -1 for UTXOs
     int32 entry_idx = 3;
     // Base token amount of the input/output
-    uint64 amount = 4;
+    uint64 atoms = 4;
     // Whether the token is a mint baton
     bool is_mint_baton = 5;
 }
@@ -352,6 +372,21 @@ message PluginEntry {
     repeated bytes groups = 1;
     // Data assigned to the output
     repeated bytes data = 2;
+}
+
+// Data about a plugin group
+message PluginGroup {
+    // Group bytes
+    bytes group = 1;
+}
+
+// List of plugin groups
+message PluginGroups {
+    // Groups
+    repeated PluginGroup groups = 1;
+    // Group that if specified as `start` will give us the next groups,
+    // or empty if groups have been exausted.
+    bytes next_start = 2;
 }
 
 // Page with txs
@@ -424,6 +459,12 @@ message WsSub {
         WsSubScript script = 3;
         // Subscription to a token ID
         WsSubTokenId token_id = 4;
+        // Subscription to a lokad ID
+        WsSubLokadId lokad_id = 5;
+        // Subscription to a plugin group
+        WsPlugin plugin = 6;
+        // Subscription to a txid
+        WsSubTxId txid = 7;
     }
 }
 
@@ -451,6 +492,29 @@ message WsSubTokenId {
     string token_id = 1;
 }
 
+// Subscription to a LOKAD ID. They will be sent every time a tx matches the given LOKAD ID in one of the following ways:
+// - `OP_RETURN <LOKAD ID> ...`: The first output has an OP_RETURN with the given LOKAD ID as first pushop
+// - `OP_RETURN OP_RESERVED "<LOKAD_ID>..." "<LOKAD_ID>..." ...`: The first output has an eMPP encoded OP_RETURN, and one (or more) of the pushops has the LOKAD ID as prefix.
+// - `<LOKAD ID> ...`: An input's scriptSig has the given LOKAD ID as the first pushop
+message WsSubLokadId {
+    // 4-byte LOKAD ID.
+    bytes lokad_id = 1;
+}
+
+// Subscription to a group assigned by a plugin to outputs.
+message WsPlugin {
+    // Name of the plugin to subscribe to
+    string plugin_name = 1;
+    // Group assigned by the plugin to subscribe to
+    bytes group = 2;
+}
+
+// Subscription to a txid. They will be sent every time a tx status confirmation changes.
+message WsSubTxId {
+    // Hex txid to subscribe to.
+    string txid = 1;
+}
+
 // Message coming from the WebSocket
 message WsMsg {
     // Kind of message
@@ -464,7 +528,15 @@ message WsMsg {
     }
 }
 
-// Block got connected, disconnected, finalized, etc.
+// The relevant coinbase data
+message CoinbaseData {
+    // The coinbase input scriptsig
+    bytes coinbase_scriptsig = 1;
+    // Outputs of the coinbase tx
+    repeated TxOutput coinbase_outputs = 2;
+}
+
+// Block got connected, disconnected, finalized, invalidated, etc.
 message MsgBlock {
     // What happened to the block
     BlockMsgType msg_type = 1;
@@ -472,6 +544,11 @@ message MsgBlock {
     bytes block_hash = 2;
     // Height of the block
     int32 block_height = 3;
+    // Timestamp field of the block
+    int64 block_timestamp = 4;
+    // The coinbase data, only available if the block is disconnected or
+    // invalidated
+    CoinbaseData coinbase_data = 5;
 }
 
 // Type of message for the block
@@ -482,6 +559,22 @@ enum BlockMsgType {
     BLK_DISCONNECTED = 1;
     // Block has been finalized by Avalanche
     BLK_FINALIZED = 2;
+    // Block has been invalidated by Avalanche
+    BLK_INVALIDATED = 3;
+}
+
+// Type of tx finalization
+enum TxFinalizationReasonType {
+    // The transaction is finalized by post-consensus
+    TX_FINALIZATION_REASON_POST_CONSENSUS = 0;
+    // The transaction is finalized by pre-consensus
+    TX_FINALIZATION_REASON_PRE_CONSENSUS = 1;
+}
+
+// The reason that caused a tx to finalize
+message TxFinalizationReason {
+    // What kind of finalization occured
+    TxFinalizationReasonType finalization_type = 1;
 }
 
 // Tx got added to/removed from mempool, or confirmed in a block, etc.
@@ -490,6 +583,9 @@ message MsgTx {
     TxMsgType msg_type = 1;
     // Txid of the tx (little-endian)
     bytes txid = 2;
+    // If the transaction is finalized, whether it's from pre-consensus or
+    // post-consensus
+    TxFinalizationReason finalization_reason = 3;
 }
 
 // Type of message for a tx
@@ -502,6 +598,8 @@ enum TxMsgType {
     TX_CONFIRMED = 2;
     // Tx finalized by Avalanche
     TX_FINALIZED = 3;
+    // Tx invalidated by Avalanche
+    TX_INVALIDATED = 4;
 }
 
 // Empty msg without any data
