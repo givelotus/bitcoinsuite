@@ -41,13 +41,11 @@ impl TxBuilder {
     fn input_sum(&self) -> Option<i64> {
         let mut input_sum = 0;
         for builder_input in &self.inputs {
-            match &builder_input.input.sign_data {
-                Some(sign_data) => match sign_data.find_value() {
-                    Ok(value) => input_sum += value,
-                    Err(SignError::MissingValue) => return None,
-                    _ => unreachable!(),
-                },
-                None => return None,
+            let sign_data = builder_input.input.sign_data.as_ref()?;
+            match sign_data.find_value() {
+                Ok(value) => input_sum += value,
+                Err(SignError::MissingValue) => return None,
+                _ => unreachable!(),
             }
         }
         Some(input_sum)
