@@ -29,7 +29,7 @@ pub fn get_merkle_root_and_height<H: Hashed + Clone>(
             }
         }
         let mut next_layer = Vec::new();
-        for pair in leaves.chunks_exact(2) {
+        for pair in leaves.as_chunks::<2>().0 {
             let mut bytes = BytesMut::new();
             bytes.put_slice(pair[0].as_slice());
             bytes.put_slice(pair[1].as_slice());
